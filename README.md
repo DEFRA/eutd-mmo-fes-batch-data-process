@@ -1,0 +1,24 @@
+# Introduction 
+TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+
+# Getting Started
+TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
+1.	Installation process
+2.	Software dependencies
+3.	Latest releases
+4.	API references
+
+# Build and Test
+TODO: Describe and show how to build your code and run the tests. 
+
+# Contribute
+TODO: Explain how other users and developers can contribute to make your code better. 
+
+# Things to Consider
+* This repository should use Trunk Based Development as a branching strategy.
+* <img
+    src="docs/images/trunk-based-development.png"
+    alt="Branching Strategy"
+    title="Trunk-Based-Development"
+    style="display: inline-block; margin: 0 auto; max-width: 350px">
+* If you won't call your branch as per agreed branching `standards`, the Azure pipeline won't start or may fail.

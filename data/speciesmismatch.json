@@ -1,0 +1,102 @@
+[
+  {
+    "speciesName": "Monkfish",
+    "speciesCode": "MON",
+    "speciesAlias": ["ANF"]
+  },
+  {
+    "speciesName": "Anglerfish",
+    "speciesCode": "ANF",
+    "speciesAlias": ["MON"]
+  },
+  {
+    "speciesName": "Megrim",
+    "speciesCode": "MEG",
+    "speciesAlias": ["LEZ"]
+  },
+  {
+    "speciesName": "Megrim",
+    "speciesCode": "LEZ",
+    "speciesAlias": ["MEG"]
+  },
+  {
+    "speciesName": "Cuttlefish",
+    "speciesCode": "CTL",
+    "speciesAlias": ["CTC"]
+  },
+  {
+    "speciesName": "Squid",
+    "speciesCode": "SQC",
+    "speciesAlias": ["SQR","SQZ","SQI"]
+  },
+  {
+    "speciesName": "Squid",
+    "speciesCode": "SQR",
+    "speciesAlias": ["SQC","SQZ","SQI"]
+  },
+  {
+    "speciesName": "Squid",
+    "speciesCode": "SQZ",
+    "speciesAlias": ["SQC","SQR","SQI"]
+  },
+  {
+    "speciesName": "Squid",
+    "speciesCode": "SQI",
+    "speciesAlias": ["SQZ","SQR","SQC"]
+  },
+  {
+    "speciesName": "Octopus",
+    "speciesCode": "OCT",
+    "speciesAlias": ["EQI","OCC"]
+  },
+  {
+    "speciesName": "Octopus",
+    "speciesCode": "EOI",
+    "speciesAlias": ["OCT","OCC"]
+  },
+  {
+    "speciesName": "Octopus",
+    "speciesCode": "OCC",
+    "speciesAlias": ["OCT","ECI"]
+  },
+  {
+    "speciesName": "Catfish",
+    "speciesCode": "CAT",
+    "speciesAlias": ["CAA"]
+  },
+  {
+    "speciesName": "Wolffish",
+    "speciesCode": "CAA",
+    "speciesAlias": ["CAT"]
+  },
+  {
+    "speciesName": "Mullet",
+    "speciesCode": "MUT",
+    "speciesAlias": ["MUR"]
+  },
+  {
+    "speciesName": "Mullet",
+    "speciesCode": "MUR",
+    "speciesAlias": ["MUT"]
+  },
+  {
+    "speciesName": "Catshark",
+    "speciesCode": "SYC",
+    "speciesAlias": ["SYX"]
+  },
+  {
+    "speciesName": "Catshark",
+    "speciesCode": "SYX",
+    "speciesAlias": ["SYC"]
+  },
+  {
+    "speciesName": "Dogfish",
+    "speciesCode": "DGX",
+    "speciesAlias": ["DGS"]
+  },
+  {
+    "speciesName": "Dogfish",
+    "speciesCode": "DGS",
+    "speciesAlias": ["DGX"]
+  }
+]

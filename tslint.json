@@ -1,0 +1,10 @@
+{
+    "rules": {
+        "new-parens": true,
+        "no-arg": true,
+        "no-bitwise": true,
+        "no-conditional-assignment": true,
+        "no-floating-promises": true
+    },
+    "jsRules": {}
+}

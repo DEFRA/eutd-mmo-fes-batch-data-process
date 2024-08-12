@@ -1,0 +1,3696 @@
+import moment from "moment";
+import * as SUT from "../../src/services/report.service";
+import * as blobStorage from "../../src/data/blob-storage";
+import * as cache from "../../src/data/cache";
+import * as shared from "mmo-shared-reference-data";
+import * as catchCerts from "../../src/persistence/catchCerts";
+import * as defraValidation from "../../src/persistence/defraValidation";
+import * as extendedValidationDataService from "../../src/persistence/extendedValidationDataService";
+import * as queryForLandings from "../../src/query/runCcQueryForLandings"
+import * as report from "../../src/services/report.service";
+import * as updater from "../../src/landings/landingsUpdater";
+import * as certificatePerstence from "../../src/persistence/catchCerts";
+import * as defraDataPersistence from "../../src/persistence/defraValidation";
+import * as dynamicsValidation from "../../src/landings/transformations/dynamicsValidation";
+import * as defraTradeValidation from "../../src/landings/transformations/defraTradeValidation";
+import * as species from "../../src/data/species";
+import * as vessel from "../../src/data/vessel";
+import { ApplicationConfig } from "../../src/config";
+import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../src/types/dynamicsValidation";
+import { CatchArea, CertificateStatus, IDefraTradeCatchCertificate } from "../../src/types/defraTradeValidation";
+import { ServiceBusMessage } from "@azure/service-bus";
+import logger from "../../src/logger";
+
+moment.suppressDeprecationWarnings = true;
+
+const { v4:uuid } = require('uuid');
+
+jest.mock('uuid');
+
+jest.mock('azure-storage', () => {
+  const original = jest.requireActual("azure-storage");
+  return {
+    ...original,
+    createBlobServiceWithSas: () => {
+      return {
+        name: 'service'
+      }
+    }
+  };
+});
+
+Date.now = jest.fn(() => 1487076708000) //14.02.2017
+
+ApplicationConfig.prototype.externalAppUrl = "http://localhost:3001";
+ApplicationConfig.prototype.azureContainer = "t1-catchcerts";
+
+describe('filterReports', () => {
+
+  let mockReportEvents;
+
+  beforeEach(() => {
+    mockReportEvents = jest.spyOn(SUT, 'reportEvents');
+    mockReportEvents.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('will not any report unprocessed events', async () => {
+    const unprocessed = [];
+
+    await SUT.filterReports(unprocessed);
+
+    expect(mockReportEvents).not.toHaveBeenCalled();
+  });
+
+  it('will all report unprocessed processing statement events', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }];
+
+    await SUT.filterReports(unprocessed);
+
+    expect(mockReportEvents).toHaveBeenCalledTimes(1);
+    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'PS');
+  });
+
+  it('will all report unprocessed storage documents events', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'StorageDocument' }];
+
+    await SUT.filterReports(unprocessed);
+
+    expect(mockReportEvents).toHaveBeenCalledTimes(1);
+    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'SD');
+  });
+
+  it('will all report unprocessed catch certificate events', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'CatchCertificate' }];
+
+    await SUT.filterReports(unprocessed);
+
+    expect(mockReportEvents).toHaveBeenCalledTimes(1);
+    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'CC');
+  });
+
+  it('will all report unprocessed events', async () => {
+    const unprocessed = [
+      { _id: '123', documentType: 'ProcessingStatement' },
+      { _id: '123', documentType: 'StorageDocument' },
+      { _id: '123', documentType: 'CatchCertificate' }
+    ];
+
+    await SUT.filterReports(unprocessed);
+    expect(mockReportEvents).toHaveBeenCalledTimes(3);
+    expect(mockReportEvents).toHaveBeenNthCalledWith(1, unprocessed.filter(_ => _.documentType === "ProcessingStatement"), 'PS');
+    expect(mockReportEvents).toHaveBeenNthCalledWith(2, unprocessed.filter(_ => _.documentType === "StorageDocument"), 'SD');
+    expect(mockReportEvents).toHaveBeenNthCalledWith(3, unprocessed.filter(_ => _.documentType === "CatchCertificate"), 'CC');
+  });
+});
+
+describe('processReports', () => {
+
+  let mockGetUnprocessed;
+  let mockSaveToBlob;
+  let mockMarkAsProcessed;
+  let mockLogError;
+  let mockLogInfo;
+
+  beforeEach(() => {
+    mockGetUnprocessed = jest.spyOn(defraValidation, 'getUnprocessedReports');
+    mockSaveToBlob = jest.spyOn(blobStorage, 'writeToBlobWithSas');
+    mockMarkAsProcessed = jest.spyOn(defraValidation, 'markAsProcessed');
+    mockLogError = jest.spyOn(logger, 'error');
+    mockLogInfo = jest.spyOn(logger, 'info');
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('will get all unprocessed reports and write them to the blob storage, per type', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
+    expect(mockGetUnprocessed).toHaveBeenCalled();
+    expect(mockSaveToBlob).toHaveBeenCalledTimes(3);
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", "[{\"_id\":\"123\",\"documentType\":\"ProcessingStatement\"}]",)
+
+
+  });
+
+  it('will mark all the reports which have been sent to the blob storage as having been processed', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockMarkAsProcessed).toHaveBeenCalledWith(['123', '456', '789']);
+  });
+
+  it('will log when the process has been started and log when it completes', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockLogInfo).toHaveBeenCalledTimes(6);
+    expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(4, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(5, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(6, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
+
+
+  });
+
+  it('will log when the process has been skipped due to no records needing to be sent to blog storage', async () => {
+    mockGetUnprocessed.mockResolvedValue([]);
+
+    await SUT.processReports();
+
+    expect(mockLogInfo).toHaveBeenCalledTimes(3);
+    expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
+  });
+
+  it('if there is no Processing Statements, it will not attempt to push to blob', async () => {
+    const unprocessed = [{ _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockGetUnprocessed).toHaveBeenCalled();
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_SD_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_CC_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+  });
+
+  it('if there is no Storage Documents, it will not attempt to push to blob', async () => {
+    const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'CatchCertificate' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockGetUnprocessed).toHaveBeenCalled();
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_CC_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+  });
+
+  it('if there is no Catch Certificates, it will not attempt to push to blob', async () => {
+    const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'StorageDocument' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockGetUnprocessed).toHaveBeenCalled();
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
+    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_SD_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+  });
+
+  it('will stop processing records and record the error if an error get thrown', async () => {
+    const error = new Error('something bad happened');
+
+    mockGetUnprocessed.mockResolvedValue([{ _id: '123', documentType: 'ProcessingStatement' }]);
+    mockSaveToBlob.mockImplementation(() => { throw error });
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockMarkAsProcessed).not.toHaveBeenCalled();
+    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 1]');
+    expect(mockLogError).toHaveBeenNthCalledWith(1, `Cannot save validation report to container t1-catchcerts ${error.stack || error}`);
+    expect(mockLogError).toHaveBeenNthCalledWith(2, `[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][ERROR]Cannot save validation report to container t1-catchcerts`);
+  });
+
+  it('should process batches until no more entries are retrieved', async () => {
+    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
+
+    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+    mockSaveToBlob.mockResolvedValue(true);
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockLogInfo).toHaveBeenCalledTimes(9);
+    expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(4, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(5, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(6, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(7, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(8, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(9, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
+  });
+
+});
+
+describe('reportNewLandings', () => {
+
+  let mockRunCcQuery;
+  let mockReportSubmitted;
+  let mockRunUpdateLandings;
+
+  const queryTime = moment.utc();
+  const landings: shared.ILanding[] = [{
+    dateTimeLanded: '2019-07-10',
+    items: [],
+    rssNumber: 'rssWA1',
+    source: shared.LandingSources.CatchRecording
+  }];
+  const ccQueryResult: shared.ICcQueryResult[] = [
+    {
+      documentNumber: 'CC1',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC1',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+
+    },
+    {
+      documentNumber: 'CC2',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+
+    },
+    {
+      documentNumber: 'CC2',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC2',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.LandingDeclaration
+        }
+      ],
+      source: shared.LandingSources.LandingDeclaration,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC3',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC3',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-11',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC4',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-11',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    }
+  ];
+
+  beforeEach(() => {
+    mockRunCcQuery = jest.spyOn(queryForLandings, 'runCcQueryForLandings');
+    mockRunCcQuery.mockResolvedValue(ccQueryResult[Symbol.iterator]());
+
+    mockReportSubmitted = jest.spyOn(report, 'reportCcSubmitted');
+    mockReportSubmitted.mockResolvedValue(null);
+
+    mockRunUpdateLandings = jest.spyOn(updater, 'runUpdateForLandings');
+    mockRunUpdateLandings.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should call runCcQueryForLandings with the landings', async () => {
+    await SUT.reportNewLandings(landings);
+
+    expect(mockRunCcQuery).toHaveBeenCalledWith(landings);
+  });
+
+  it('will group and save each certificate', async () => {
+    await SUT.reportNewLandings(landings);
+
+    expect(mockReportSubmitted).toHaveBeenCalledTimes(3);
+    expect(mockReportSubmitted).toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('will persist the new _status of each landing to mongo', async () => {
+    await SUT.reportNewLandings(landings);
+
+    expect(mockRunUpdateLandings).toHaveBeenCalledTimes(3);
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(1, [ccQueryResult[0], ccQueryResult[1]], 'CC1');
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(2, [ccQueryResult[2], ccQueryResult[3]], 'CC2');
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(3, [ccQueryResult[5]], 'CC3');
+  });
+
+});
+
+describe('reportExceeding14DaysLandings', () => {
+
+  const queryTime = moment.utc();
+  const ccQueryResult: shared.ICcQueryResult[] = [
+    {
+      documentNumber: 'CC1',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      isExceeding14DayLimit: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC1',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      isExceeding14DayLimit: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+
+    },
+    {
+      documentNumber: 'CC2',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      isExceeding14DayLimit: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+
+    },
+    {
+      documentNumber: 'CC2',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      isExceeding14DayLimit: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    },
+    {
+      documentNumber: 'CC3',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      isExceeding14DayLimit: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    }
+  ];
+
+  const certificates: any[] = [
+    [{ documentNumber: 'CC1' }],
+    [{ documentNumber: 'CC2' }],
+    [{ documentNumber: 'CC3' }]
+  ];
+  let mockReport14DayLimitReached;
+  let mockRunUpdateLandings;
+  let mockGetCatchCerts;
+
+  beforeEach(() => {
+
+    mockReport14DayLimitReached = jest.spyOn(report, 'reportCc14DayLimitReached');
+    mockReport14DayLimitReached.mockResolvedValue(null);
+
+    mockRunUpdateLandings = jest.spyOn(updater, 'runUpdateForLandings');
+    mockRunUpdateLandings.mockResolvedValue(null);
+
+    mockGetCatchCerts = jest.spyOn(catchCerts, 'getCatchCerts');
+    mockGetCatchCerts.mockResolvedValueOnce(certificates[0]);
+    mockGetCatchCerts.mockResolvedValueOnce(certificates[1]);
+    mockGetCatchCerts.mockResolvedValue(certificates[2]);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('will group and save each certificate', async () => {
+    await SUT.reportExceeding14DaysLandings(ccQueryResult);
+
+    const cc1Landings = [
+      {
+        ...ccQueryResult[0]
+      },
+      {
+        ...ccQueryResult[1]
+      }
+    ];
+
+    const cc2Landings = [
+      {
+        ...ccQueryResult[2]
+      },
+      {
+        ...ccQueryResult[3]
+      }
+    ];
+
+    const cc3Landings = [
+      {
+        ...ccQueryResult[4]
+      }
+    ];
+
+    expect(mockReport14DayLimitReached).toHaveBeenCalledTimes(3);
+    expect(mockReport14DayLimitReached).toHaveBeenNthCalledWith(1, cc1Landings);
+    expect(mockReport14DayLimitReached).toHaveBeenNthCalledWith(2, cc2Landings);
+    expect(mockReport14DayLimitReached).toHaveBeenNthCalledWith(3, cc3Landings);
+  });
+
+  it('will persist the new _status of each landing to mongo', async () => {
+    await SUT.reportExceeding14DaysLandings(ccQueryResult);
+
+    expect(mockRunUpdateLandings).toHaveBeenCalledTimes(3);
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(1, [ccQueryResult[0], ccQueryResult[1]], 'CC1');
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(2, [ccQueryResult[2], ccQueryResult[3]], 'CC2');
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(3, [ccQueryResult[4]], 'CC3');
+  });
+
+});
+
+describe('reportLandings', () => {
+
+  const queryTime = moment.utc();
+  const ccQueryResult: shared.ICcQueryResult[] = [
+    {
+      documentNumber: 'CC1',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {}
+    }
+  ];
+  const certificates: any[] = [
+    [{ documentNumber: 'CC1' }]
+  ];
+
+  let mockRunUpdateLandings: jest.SpyInstance;
+  let mockGetCatchCerts: jest.SpyInstance;
+  let mockReportSubmitted: jest.SpyInstance;
+  let mockErrorLogger: jest.SpyInstance;
+
+  afterAll(async () => {
+    jest.restoreAllMocks();
+  });
+
+  it('calls runUpdateForLandings with the right params', async () => {
+    mockRunUpdateLandings = jest.spyOn(updater, 'runUpdateForLandings');
+    mockRunUpdateLandings.mockResolvedValue(null);
+
+    mockGetCatchCerts = jest.spyOn(catchCerts, 'getCatchCerts');
+    mockGetCatchCerts.mockResolvedValueOnce(certificates[0]);
+
+    mockReportSubmitted = jest.spyOn(report, 'reportCcSubmitted');
+    mockReportSubmitted.mockResolvedValue(null);
+
+    await SUT.reportLandings(ccQueryResult, report.reportCcSubmitted);
+
+    expect(mockRunUpdateLandings).toHaveBeenCalledTimes(1);
+    expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(1, [ccQueryResult[0]], 'CC1');
+  });
+
+  it('will expose error if any errors have occurred', async () => {
+    mockErrorLogger = jest.spyOn(logger, 'error');
+    mockRunUpdateLandings = jest.spyOn(updater, 'runUpdateForLandings');
+    mockRunUpdateLandings.mockRejectedValue(new Error('something terrible has occurred'));
+
+    mockGetCatchCerts = jest.spyOn(catchCerts, 'getCatchCerts');
+    mockGetCatchCerts.mockResolvedValueOnce(certificates[0]);
+
+    mockReportSubmitted = jest.spyOn(report, 'reportCcSubmitted');
+    mockReportSubmitted.mockResolvedValue(null);
+
+    await SUT.reportLandings(ccQueryResult, report.reportCcSubmitted);
+
+    expect(mockErrorLogger).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][CC1][ERROR][Error: something terrible has occurred]');
+  });
+});
+
+describe('findNewLandings', () => {
+
+  const queryTime = moment.utc();
+  const landings: shared.ILanding[] = [{
+    dateTimeLanded: '2019-07-10',
+    items: [],
+    rssNumber: 'rssWA1',
+    source: shared.LandingSources.CatchRecording
+  }];
+
+  it('should not include landings that have not updated', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA2',
+        da: 'Guernsey',
+        dateLanded: '2019-07-11',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(0);
+  });
+
+  it('should include landings that have updated', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(1);
+  });
+
+  it('should include all landings that have updated', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      },
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(2);
+  });
+
+  it('should not include landings that have updated with dateTimeLanded', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-11T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording
+    }])).toHaveLength(0);
+  });
+
+  it('should include landings that have updated with dateTimeLanded', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {}
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording
+    }])).toHaveLength(1);
+  });
+});
+
+describe('when a CC is submitted', () => {
+
+  const dynamicsMappedData: shared.IDynamicsLandingCase[] = [{
+    status: shared.LandingStatusType.PendingLandingData,
+    id: 'rssWA12019-07-10',
+    landingDate: '2019-07-10',
+    numberOfFailedSubmissions: 0,
+    species: 'LBE',
+    is14DayLimitReached: false,
+    state: 'FRE',
+    presentation: 'SLC',
+    speciesOverriddenByAdmin: true,
+    cnCode: '1234',
+    commodityCodeDescription: 'some description',
+    scientificName: 'some scientific name',
+    vesselName: 'a name vessel',
+    vesselPln: 'WA1',
+    vesselLength: 10,
+    dataEverExpected: true,
+    vesselAdministration: 'England',
+    licenceHolder: 'VESSEL MASTER',
+    source: 'CATCH_RECORDING',
+    weight: 122,
+    numberOfTotalSubmissions: 1,
+    vesselOverriddenByAdmin: false,
+    adminSpecies: "Sand smelt (ATP)",
+    adminState: "Fresh",
+    adminPresentation: "Whole",
+    adminCommodityCode: "some commodity code",
+    validation: {
+      liveExportWeight: 121,
+      totalWeightForSpecies: undefined,
+      totalLiveForExportSpecies: 30,
+      totalEstimatedForExportSpecies: 30,
+      totalEstimatedWithTolerance: 56.1,
+      totalRecordedAgainstLanding: 200,
+      landedWeightExceededBy: 143.9,
+      rawLandingsUrl: 'a url',
+      salesNoteUrl: 'another url',
+      isLegallyDue: false
+    },
+    risking: {
+      vessel: "1",
+      speciesRisk: "1",
+      exporterRiskScore: "0.5",
+      landingRiskScore: "0.5",
+      highOrLowRisk: shared.LevelOfRiskType.Low
+    },
+    exporter: {
+      fullName: 'Bob Exporter',
+      companyName: 'Exporter Co',
+      contactId: 'a contact id',
+      accountId: 'an account id',
+      address: { line1: 'B', city: 'T', postCode: 'P' },
+      dynamicsAddress: { dynamicsData: 'original address' }
+    },
+    documentNumber: 'GBR-2020-CC-1BC924FCF',
+    documentDate: 'a date',
+    documentUrl: 'a document url',
+    _correlationId: 'some-uuid-correlation-id',
+    requestedByAdmin: false,
+    exportedTo: {
+      officialCountryName: "Nigeria",
+      isoCodeAlpha2: "NG",
+      isoCodeAlpha3: "NGA",
+      isoNumericCode: "566"
+    },
+  }];
+
+  const queryTime = moment.utc();
+  const documentNumber = 'X-CC-1';
+  const data: shared.ICcQueryResult[] = [{
+    documentNumber: documentNumber,
+    documentType: 'catchCertificate',
+    createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+    status: 'COMPLETE',
+    rssNumber: 'rssWA1',
+    da: 'Guernsey',
+    dateLanded: '2019-07-10',
+    species: 'LBE',
+    weightOnCert: 121,
+    rawWeightOnCert: 122,
+    weightOnAllCerts: 200,
+    weightOnAllCertsBefore: 0,
+    weightOnAllCertsAfter: 100,
+    weightFactor: 5,
+    isLandingExists: true,
+    hasSalesNote: false,
+    isSpeciesExists: true,
+    numberOfLandingsOnDay: 1,
+    weightOnLanding: 30,
+    weightOnLandingAllSpecies: 30,
+    landingTotalBreakdown: [
+      {
+        factor: 1,
+        isEstimate: true,
+        weight: 30,
+        liveWeight: 30,
+        source: shared.LandingSources.CatchRecording
+      }
+    ],
+    isOverusedThisCert: true,
+    isOverusedAllCerts: true,
+    isExceeding14DayLimit: false,
+    overUsedInfo: [],
+    durationSinceCertCreation: moment.duration(
+      queryTime
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+      moment.utc('2019-07-11T09:00:00.000Z')
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+      moment.utc('2019-07-11T09:00:00.000Z')
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    extended: {
+      landingId: 'rssWA12019-07-10',
+      exporterName: 'Mr Bob',
+      presentation: 'SLC',
+      presentationName: 'sliced',
+      vessel: 'DAYBREAK',
+      fao: 'FAO27',
+      pln: 'WA1',
+      species: 'Lobster',
+      state: 'FRE',
+      stateName: 'fresh',
+      commodityCode: '1234',
+      investigation: {
+        investigator: "Investigator Gadget",
+        status: shared.InvestigationStatus.Open
+      },
+      transportationVehicle: 'directLanding',
+      dataEverExpected: true,
+      landingDataExpectedDate: '1901-01-01',
+      landingDataEndDate: '2901-01-01',
+    }
+  }];
+
+  const mockVesselIdx: jest.Mock = jest.fn();
+
+  let mockGetExtendedValidationData;
+  
+  let mockInsertCcReport;
+  let mockGetCertificate;
+  let mockToCcDefraReport;
+  let mockToLandings;
+  let mockToDynamicsLandingDetails;
+  let mockGetVesselIdx;
+  let mockLogInfo;
+  let mockLogWarn;
+  let mockLogError;
+
+  beforeEach(() => {
+    mockLogInfo = jest.spyOn(logger, 'info');
+    mockGetVesselIdx = jest.spyOn(cache, 'getVesselsIdx');
+    mockGetVesselIdx.mockReturnValue(mockVesselIdx);
+    mockGetExtendedValidationData = jest.spyOn(extendedValidationDataService, 'getExtendedValidationData');
+    mockGetExtendedValidationData.mockResolvedValue(null);
+    uuid.mockImplementation(() => 'some-uuid-correlation-id');
+
+    mockInsertCcReport = jest.spyOn(defraDataPersistence, 'insertCcDefraValidationReport');
+    mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
+    mockToCcDefraReport = jest.spyOn(shared, 'toCcDefraReport');
+    mockToLandings = jest.spyOn(shared, 'toLandings');
+    mockToDynamicsLandingDetails = jest.spyOn(dynamicsValidation, 'toDynamicsLandingDetails');
+    mockLogInfo = jest.spyOn(logger, 'info');
+    mockLogWarn = jest.spyOn(logger, 'warn');
+    mockLogError = jest.spyOn(logger, 'error');
+  });
+
+  afterEach(() => {
+    mockGetExtendedValidationData.mockRestore();
+    uuid.mockRestore();
+    
+    mockInsertCcReport.mockRestore();
+    mockGetCertificate.mockRestore();
+    mockToCcDefraReport.mockRestore();
+    mockToLandings.mockRestore();
+    mockToDynamicsLandingDetails.mockRestore();
+    mockGetVesselIdx.mockRestore();
+    mockLogInfo.mockRestore();
+    mockLogWarn.mockRestore();
+    mockLogError.mockRestore();
+  });
+
+  describe('for a landing update', () => {
+
+    it('all methods required by reportCcSubmitted should be called with the correct data', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE' };
+      const getCatchCertificate = {
+        ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
+          exporterDetails: {}, products: [{
+            species: 'Atlantic Herring (HER)',
+          }]
+        }
+      };
+      const toReportResponse = { ...mockMapCcResponse, documentType: "CatchCertificate", _correlationId: 'some-uuid-correlation-id', requestedByAdmin: false };
+      const toLandingsResponse = [{
+        species: 'HER'
+      }];
+
+      mockInsertCcReport.mockResolvedValue(null);
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockReturnValue(toReportResponse);
+      mockToLandings.mockReturnValue(toLandingsResponse);
+      mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+      await SUT.reportCcSubmitted(data);
+
+      expect(mockInsertCcReport).toHaveBeenCalledWith({ ...toReportResponse, landings: toLandingsResponse });
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockToCcDefraReport).toHaveBeenCalledWith('X-CC-1', 'some-uuid-correlation-id', 'COMPLETE', false, mockVesselIdx, getCatchCertificate);
+      expect(mockToLandings).toHaveBeenCalledWith(data, mockVesselIdx);
+      expect(mockInsertCcReport).toHaveBeenCalledWith(toReportResponse);
+      expect(mockToDynamicsLandingDetails).toHaveBeenCalledTimes(1);
+      expect(mockToDynamicsLandingDetails).toHaveBeenCalledWith(data, getCatchCertificate, 'some-uuid-correlation-id');
+    });
+
+    it('should catch any errors thrown', async () => {
+
+      mockGetCertificate.mockImplementation(() => {
+        throw 'error';
+      });
+
+      const caughtError = await SUT.reportCcSubmitted(data).catch((err) => err)
+      expect(caughtError).toBe('error');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][getCertificateByDocumentNumberWithNumberOfFailedAttempts][error][ERROR]');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][ERROR][error]');
+    });
+
+    it('should catch any errors thrown when mapping', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+      const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { products: [{
+        species: 'Atlantic Herring (HER)',
+      }]} };
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockImplementation(() => {
+        throw 'error';
+      });
+
+      const caughtError = await SUT.reportCcSubmitted(data).catch((err) =>  err)
+      expect(caughtError).toBe('error');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][toCcDefraReport][error][ERROR]');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][ERROR][error]');
+    });
+
+    it('should catch any errors thrown when mapping landings', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+      const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { products: [{
+        species: 'Atlantic Herring (HER)',
+      }]} };
+      const toReportResponse = { ...mockMapCcResponse, documentType: "CatchCertificate", requestedByAdmin: false };
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockReturnValue(toReportResponse);
+      mockToLandings.mockImplementation(() => {
+        throw 'error';
+      });
+
+      const caughtError = await SUT.reportCcSubmitted(data).catch((err) => err);
+      expect(caughtError).toBe('error');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][toLandings][error][ERROR]');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][ERROR][error]');  
+    });
+
+    it('should catch any errors thrown when inserting defra valdation records', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+      const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { products: [{
+        species: 'Atlantic Herring (HER)',
+      }]} };
+      const toReportResponse = { ...mockMapCcResponse, documentType: "CatchCertificate", requestedByAdmin: false };
+      const toLandingsResponse = [{
+        species: 'HER'
+      }];
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockReturnValue(toReportResponse);
+      mockToLandings.mockReturnValue(toLandingsResponse);
+      mockInsertCcReport.mockImplementation(() => {
+        throw 'error';
+      });
+
+
+      const caughtError = await SUT.reportCcSubmitted(data).catch((err) => err);
+      expect(caughtError).toBe('error');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][insertCcDefraValidationReport][error][ERROR]');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][ERROR][error]');
+    });
+
+    it('should catch any errors thrown when landing has not exporter details', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+      const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { products: [{
+        species: 'Atlantic Herring (HER)',
+      }], exporterDetails: undefined, transportation: { exportedTo: {}}}};
+      const toReportResponse = { ...mockMapCcResponse, documentType: "CatchCertificate", requestedByAdmin: false };
+      const toLandingsResponse = [{
+        species: 'HER'
+      }];
+      
+      mockInsertCcReport.mockResolvedValue(null);
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockReturnValue(toReportResponse);
+      mockToLandings.mockReturnValue(toLandingsResponse);
+      mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+      await SUT.reportCcSubmitted(data);
+      expect(mockLogError).toHaveBeenCalledWith(`[RUN-LANDINGS-AND-REPORTING-JOB][FAIL][${documentNumber}][NO-EXPORTER-DETAILS]`);
+    });
+
+    it('should not set sales notes if date landed is invalid', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE' };
+      const getCatchCertificate = {
+        ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
+          exporterDetails: {}, products: [{
+            species: 'Atlantic Herring (HER)',
+          }]
+        }
+      };
+      const toReportResponse = { ...mockMapCcResponse, documentType: "CatchCertificate", _correlationId: 'some-uuid-correlation-id', requestedByAdmin: false };
+      const toLandingsResponse = [{
+        species: 'HER'
+      }];
+
+      mockInsertCcReport.mockResolvedValue(null);
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToCcDefraReport.mockReturnValue(toReportResponse);
+      mockToLandings.mockReturnValue(toLandingsResponse);
+      mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+      await SUT.reportCcSubmitted([{ ...data[0], dateLanded: 'invalid date' }]);
+
+      expect(mockLogInfo).toHaveBeenCalledWith(`[RUN-LANDINGS-AND-REPORTING-JOB][${data[0].extended.landingId}][NO-SALES-NOTE]`);
+    });
+
+    it('should call required report 14 day limit reached landing with correct data', async () => {
+      const getCatchCertificate = {
+          documentNumber: documentNumber,
+          status: 'COMPLETE',
+          requestByAdmin: false,
+          audit: [],
+          exportData: {
+              product: [{
+                  species: 'Atlantic Herring (HER)'
+              }],
+              exporterDetails: {
+                exporterFullName: "Joe Blogg",
+                exporterCompanyName: "Company name",
+                addressOne: "Building and street",
+                addressTwo: "building and street 2",
+                townCity: "Aberdeen",
+                postcode: "AB1 2XX"
+              }
+          }
+      };
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+      await SUT.reportCc14DayLimitReached(data);
+
+      expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[REPORTING-CC-14-DAY-LIMIT-REACHED][DOCUMENT-NUMBER][X-CC-1]');
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockGetExtendedValidationData).toHaveBeenCalledWith('2019-07-10', 'rssWA1', 'salesNotes');
+      expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(1);
+      expect(mockToDynamicsLandingDetails).toHaveBeenCalledTimes(1);
+      expect(mockToDynamicsLandingDetails).toHaveBeenCalledWith(data, getCatchCertificate, 'some-uuid-correlation-id');
+      expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[REPORTING-CC-14-DAY-LIMIT-REACHED][DOCUMENT-NUMBER][X-CC-1][CORRELATION-ID][some-uuid-correlation-id][NUMBER-OF-LANDINGS][1]');
+      expect(mockLogInfo).toHaveBeenNthCalledWith(4, '[REPORT-CC-14-DAY-LIMIT-REACHED][SUCCESS][X-CC-1]');
+  });
+
+  it('should not add to report queue if no validations are given', async () => {
+      const getCatchCertificate = {
+          documentNumber: documentNumber,
+          status: 'COMPLETE',
+          requestByAdmin: false,
+          audit: [],
+          exportData: {
+              product: [{
+                  species: 'Atlantic Herring (HER)'
+              }]
+          }
+      };
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+      mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+      await SUT.reportCc14DayLimitReached([]);
+
+      expect(mockLogInfo).not.toHaveBeenCalled();
+      expect(mockGetCertificate).not.toHaveBeenCalled();
+      expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled();
+  });
+
+  it('should not add to report queue if validations are undefined', async () => {
+    const getCatchCertificate = {
+        documentNumber: documentNumber,
+        status: 'COMPLETE',
+        requestByAdmin: false,
+        audit: [],
+        exportData: {
+            product: [{
+                species: 'Atlantic Herring (HER)'
+            }]
+        }
+    };
+
+    mockGetCertificate.mockResolvedValue(getCatchCertificate);
+    mockToDynamicsLandingDetails.mockReturnValue(dynamicsMappedData);
+
+    await SUT.reportCc14DayLimitReached(undefined);
+
+    expect(mockLogInfo).not.toHaveBeenCalled();
+    expect(mockGetCertificate).not.toHaveBeenCalled();
+    expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled();
+  });
+
+  it('should not add to report queue if catch certificate does not contain export details', async () => {
+      const getCatchCertificate = {
+        __t: "catchCert",
+        createdBy: "Bob",
+        documentNumber: documentNumber,
+        status: "COMPLETE",
+        exportData: {
+          products: [{
+            species: "Greater argentine (ARU)",
+            speciesId: "GBR-2020-CC-6F0C3CE8C-c203728d-1c57-4c14-92c2-b1401d327b97",
+            speciesCode: "ARU",
+            commodityCode: "03048990",
+            state: {
+              code: "FRO",
+              name: "frozen"
+            },
+            presentation: {
+              code: "FIS",
+              name: "filleted and skinned"
+            },
+            factor: 2,
+            caughtBy: [{
+              vessel: "SOUTHERN STAR",
+              pln: "N904",
+              id: "GBR-2020-CC-6F0C3CE8C-1602180798",
+              date: "2020-10-08",
+              faoArea: "FAO27",
+              weight: 100,
+              _status: "PENDING_LANDING_DATA"
+            }]
+          }]
+        },
+        createdByEmail: "foo@foo.com",
+        documentUri: "_document.pdf",
+        createdAt: "2020-10-08T18:20:22.000Z"
+      };
+
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+      await SUT.reportCc14DayLimitReached(data);
+
+      expect(mockGetCertificate).toHaveBeenCalled();
+      expect(mockGetCertificate).toHaveBeenCalledWith(documentNumber);
+      expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled()
+      expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled();
+
+      expect(mockLogError).toHaveBeenCalledWith('[REPORT-CC-14-DAY-LIMIT-REACHED][FAIL][X-CC-1][NO-EXPORTER-DETAILS]');
+      expect(mockLogInfo).not.toHaveBeenCalledWith('[REPORT-CC-14-DAY-LIMIT-REACHED][ADD-TO-REPORT-QUEUE][SUCCESS]');
+  });
+
+  it('should not call get extended validation data if date is invalid', async () => {
+    const data: shared.ICcQueryResult[] = [{
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: 'invalid-date',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown : [
+          {
+              factor: 1,
+              isEstimate: true,
+              weight: 30,
+              liveWeight: 30,
+              source: shared.LandingSources.CatchRecording
+          }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+         queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+          landingId: 'rssWA12019-07-10',
+          exporterName: 'Mr Bob',
+          presentation: 'SLC',
+          presentationName: 'sliced',
+          vessel: 'DAYBREAK',
+          fao: 'FAO27',
+          pln: 'WA1',
+          species: 'Lobster',
+          state: 'FRE',
+          stateName: 'fresh',
+          commodityCode: '1234',
+          investigation: {
+              investigator: "Investigator Gadget",
+              status: shared.InvestigationStatus.Open
+          },
+          transportationVehicle: 'directLanding',
+          dataEverExpected: true,
+          landingDataExpectedDate: '1901-01-01',
+          landingDataEndDate: '2901-01-01',
+      }
+    }];
+
+    const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+    const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { exporterDetails: {}, products: [{
+                species: 'Atlantic Herring (HER)',
+            }]} };
+
+    mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+    await SUT.reportCc14DayLimitReached(data);
+
+    expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(0);
+    expect(data[0].hasSalesNote).toBeUndefined();
+  });
+
+  it('should not call get extended validation data if rssNumber is missing', async () => {
+    const data: shared.ICcQueryResult[] = [{
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: '',
+      da: 'Guernsey',
+      dateLanded: '2023-01-01',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown : [
+          {
+              factor: 1,
+              isEstimate: true,
+              weight: 30,
+              liveWeight: 30,
+              source: shared.LandingSources.CatchRecording
+          }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+         queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+          landingId: 'rssWA12019-07-10',
+          exporterName: 'Mr Bob',
+          presentation: 'SLC',
+          presentationName: 'sliced',
+          vessel: 'DAYBREAK',
+          fao: 'FAO27',
+          pln: 'WA1',
+          species: 'Lobster',
+          state: 'FRE',
+          stateName: 'fresh',
+          commodityCode: '1234',
+          investigation: {
+              investigator: "Investigator Gadget",
+              status: shared.InvestigationStatus.Open
+          },
+          transportationVehicle: 'directLanding',
+          dataEverExpected: true,
+          landingDataExpectedDate: '1901-01-01',
+          landingDataEndDate: '2901-01-01',
+      }
+    }];
+
+    const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+    const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { exporterDetails: {}, products: [{
+                species: 'Atlantic Herring (HER)',
+            }]} };
+
+    mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+    await SUT.reportCc14DayLimitReached(data);
+
+    expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(0);
+    expect(data[0].hasSalesNote).toBeUndefined();
+  });
+
+  it('should call get extended validation data if landing data does not exist', async () => {
+    const data: shared.ICcQueryResult[] = [{
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2023-01-01',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: false,
+      isSpeciesExists: false,
+      numberOfLandingsOnDay: 0,
+      weightOnLanding: 0,
+      weightOnLandingAllSpecies: 0,
+      isOverusedThisCert: false,
+      isOverusedAllCerts: false,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+         queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: null,
+      durationBetweenCertCreationAndLastLandingRetrieved: null,
+      extended: {
+          landingId: 'rssWA12019-07-10',
+          exporterName: 'Mr Bob',
+          presentation: 'SLC',
+          presentationName: 'sliced',
+          vessel: 'DAYBREAK',
+          fao: 'FAO27',
+          pln: 'WA1',
+          species: 'Lobster',
+          state: 'FRE',
+          stateName: 'fresh',
+          commodityCode: '1234',
+          investigation: {
+              investigator: "Investigator Gadget",
+              status: shared.InvestigationStatus.Open
+          },
+          transportationVehicle: 'directLanding',
+          dataEverExpected: true,
+          landingDataExpectedDate: '1901-01-01',
+          landingDataEndDate: '2901-01-01',
+      }
+    }];
+
+    const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+    const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { exporterDetails: {}, products: [{
+                species: 'Atlantic Herring (HER)',
+            }]} };
+
+    mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+    await SUT.reportCc14DayLimitReached(data);
+
+    expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(1);
+    expect(data[0].hasSalesNote).toBe(false);
+  });
+
+  it('should not call get extended validation data if landing data is not expected', async () => {
+    const data: shared.ICcQueryResult[] = [{
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: 'invalid-date',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown : [
+          {
+              factor: 1,
+              isEstimate: true,
+              weight: 30,
+              liveWeight: 30,
+              source: shared.LandingSources.CatchRecording
+          }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+         queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+         moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+          landingId: 'rssWA12019-07-10',
+          exporterName: 'Mr Bob',
+          presentation: 'SLC',
+          presentationName: 'sliced',
+          vessel: 'DAYBREAK',
+          fao: 'FAO27',
+          pln: 'WA1',
+          species: 'Lobster',
+          state: 'FRE',
+          stateName: 'fresh',
+          commodityCode: '1234',
+          investigation: {
+              investigator: "Investigator Gadget",
+              status: shared.InvestigationStatus.Open
+          },
+          transportationVehicle: 'directLanding',
+          dataEverExpected: false
+      }
+    }];
+
+    const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+    const getCatchCertificate = { ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { exporterDetails: {}, products: [{
+                species: 'Atlantic Herring (HER)',
+            }]} };
+
+    mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+    await SUT.reportCc14DayLimitReached(data);
+
+    expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(0);
+    expect(data[0].hasSalesNote).toBeUndefined();
+  });
+  });
+});
+
+describe("Report reSubmitted", () => {
+
+  let mockGetCertificate;
+  let mockToCCDefraTrade;
+  let mockToDynamicsCcCase;
+
+  beforeEach(() => {
+    mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
+    mockToCCDefraTrade = jest.spyOn(report, 'reportCcToTrade');
+    mockToDynamicsCcCase = jest.spyOn(dynamicsValidation, 'toDynamicsCcCase');
+  });
+
+  afterEach(() => {
+    mockToDynamicsCcCase.mockRestore();
+    jest.restoreAllMocks();
+  });
+
+  describe('when a CC is reSubmitted', () => {
+
+    const queryTime = moment.utc();
+    const documentNumber = 'X-CC-1';
+    const data: shared.ICcQueryResult[] = [{
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      hasSalesNote: false,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+        landingId: 'rssWA12019-07-10',
+        exporterName: 'Mr Bob',
+        presentation: 'SLC',
+        presentationName: 'sliced',
+        vessel: 'DAYBREAK',
+        fao: 'FAO27',
+        pln: 'WA1',
+        species: 'Lobster',
+        state: 'FRE',
+        stateName: 'fresh',
+        commodityCode: '1234',
+        investigation: {
+          investigator: "Investigator Gadget",
+          status: shared.InvestigationStatus.Open
+        },
+        transportationVehicle: 'directLanding',
+        dataEverExpected: true,
+        landingDataExpectedDate: '1901-01-01',
+        landingDataEndDate: '2901-01-01',
+      }
+    },
+    {
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2019-07-10',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      hasSalesNote: false,
+      isSpeciesExists: true,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      landingTotalBreakdown: [
+        {
+          factor: 1,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 30,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      isOverusedThisCert: true,
+      isOverusedAllCerts: true,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        queryTime
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+        landingId: 'rssWA12019-07-11',
+        exporterName: 'Mr Bob',
+        presentation: 'SLC',
+        presentationName: 'sliced',
+        vessel: 'DAYBREAK',
+        fao: 'FAO27',
+        pln: 'WA1',
+        species: 'Lobster',
+        state: 'FRE',
+        stateName: 'fresh',
+        commodityCode: '1234',
+        investigation: {
+          investigator: "Investigator Gadget",
+          status: shared.InvestigationStatus.Open
+        },
+        transportationVehicle: 'directLanding',
+        dataEverExpected: true,
+        landingDataExpectedDate: '1901-01-01',
+        landingDataEndDate: '2901-01-01',
+        commodityCodeDescription: 'blah blah'
+      }
+    }];
+
+    let mockCommoditySearch;
+    let mockGetCertificateByDocumentNumberWithNumberOfFailedAttempts;
+    let mockLogWarn;
+    let mockLogError;
+
+    beforeEach(() => {
+      mockCommoditySearch = jest.spyOn(species, 'commoditySearch');
+      mockGetCertificateByDocumentNumberWithNumberOfFailedAttempts = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts')
+      uuid.mockImplementation(() => 'some-uuid-correlation-id');
+
+      mockLogWarn = jest.spyOn(logger, 'warn');
+      mockLogError = jest.spyOn(logger, 'error');
+    });
+
+    afterEach(() => {
+      uuid.mockRestore();
+
+      mockLogWarn.mockRestore();
+      mockLogError.mockRestore();
+    });
+
+    it('all methods required by resendCcToTrade should be called with the correct data', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id', };
+      const getCatchCertificate = {
+        ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
+          exporterDetails: {}, products: [{
+            species: 'Atlantic Herring (HER)',
+          }]
+        }
+      };
+      const commoditySearch = [{
+        code: "1234",
+        description: "1234-description"
+      }]
+
+      mockGetCertificateByDocumentNumberWithNumberOfFailedAttempts.mockResolvedValue(getCatchCertificate)
+      mockCommoditySearch.mockReturnValue(commoditySearch)
+      mockToDynamicsCcCase.mockReturnValue(mockMapCcResponse);
+      mockToCCDefraTrade.mockResolvedValue(undefined);
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+      await SUT.resendCcToTrade(data);
+
+      expect(data[0].extended.commodityCodeDescription).toBe('1234-description');
+      expect(data[1].extended.commodityCodeDescription).toBe('blah blah');
+      expect(mockCommoditySearch).toHaveBeenCalled();
+      expect(mockCommoditySearch).toHaveBeenCalledWith("LBE", "FRE", "SLC");
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockToDynamicsCcCase).toHaveBeenCalledTimes(1);
+      expect(mockToCCDefraTrade).toHaveBeenCalledTimes(1);
+      expect(mockToCCDefraTrade).toHaveBeenCalledWith(getCatchCertificate, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, mockMapCcResponse, data);
+    });
+
+    it('should catch any errors thrown', async () => {
+
+      mockGetCertificate.mockImplementation(() => {
+        throw 'error';
+      });
+
+      const caughtError = await SUT.resendCcToTrade(data).catch((err) => err)
+      expect(caughtError).toBe('error');
+      expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][getCertificateByDocumentNumberWithNumberOfFailedAttempts][error]');
+      expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][error]');
+
+    });
+
+    it('should catch the error of no exporter details', async () => {
+      const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id', };
+      const getCatchCertificate = {
+        ...mockMapCcResponse, requestByAdmin: false, audit: []
+      };
+      const commoditySearch = [{
+        code: "1234",
+        description: "1234-description"
+      }]
+
+      mockGetCertificateByDocumentNumberWithNumberOfFailedAttempts.mockResolvedValue(getCatchCertificate)
+      mockCommoditySearch.mockReturnValue(commoditySearch)
+      mockToDynamicsCcCase.mockReturnValue(mockMapCcResponse);
+      mockToCCDefraTrade.mockResolvedValue(undefined);
+      mockGetCertificate.mockResolvedValue(getCatchCertificate);
+
+      await SUT.resendCcToTrade(data);
+
+      expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][FAIL][X-CC-1][NO-EXPORTER-DETAILS]');
+    });
+  });
+});
+
+describe('azureTradeQueueEnabled Feature flag turned on', () => {
+  ApplicationConfig.prototype.azureTradeQueueEnabled = true;
+  ApplicationConfig.prototype.azureTradeQueueUrl = 'AZURE_QUEUE_TRADE_CONNECTION_STRING';
+  ApplicationConfig.prototype.azureReportTradeQueueName = 'REPORT_QUEUE_TRADE';
+  ApplicationConfig.prototype.enableReportToQueue = false;
+
+  let mockGetRssNumber;
+  let mockGetVesselService;
+  let mockPersistence;
+  let mockLogError;
+
+  
+  beforeEach(() => {
+    mockLogError = jest.spyOn(logger, 'error');
+    mockPersistence = jest.spyOn(shared, 'addToReportQueue');
+    mockPersistence.mockResolvedValue(null);
+    mockGetRssNumber = jest.spyOn(vessel, 'getRssNumber');
+    mockGetRssNumber.mockReturnValue("C20415");
+    
+    mockGetVesselService = jest.spyOn(vessel, 'getVesselDetails');
+    mockGetVesselService.mockReturnValue({
+      fishingVesselName: "AGAN BORLOWEN",
+      ircs: null,
+      cfr: "GBR000C20415",
+      flag: "GBR",
+      homePort: "NEWLYN",
+      registrationNumber: "SS229",
+      imo: null,
+      fishingLicenceNumber: "25072",
+      fishingLicenceValidFrom: "2014-07-01T00:00:00",
+      fishingLicenceValidTo: "2030-12-31T00:00:00",
+      adminPort: "NEWLYN",
+      rssNumber: "C20415",
+      vesselLength: 6.88,
+      licenceHolderName: "MR S CLARY-BROM "
+    });
+
+    uuid.mockImplementation(() => 'some-uuid-correlation-id');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('will not add CC payload when it contains a validation error', async () => {
+    const cc: any = { test: 'catch certificate', documentNumber: 'document1' };
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2023-CC-C58DF9A73",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.LandingStatusType.DataNeverExpected,
+          "id": "GBR-2023-CC-C58DF9A73-4248789552",
+          "landingDate": "2023-08-31",
+          "species": "BSF",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "ASHLEIGH JANE",
+          "vesselPln": "OB81",
+          "vesselLength": 9.91,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "C & J SHELLFISH LTD",
+          "speciesAlias": "N",
+          "weight": 89,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": false,
+          "isLate": false,
+          "validation": {
+            "liveExportWeight": 110.36,
+            "totalRecordedAgainstLanding": 220.72,
+            "landedWeightExceededBy": null,
+            "rawLandingsUrl": "http://localhost:6500/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=A12860",
+            "salesNoteUrl": "http://localhost:6500/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=A12860",
+            "isLegallyDue": false
+          },
+          "risking": {
+            "vessel": "0.5",
+            "speciesRisk": "1",
+            "exporterRiskScore": "1",
+            "landingRiskScore": "0.5",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          }
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      }
+    };
+    const mapped: any = { _correlationId: 'some-uuid-correlation-id' };
+
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+    mockMapper.mockReturnValue(mapped);
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, []);
+
+    expect(mockMapper).toHaveBeenCalledWith(cc, dynamicsCatchCertificateCase, []);
+    expect(mockPersistence).not.toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalled();
+  });
+
+  it('will add CC payload to the the report queue', async () => {
+    const cc: shared.IDocument = {
+      "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+      "__t": "catchCert",
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "status": "COMPLETE",
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "audit": [
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:18.780Z"
+          },
+          "data": {
+            "investigationStatus": "UNDER_INVESTIGATION"
+          }
+        },
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:23.439Z"
+          },
+          "data": {
+            "investigationStatus": "CLOSED_NFA"
+          }
+        }
+      ],
+      "userReference": "MY REF",
+      "exportData": {
+        "products": [
+          {
+            "speciesId": "GBR-2023-CC-C58DF9A73-35f724fd-b026-4ba7-80cf-4f458a780486",
+            "species": "Black scabbardfish (BSF)",
+            "speciesCode": "BSF",
+            "commodityCode": "03028990",
+            "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+            "scientificName": "Aphanopus carbo",
+            "state": {
+              "code": "FRE",
+              "name": "Fresh"
+            },
+            "presentation": {
+              "code": "GUT",
+              "name": "Gutted"
+            },
+            "factor": 1.24,
+            "caughtBy": [
+              {
+                "vessel": "AGAN BORLOWEN",
+                "pln": "SS229",
+                "homePort": "NEWLYN",
+                "flag": "GBR",
+                "cfr": "GBR000C20415",
+                "imoNumber": null,
+                "licenceNumber": "25072",
+                "licenceValidTo": "2030-12-31",
+                "licenceHolder": "MR S CLARY-BROM ",
+                "id": "GBR-2023-CC-C58DF9A73-1777642314",
+                "date": "2023-08-31",
+                "faoArea": "FAO27",
+                "weight": 122,
+                "numberOfSubmissions": 1,
+                "isLegallyDue": false,
+                "dataEverExpected": true,
+                "landingDataExpectedDate": "2023-08-31",
+                "landingDataEndDate": "2023-09-02",
+                "_status": "PENDING_LANDING_DATA"
+              }
+            ]
+          }
+        ],
+        "transportation": {
+          "exportedFrom": "United Kingdom",
+          "exportedTo": {
+            "officialCountryName": "Åland Islands",
+            "isoCodeAlpha2": "AX",
+            "isoCodeAlpha3": "ALA",
+            "isoNumericCode": "248"
+          },
+          "vehicle": "truck",
+          "cmr": true
+        },
+        "conservation": {
+          "conservationReference": "UK Fisheries Policy"
+        },
+        "exporterDetails": {
+          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "Automation Testing Ltd",
+          "exporterFullName": "Automation Tester",
+          "_dynamicsAddress": {
+            "defra_uprn": "10091818796",
+            "defra_buildingname": "LANCASTER HOUSE",
+            "defra_subbuildingname": "NATURAL ENGLAND",
+            "defra_premises": null,
+            "defra_street": "HAMPSHIRE COURT",
+            "defra_locality": "NEWCASTLE BUSINESS PARK",
+            "defra_dependentlocality": null,
+            "defra_towntext": "NEWCASTLE UPON TYNE",
+            "defra_county": null,
+            "defra_postcode": "NE4 7YH",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "defra_internationalpostalcode": null,
+            "defra_fromcompanieshouse": false,
+            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+          },
+          "_dynamicsUser": {
+            "firstName": "Automation",
+            "lastName": "Tester"
+          }
+        },
+        "landingsEntryOption": "manualEntry"
+      },
+      "createdByEmail": "foo@foo.com",
+      "documentUri": "_44fd226f-598f-4615-930f-716b2762fea4.pdf",
+      "investigation": {
+        "investigator": "Chris Waugh",
+        "status": "CLOSED_NFA"
+      },
+      "numberOfFailedAttempts": 5
+    };
+
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.LandingStatusType.DataNeverExpected,
+          "id": "GBR-2023-CC-C58DF9A73-4248789552",
+          "landingDate": "2023-08-31",
+          "species": "BSF",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "ASHLEIGH JANE",
+          "vesselPln": "OB81",
+          "vesselLength": 9.91,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "C & J SHELLFISH LTD",
+          "speciesAlias": "N",
+          "weight": 89,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": false,
+          "isLate": false,
+          "validation": {
+            "liveExportWeight": 110.36,
+            "totalRecordedAgainstLanding": 220.72,
+            "landedWeightExceededBy": null,
+            "rawLandingsUrl": "http://localhost:6500/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=A12860",
+            "salesNoteUrl": "http://localhost:6500/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=A12860",
+            "isLegallyDue": false
+          },
+          "risking": {
+            "vessel": "0.5",
+            "speciesRisk": "1",
+            "exporterRiskScore": "1",
+            "landingRiskScore": "0.5",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          }
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      }
+    };
+
+    const ccQueryResults: shared.ICcQueryResult[] = [{
+      documentNumber: 'GBR-2020-CC-1BC924FCF',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'C20415',
+      da: 'Scotland',
+      dateLanded: '2023-08-31',
+      species: 'BSF',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      hasSalesNote: true,
+      isSpeciesExists: false,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      speciesAlias: "N",
+      landingTotalBreakdown: [
+        {
+          factor: 1.7,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 51,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isExceeding14DayLimit: false,
+      isOverusedThisCert: false,
+      isOverusedAllCerts: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        moment.utc()
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+        landingId: 'GBR-2023-CC-C58DF9A73-1777642314',
+        exporterName: 'Mr Bob',
+        presentation: 'GUT',
+        documentUrl: '_887ce0e0-9ab1-4f4d-9524-572a9762e021.pdf',
+        presentationName: 'sliced',
+        vessel: 'AGAN BORLOWEN',
+        fao: 'FAO27',
+        pln: 'SS229',
+        species: 'Lobster',
+        scientificName: "Aphanopus carbo",
+        state: 'FRE',
+        stateName: 'fresh',
+        commodityCode: '03028990',
+        commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+        investigation: {
+          investigator: "Investigator Gadget",
+          status: shared.InvestigationStatus.Open
+        },
+        transportationVehicle: 'truck',
+        flag: "GBR",
+        homePort: "NEWLYN",
+        licenceNumber: "25072",
+        licenceValidTo: "2030-12-31",
+        licenceHolder: "MR S CLARY-BROM ",
+        imoNumber: null,
+        numberOfSubmissions: 1,
+        isLegallyDue: true
+      }
+    }];
+
+    const body: IDefraTradeCatchCertificate = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.LandingStatusType.ValidationFailure_Species,
+          "id": "GBR-2023-CC-C58DF9A73-1777642314",
+          "landingDate": "2023-08-31",
+          "species": "Lobster",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "AGAN BORLOWEN",
+          "vesselPln": "SS229",
+          "vesselLength": 6.88,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "MR S CLARY-BROM ",
+          "source": "CATCH_RECORDING",
+          "speciesAlias": "N",
+          "weight": 122,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": true,
+          "landingDataExpectedAtSubmission": true,
+          "validation": {
+            "liveExportWeight": 121,
+            "totalEstimatedForExportSpecies": 30,
+            "totalEstimatedWithTolerance": 56.1,
+            "totalRecordedAgainstLanding": 200,
+            "landedWeightExceededBy": 143.9,
+            "rawLandingsUrl": "undefined/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=C20415",
+            "salesNoteUrl": "undefined/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=C20415",
+            "isLegallyDue": true
+          },
+          "risking": {
+            "vessel": "0",
+            "speciesRisk": "0",
+            "exporterRiskScore": "0",
+            "landingRiskScore": "0",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          },
+          "flag": "GBR",
+          "catchArea": CatchArea.FAO27,
+          "homePort": "NEWLYN",
+          "fishingLicenceNumber": "25072",
+          "fishingLicenceValidTo": "2030-12-31",
+          "imo": null
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA",
+        "isoNumericCode": "248"
+      },
+      "certStatus": CertificateStatus.COMPLETE,
+      "transportation": {
+        "modeofTransport": "truck",
+        "hasRoadTransportDocument": true
+      },
+      "multiVesselSchedule": false
+    };
+
+    const expected: ServiceBusMessage = {
+      body,
+      messageId: expect.any(String),
+      correlationId: dynamicsCatchCertificateCase._correlationId,
+      contentType: 'application/json',
+      applicationProperties: {
+        EntityKey: dynamicsCatchCertificateCase.documentNumber,
+        PublisherId: 'FES',
+        OrganisationId: dynamicsCatchCertificateCase.exporter.accountId || null,
+        UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
+        SchemaVersion: 2,
+        Type: "Internal",
+        Status: "COMPLETE",
+        TimestampUtc: expect.any(String)
+      },
+      subject: shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED + '-GBR-2020-CC-1BC924FCF'
+    };
+
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, ccQueryResults);
+
+    expect(mockMapper).toHaveBeenCalledWith(cc, dynamicsCatchCertificateCase, ccQueryResults);
+    expect(mockPersistence).toHaveBeenCalledWith('GBR-2020-CC-1BC924FCF', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('clonedFrom');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('landingsCloned');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('parentDocumentVoid');
+  });
+
+  it('will add CC payload to the the report queue for VOID by exporter', async () => {
+    const cc: shared.IDocument = {
+      "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+      "__t": "catchCert",
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "status": "COMPLETE",
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "audit": [
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:18.780Z"
+          },
+          "data": {
+            "investigationStatus": "UNDER_INVESTIGATION"
+          }
+        },
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:23.439Z"
+          },
+          "data": {
+            "investigationStatus": "CLOSED_NFA"
+          }
+        }
+      ],
+      "userReference": "MY REF",
+      "exportData": {
+        "products": [
+          {
+            "speciesId": "GBR-2023-CC-C58DF9A73-35f724fd-b026-4ba7-80cf-4f458a780486",
+            "species": "Black scabbardfish (BSF)",
+            "speciesCode": "BSF",
+            "commodityCode": "03028990",
+            "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+            "scientificName": "Aphanopus carbo",
+            "state": {
+              "code": "FRE",
+              "name": "Fresh"
+            },
+            "presentation": {
+              "code": "GUT",
+              "name": "Gutted"
+            },
+            "factor": 1.24,
+            "caughtBy": [
+              {
+                "vessel": "AGAN BORLOWEN",
+                "pln": "SS229",
+                "homePort": "NEWLYN",
+                "flag": "GBR",
+                "cfr": "GBR000C20415",
+                "imoNumber": null,
+                "licenceNumber": "25072",
+                "licenceValidTo": "2030-12-31",
+                "licenceHolder": "MR S CLARY-BROM ",
+                "id": "GBR-2023-CC-C58DF9A73-1777642314",
+                "date": "2023-08-31",
+                "faoArea": "FAO27",
+                "weight": 122,
+                "numberOfSubmissions": 1,
+                "isLegallyDue": false,
+                "dataEverExpected": true,
+                "landingDataExpectedDate": "2023-08-31",
+                "landingDataEndDate": "2023-09-02",
+                "_status": "PENDING_LANDING_DATA"
+              }
+            ]
+          }
+        ],
+        "transportation": {
+          "exportedFrom": "United Kingdom",
+          "exportedTo": {
+            "officialCountryName": "Åland Islands",
+            "isoCodeAlpha2": "AX",
+            "isoCodeAlpha3": "ALA",
+            "isoNumericCode": "248"
+          },
+          "vehicle": "truck",
+          "cmr": true
+        },
+        "conservation": {
+          "conservationReference": "UK Fisheries Policy"
+        },
+        "exporterDetails": {
+          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "Automation Testing Ltd",
+          "exporterFullName": "Automation Tester",
+          "_dynamicsAddress": {
+            "defra_uprn": "10091818796",
+            "defra_buildingname": "LANCASTER HOUSE",
+            "defra_subbuildingname": "NATURAL ENGLAND",
+            "defra_premises": null,
+            "defra_street": "HAMPSHIRE COURT",
+            "defra_locality": "NEWCASTLE BUSINESS PARK",
+            "defra_dependentlocality": null,
+            "defra_towntext" : null,
+            "defra_county": null,
+            "defra_postcode": "NE4 7YH",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "defra_internationalpostalcode": null,
+            "defra_fromcompanieshouse": false,
+            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+          },
+          "_dynamicsUser": {
+            "firstName": "Automation",
+            "lastName": "Tester"
+          }
+        },
+        "landingsEntryOption": "manualEntry"
+      },
+      "createdByEmail": "foo@foo.com",
+      "documentUri": "_44fd226f-598f-4615-930f-716b2762fea4.pdf",
+      "investigation": {
+        "investigator": "Chris Waugh",
+        "status": "CLOSED_NFA"
+      },
+      "numberOfFailedAttempts": 5
+    };
+
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.VoidByExporter,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": null,
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": null,
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      }
+    };
+
+    const body: IDefraTradeCatchCertificate = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.VoidByExporter,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": null,
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": null,
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA",
+        "isoNumericCode": "248"
+      },
+      "certStatus": CertificateStatus.VOID,
+      "transportation": {
+        "modeofTransport": "truck",
+        "hasRoadTransportDocument": true
+      },
+      "multiVesselSchedule": false
+    };
+
+    const expected: ServiceBusMessage = {
+      body,
+      messageId: expect.any(String),
+      correlationId: dynamicsCatchCertificateCase._correlationId,
+      contentType: 'application/json',
+      applicationProperties: {
+        EntityKey: dynamicsCatchCertificateCase.documentNumber,
+        PublisherId: 'FES',
+        OrganisationId: dynamicsCatchCertificateCase.exporter.accountId || null,
+        UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
+        SchemaVersion: 2,
+        Type: "Internal",
+        Status: CertificateStatus.VOID,
+        TimestampUtc: expect.any(String)
+      },
+      subject: shared.MessageLabel.CATCH_CERTIFICATE_VOIDED + '-GBR-2020-CC-1BC924FCF'
+    };
+
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_VOIDED, dynamicsCatchCertificateCase, null);
+
+    expect(mockMapper).toHaveBeenCalledWith(cc, dynamicsCatchCertificateCase, null);
+    expect(mockPersistence).toHaveBeenCalledWith('GBR-2020-CC-1BC924FCF', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('clonedFrom');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('landingsCloned');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('parentDocumentVoid');
+  });
+
+  it('will add CC payload to the the report queue for VOID by admin', async () => {
+    const cc: shared.IDocument = {
+      "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+      "__t": "catchCert",
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "status": "COMPLETE",
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "audit": [
+        {
+          "eventType" : "VOIDED",
+          "triggeredBy" : "Automated Tester MMO ECC Service Management",
+          "timestamp" : {
+            "$date": "1702984738656"
+          },
+          "data" : null
+        }
+      ],
+      "userReference": "MY REF",
+      "exportData": {
+        "products": [
+          {
+            "speciesId": "GBR-2023-CC-C58DF9A73-35f724fd-b026-4ba7-80cf-4f458a780486",
+            "species": "Black scabbardfish (BSF)",
+            "speciesCode": "BSF",
+            "commodityCode": "03028990",
+            "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+            "scientificName": "Aphanopus carbo",
+            "state": {
+              "code": "FRE",
+              "name": "Fresh"
+            },
+            "presentation": {
+              "code": "GUT",
+              "name": "Gutted"
+            },
+            "factor": 1.24,
+            "caughtBy": [
+              {
+                "vessel": "AGAN BORLOWEN",
+                "pln": "SS229",
+                "homePort": "NEWLYN",
+                "flag": "GBR",
+                "cfr": "GBR000C20415",
+                "imoNumber": null,
+                "licenceNumber": "25072",
+                "licenceValidTo": "2030-12-31",
+                "licenceHolder": "MR S CLARY-BROM ",
+                "id": "GBR-2023-CC-C58DF9A73-1777642314",
+                "date": "2023-08-31",
+                "faoArea": "FAO27",
+                "weight": 122,
+                "numberOfSubmissions": 1,
+                "isLegallyDue": false,
+                "dataEverExpected": true,
+                "landingDataExpectedDate": "2023-08-31",
+                "landingDataEndDate": "2023-09-02",
+                "_status": "PENDING_LANDING_DATA"
+              }
+            ]
+          }
+        ],
+        "transportation": {
+          "exportedFrom": "United Kingdom",
+          "exportedTo": {
+            "officialCountryName": "Åland Islands",
+            "isoCodeAlpha2": "AX",
+            "isoCodeAlpha3": "ALA",
+            "isoNumericCode": "248"
+          },
+          "vehicle": "truck",
+          "cmr": true
+        },
+        "conservation": {
+          "conservationReference": "UK Fisheries Policy"
+        },
+        "exporterDetails": {
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "Automation Testing Ltd",
+          "exporterFullName": "Automation Tester",
+        },
+        "landingsEntryOption": "manualEntry"
+      },
+      "createdByEmail": "foo@foo.com",
+      "documentUri": "_44fd226f-598f-4615-930f-716b2762fea4.pdf",
+      "investigation": {
+        "investigator": "Chris Waugh",
+        "status": "CLOSED_NFA"
+      },
+      "numberOfFailedAttempts": 5
+    };
+
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.VoidByAdmin,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        }
+      },
+      "landings": null,
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      },
+      "audits": [{
+        "auditOperation": "VOIDED",
+        "user": "Automated Tester MMO ECC Service Management",
+        "auditAt": expect.any(Date)
+      }]
+    };
+
+    const body: IDefraTradeCatchCertificate = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.VoidByAdmin,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        }
+      },
+      "landings": null,
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "audits": [
+        {
+          "auditAt": expect.any(Date),
+          "auditOperation": "VOIDED",
+          "user": "Automated Tester MMO ECC Service Management",
+        },
+      ],
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA",
+        "isoNumericCode": "248"
+      },
+      "certStatus": CertificateStatus.VOID,
+      "transportation": {
+        "modeofTransport": "truck",
+        "hasRoadTransportDocument": true
+      },
+      "multiVesselSchedule": false
+    };
+
+    const expected: ServiceBusMessage = {
+      body,
+      messageId: expect.any(String),
+      correlationId: dynamicsCatchCertificateCase._correlationId,
+      contentType: 'application/json',
+      applicationProperties: {
+        EntityKey: dynamicsCatchCertificateCase.documentNumber,
+        PublisherId: 'FES',
+        OrganisationId: dynamicsCatchCertificateCase.exporter.accountId || null,
+        UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
+        SchemaVersion: 2,
+        Type: "Internal",
+        Status: CertificateStatus.VOID,
+        TimestampUtc: expect.any(String)
+      },
+      subject: shared.MessageLabel.CATCH_CERTIFICATE_VOIDED + '-GBR-2020-CC-1BC924FCF'
+    };
+
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_VOIDED, dynamicsCatchCertificateCase, null);
+
+    expect(mockMapper).toHaveBeenCalledWith(cc, dynamicsCatchCertificateCase, null);
+    expect(mockPersistence).toHaveBeenCalledWith('GBR-2020-CC-1BC924FCF', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('clonedFrom');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('landingsCloned');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('parentDocumentVoid');
+  });
+});
+
+describe('azureTradeQueueEnabled feature flag turned off', () => {
+  let mockPersistence;
+  let mockLogInfo;
+
+  beforeEach(() => {
+    mockLogInfo = jest.spyOn(logger, 'info');
+    mockPersistence = jest.spyOn(shared, 'addToReportQueue');
+
+    ApplicationConfig.prototype.azureTradeQueueEnabled = false;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('will add CC payload without CHIP to the the report queue, when configuration is false', async () => {
+    const cc: any = { test: 'catch certificate', documentNumber: 'document1' };
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2023-CC-C58DF9A73",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.LandingStatusType.DataNeverExpected,
+          "id": "GBR-2023-CC-C58DF9A73-4248789552",
+          "landingDate": "2023-08-31",
+          "species": "BSF",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "ASHLEIGH JANE",
+          "vesselPln": "OB81",
+          "vesselLength": 9.91,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "C & J SHELLFISH LTD",
+          "speciesAlias": "N",
+          "weight": 89,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": false,
+          "isLate": false,
+          "validation": {
+            "liveExportWeight": 110.36,
+            "totalRecordedAgainstLanding": 220.72,
+            "landedWeightExceededBy": null,
+            "rawLandingsUrl": "http://localhost:6500/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=A12860",
+            "salesNoteUrl": "http://localhost:6500/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=A12860",
+            "isLegallyDue": false
+          },
+          "risking": {
+            "vessel": "0.5",
+            "speciesRisk": "1",
+            "exporterRiskScore": "1",
+            "landingRiskScore": "0.5",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          }
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      }
+    };
+
+    const expected: ServiceBusMessage = {
+      body: dynamicsCatchCertificateCase,
+      subject: 'catch_certificate_submitted-document1',
+      sessionId: 'f59339d6-e1d2-4a46-93d5-7eb9bb139e1b'
+    };
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, []);
+
+    expect(mockLogInfo).toHaveBeenCalledWith(`[DEFRA-TRADE-CC][DOCUMENT-NUMBER][${cc.documentNumber}][CHIP-DISABLED]`);
+    expect(mockPersistence).toHaveBeenCalledWith('document1', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(mockMapper).not.toHaveBeenCalled();
+  });
+
+});
