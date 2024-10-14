@@ -248,7 +248,7 @@ describe("When mapping from an ICcQueryResult to a IDynamicsLanding", () => {
   it('will map all root properties', () => {
     const result: Shared.IDynamicsLanding = SUT.toLanding(input);
 
-    expect(result.status).toEqual('Validation Failure - No Landing Data');
+    expect(result.status).toEqual('No Landing Data Failure');
     expect(result.id).toEqual('rssWA12019-07-10');
     expect(result.landingDate).toEqual('2019-07-10');
     expect(result.species).toEqual('LBE');

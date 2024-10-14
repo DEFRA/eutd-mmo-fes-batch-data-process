@@ -1417,7 +1417,7 @@ describe('findNewLandings', () => {
 describe('when a CC is submitted', () => {
 
   const dynamicsMappedData: shared.IDynamicsLandingCase[] = [{
-    status: shared.LandingStatusType.PendingLandingData,
+    status: shared.LandingStatusType.ValidationFailure_NoLandingData,
     id: 'rssWA12019-07-10',
     landingDate: '2019-07-10',
     numberOfFailedSubmissions: 0,
@@ -2839,7 +2839,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       weightFactor: 5,
       isLandingExists: true,
       hasSalesNote: true,
-      isSpeciesExists: false,
+      isSpeciesExists: true,
       numberOfLandingsOnDay: 1,
       weightOnLanding: 30,
       weightOnLandingAllSpecies: 30,
@@ -2945,7 +2945,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       },
       "landings": [
         {
-          "status": shared.LandingStatusType.ValidationFailure_Species,
+          "status": shared.LandingStatusType.ValidationSuccess,
           "id": "GBR-2023-CC-C58DF9A73-1777642314",
           "landingDate": "2023-08-31",
           "species": "Lobster",
