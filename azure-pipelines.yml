@@ -21,7 +21,7 @@ resources:
 stages:
 - stage: BuildAppAndCodeCoverage
   pool:
-    name: DEFRA-COMMON-ubuntu2204-SSV5
+    vmImage: 'ubuntu-latest'
   jobs:
   - job: TestCodeCoverage
     steps:
@@ -101,7 +101,7 @@ stages:
 
   - job: TagAndPushAppImage
     dependsOn: BuildAndArtifactAppImage
-    # condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
     pool:
       name: DEFRA-COMMON-ubuntu2204-SSV5
     steps:
@@ -148,5 +148,5 @@ stages:
       displayName: 'Azure Web App on Container Deploy'
       inputs:
         azureSubscription: AZR-MMO-SND1 #service connection name
-        appName: mmo-batch-data-process-service-snd
+        appName: SND-MMO-FES-BATCH-DATA-PROCESS-WA
         imageName: ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion)
