@@ -19,134 +19,134 @@ resources:
       ref: main
 
 stages:
-- stage: BuildAppAndCodeCoverage
-  pool:
-    vmImage: 'ubuntu-latest'
-  jobs:
-  - job: TestCodeCoverage
-    steps:
-    - task: npmAuthenticate@0
-      displayName: Authenticate .npmrc file
-      inputs:
-        workingFile: .npmrc
-    - script: |
-        docker build . --target=test \
-            -t test:$(Build.BuildId) \
-            --build-arg NPM_TOKEN=$(System.AccessToken)
-      displayName: "Docker Test"
-    - script: |
-        docker run test:$(Build.BuildId) npm run lint
-      displayName: "Lint"
-      condition: succeededOrFailed()
-
-    - script: |
-        docker run test:$(Build.BuildId) npm audit --registry=https://registry.npmjs.org/ --audit-level=critical
-      displayName: "NPM Audit"
-      continueOnError: true
-      condition: succeededOrFailed()
-
-    - script: |
-        mkdir coverage
-        mkdir test-results
-        chmod a+rw coverage
-        chmod a+rw test-results
-        docker run --user=root -v $(Build.StagingDirectory)/coverage:/home/node/coverage -v $(Build.StagingDirectory)/test-results:/home/node/test-results test:$(Build.BuildId) npm run test:ci
-      displayName: "Test"
-      workingDirectory: $(Build.StagingDirectory)
-      condition: succeededOrFailed()
-
-    - publish: '$(Build.StagingDirectory)/coverage'
-      displayName: 'Publish coverage for Sonarqube'
-      artifact: coverage
-
-    - task: PublishTestResults@2
-      condition: succeededOrFailed()
-      inputs:
-        testResultsFiles: '$(Build.StagingDirectory)/test-results/junit.xml'
-
-    - task: PublishCodeCoverageResults@1
-      condition: succeededOrFailed()
-      inputs:
-        codeCoverageTool: Cobertura
-        pathToSources: '$(System.DefaultWorkingDirectory)'
-        summaryFileLocation: '$(Build.StagingDirectory)/coverage/cobertura-coverage.xml'
-
-  - job: BuildAndArtifactAppImage
-    steps:
-    - task: npmAuthenticate@0
-      displayName: Authenticate .npmrc file
-      inputs:
-        workingFile: .npmrc
-    - script: |
-        docker build . \
-          -t ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion) \
-          --build-arg GIT_HASH=$(Build.SourceVersion) \
-          --build-arg NPM_TOKEN=$(System.AccessToken)
-      displayName: "Docker build"
-    # Export the Docker image to a file so it can be copied to the next Jobs
-    - task: Bash@3
-      displayName: Save Docker Image
-      inputs:
-        targetType: 'inline'
-        script: |
-          docker save ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion) \
-            -o $(Pipeline.Workspace)/docker-image.tar
-    # Publish application docker image
-    - task: PublishPipelineArtifact@1
-      displayName: Publish Docker run image
-      inputs:
-        targetPath: '$(Pipeline.Workspace)/docker-image.tar'
-        artifact: 'docker-image'
-        publishLocation: 'pipeline'
-
-  - job: TagAndPushAppImage
-    dependsOn: BuildAndArtifactAppImage
-    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
+  - stage: BuildAppAndCodeCoverage
     pool:
-      name: DEFRA-COMMON-ubuntu2204-SSV5
-    steps:
-    - task: DownloadPipelineArtifact@2
-      displayName: Download Docker image
-      inputs:
-        buildType: 'current'
-        artifactName: 'docker-image'
-        targetPath: '$(Pipeline.Workspace)'
-    # Load and tag Docker image
-    - task: Bash@3
-      displayName: Load and tag Docker images
-      inputs:
-        targetType: 'inline'
-        script: |
-          docker load --input $(Pipeline.Workspace)/docker-image.tar
-    - task: Docker@2
-      displayName: Login to ACR
-      inputs:
-        command: login
-        containerRegistry: SSVMMOINFCR5401_ADOSERVICECONNECTION
-    - task: Docker@2
-      displayName: 'Push an image to SND MMO ACR'
-      inputs:
-        containerRegistry: SSVMMOINFCR5401_ADOSERVICECONNECTION
-        repository: 'mmo-fes-batch-data-process'
-        command: push
-        tags: |
-          $(Build.SourceVersion)
-        addPipelineData: false
+      vmImage: 'ubuntu-latest'
+    jobs:
+      - job: TestCodeCoverage
+        steps:
+          - task: npmAuthenticate@0
+            displayName: Authenticate .npmrc file
+            inputs:
+              workingFile: .npmrc
+          - script: |
+              docker build . --target=test \
+                  -t test:$(Build.BuildId) \
+                  --build-arg NPM_TOKEN=$(System.AccessToken)
+            displayName: 'Docker Test'
+          - script: |
+              docker run test:$(Build.BuildId) npm run lint
+            displayName: 'Lint'
+            condition: succeededOrFailed()
 
-# Central mmo-fes-central-ado-pipeline-templates reference
-- template: /includes/sonar-integration-template.yml@CentralAdoPipelineTemplates
+          - script: |
+              docker run test:$(Build.BuildId) npm audit --registry=https://registry.npmjs.org/ --audit-level=critical
+            displayName: 'NPM Audit'
+            continueOnError: true
+            condition: succeededOrFailed()
 
-- stage: DeployWebApp
-  pool:
-    vmImage: 'ubuntu-latest'
-  dependsOn: SonarQube_Prepare_Analyze_Publish
-  condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
-  jobs:
-  - job: DeployToSND
-    steps:
-    - task: AzureWebAppContainer@1
-      displayName: 'Azure Web App on Container Deploy'
-      inputs:
-        azureSubscription: AZR-MMO-SND1 #service connection name
-        appName: SND-MMO-FES-BATCH-DATA-PROCESS-WA
-        imageName: ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion)
+          - script: |
+              mkdir coverage
+              mkdir test-results
+              chmod a+rw coverage
+              chmod a+rw test-results
+              docker run --user=root -v $(Build.StagingDirectory)/coverage:/home/node/coverage -v $(Build.StagingDirectory)/test-results:/home/node/test-results test:$(Build.BuildId) npm run test:ci
+            displayName: 'Test'
+            workingDirectory: $(Build.StagingDirectory)
+            condition: succeededOrFailed()
+
+          - publish: '$(Build.StagingDirectory)/coverage'
+            displayName: 'Publish coverage for Sonarqube'
+            artifact: coverage
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: '$(Build.StagingDirectory)/test-results/junit.xml'
+
+          - task: PublishCodeCoverageResults@1
+            condition: succeededOrFailed()
+            inputs:
+              codeCoverageTool: Cobertura
+              pathToSources: '$(System.DefaultWorkingDirectory)'
+              summaryFileLocation: '$(Build.StagingDirectory)/coverage/cobertura-coverage.xml'
+
+      - job: BuildAndArtifactAppImage
+        steps:
+          - task: npmAuthenticate@0
+            displayName: Authenticate .npmrc file
+            inputs:
+              workingFile: .npmrc
+          - script: |
+              docker build . \
+                -t ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion) \
+                --build-arg GIT_HASH=$(Build.SourceVersion) \
+                --build-arg NPM_TOKEN=$(System.AccessToken)
+            displayName: 'Docker build'
+          # Export the Docker image to a file so it can be copied to the next Jobs
+          - task: Bash@3
+            displayName: Save Docker Image
+            inputs:
+              targetType: 'inline'
+              script: |
+                docker save ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion) \
+                  -o $(Pipeline.Workspace)/docker-image.tar
+          # Publish application docker image
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Docker run image
+            inputs:
+              targetPath: '$(Pipeline.Workspace)/docker-image.tar'
+              artifact: 'docker-image'
+              publishLocation: 'pipeline'
+
+      - job: TagAndPushAppImage
+        dependsOn: BuildAndArtifactAppImage
+        condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
+        pool:
+          name: DEFRA-COMMON-ubuntu2204-SSV5
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: Download Docker image
+            inputs:
+              buildType: 'current'
+              artifactName: 'docker-image'
+              targetPath: '$(Pipeline.Workspace)'
+          # Load and tag Docker image
+          - task: Bash@3
+            displayName: Load and tag Docker images
+            inputs:
+              targetType: 'inline'
+              script: |
+                docker load --input $(Pipeline.Workspace)/docker-image.tar
+          - task: Docker@2
+            displayName: Login to ACR
+            inputs:
+              command: login
+              containerRegistry: SSVMMOINFCR5401_ADOSERVICECONNECTION
+          - task: Docker@2
+            displayName: 'Push an image to SND MMO ACR'
+            inputs:
+              containerRegistry: SSVMMOINFCR5401_ADOSERVICECONNECTION
+              repository: 'mmo-fes-batch-data-process'
+              command: push
+              tags: |
+                $(Build.SourceVersion)
+              addPipelineData: false
+
+  # Central mmo-fes-central-ado-pipeline-templates reference
+  - template: /includes/sonar-integration-template.yml@CentralAdoPipelineTemplates
+
+  - stage: DeployWebApp
+    pool:
+      vmImage: 'ubuntu-latest'
+    dependsOn: SonarQube_Prepare_Analyze_Publish
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'PullRequest')))
+    jobs:
+      - job: DeployToSND
+        steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'Azure Web App on Container Deploy'
+            inputs:
+              azureSubscription: AZR-MMO-SND1 #service connection name
+              appName: SND-MMO-FES-BATCH-DATA-PROCESS-WA
+              imageName: ssvmmoinfcr5401.azurecr.io/mmo-fes-batch-data-process:$(Build.SourceVersion)
