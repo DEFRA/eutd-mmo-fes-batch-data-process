@@ -3,6 +3,12 @@ import { ILanding, ILandingQuery } from 'mmo-shared-reference-data';
 
 export interface ILandingModel extends ILanding, Document {}
 
+export const enum LandingSources {
+  LandingDeclaration  = 'LANDING_DECLARATION',
+  CatchRecording      = 'CATCH_RECORDING',
+  ELog                = 'ELOG'
+}
+
 export interface ILandingQueryWithIsLegallyDue extends ILandingQuery {
   isLegallyDue: boolean;
 }

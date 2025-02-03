@@ -13,31 +13,23 @@ import * as certificatePerstence from "../../src/persistence/catchCerts";
 import * as defraDataPersistence from "../../src/persistence/defraValidation";
 import * as dynamicsValidation from "../../src/landings/transformations/dynamicsValidation";
 import * as defraTradeValidation from "../../src/landings/transformations/defraTradeValidation";
+import * as validation from "../../src/landings/transformations/defraValidation";
 import * as species from "../../src/data/species";
 import * as vessel from "../../src/data/vessel";
+import * as risking from "../../src/data/risking";
 import { ApplicationConfig } from "../../src/config";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../src/types/dynamicsValidation";
-import { CatchArea, CertificateStatus, IDefraTradeCatchCertificate } from "../../src/types/defraTradeValidation";
 import { ServiceBusMessage } from "@azure/service-bus";
 import logger from "../../src/logger";
+import { BlobServiceClient, BlockBlobClient, ContainerClient } from "@azure/storage-blob";
+import config from '../../src/config';
+jest.mock("@azure/storage-blob");
 
 moment.suppressDeprecationWarnings = true;
 
 const { v4:uuid } = require('uuid');
 
 jest.mock('uuid');
-
-jest.mock('azure-storage', () => {
-  const original = jest.requireActual("azure-storage");
-  return {
-    ...original,
-    createBlobServiceWithSas: () => {
-      return {
-        name: 'service'
-      }
-    }
-  };
-});
 
 Date.now = jest.fn(() => 1487076708000) //14.02.2017
 
@@ -110,14 +102,30 @@ describe('filterReports', () => {
 describe('processReports', () => {
 
   let mockGetUnprocessed;
-  let mockSaveToBlob;
+  let mockBlobClient;
   let mockMarkAsProcessed;
   let mockLogError;
   let mockLogInfo;
+  let mockWriteToBlob;
 
   beforeEach(() => {
     mockGetUnprocessed = jest.spyOn(defraValidation, 'getUnprocessedReports');
-    mockSaveToBlob = jest.spyOn(blobStorage, 'writeToBlobWithSas');
+    
+    config.azureContainer = "t1-catchcerts";
+    config.externalAppUrl = 'some-snd-url';
+
+    mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+    const containerObj = new ContainerClient(config.azureContainer);
+    containerObj.getBlockBlobClient = (url) => {
+        return new BlockBlobClient(url);
+    };
+    mockBlobClient.mockImplementation(() => ({
+      getContainerClient: () => {
+          return containerObj;
+      }
+    }));
+    mockWriteToBlob = jest.spyOn(blobStorage, 'writeToBlob');
+    
     mockMarkAsProcessed = jest.spyOn(defraValidation, 'markAsProcessed');
     mockLogError = jest.spyOn(logger, 'error');
     mockLogInfo = jest.spyOn(logger, 'info');
@@ -131,7 +139,7 @@ describe('processReports', () => {
     const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -139,17 +147,15 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
     expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockSaveToBlob).toHaveBeenCalledTimes(3);
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", "[{\"_id\":\"123\",\"documentType\":\"ProcessingStatement\"}]",)
-
-
+    expect(mockWriteToBlob.mock.calls.length).toEqual(3);
+    expect(mockWriteToBlob.mock.calls[0][1]).toEqual("[{\"_id\":\"123\",\"documentType\":\"ProcessingStatement\"}]");
   });
 
   it('will mark all the reports which have been sent to the blob storage as having been processed', async () => {
     const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -161,7 +167,7 @@ describe('processReports', () => {
     const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -169,12 +175,10 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenCalledTimes(6);
     expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
-    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_SND_20170214_12-51-48-000.json]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(4, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(5, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(6, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
-
-
   });
 
   it('will log when the process has been skipped due to no records needing to be sent to blog storage', async () => {
@@ -192,7 +196,7 @@ describe('processReports', () => {
     const unprocessed = [{ _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -200,16 +204,16 @@ describe('processReports', () => {
     expect(mockGetUnprocessed).toHaveBeenCalled();
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_SD_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_CC_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
+    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
+    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
   });
 
   it('if there is no Storage Documents, it will not attempt to push to blob', async () => {
     const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'CatchCertificate' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -217,16 +221,16 @@ describe('processReports', () => {
     expect(mockGetUnprocessed).toHaveBeenCalled();
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_CC_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
+    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
+    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
   });
 
   it('if there is no Catch Certificates, it will not attempt to push to blob', async () => {
     const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'StorageDocument' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -234,16 +238,16 @@ describe('processReports', () => {
     expect(mockGetUnprocessed).toHaveBeenCalled();
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
     expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockSaveToBlob).toHaveBeenCalledTimes(2);
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(1, { "name": "service" }, "t1-catchcerts", "_PS_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[0]]));
-    expect(mockSaveToBlob).toHaveBeenNthCalledWith(2, { "name": "service" }, "t1-catchcerts", "_SD_localhost_20170214_12-51-48-000.json", JSON.stringify([unprocessed[1]]));
+    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
+    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
+    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
   });
 
   it('will stop processing records and record the error if an error get thrown', async () => {
     const error = new Error('something bad happened');
 
     mockGetUnprocessed.mockResolvedValue([{ _id: '123', documentType: 'ProcessingStatement' }]);
-    mockSaveToBlob.mockImplementation(() => { throw error });
+    mockWriteToBlob.mockRejectedValue(error);
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -258,7 +262,7 @@ describe('processReports', () => {
     const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'ProcessingStatement' }];
 
     mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockSaveToBlob.mockResolvedValue(true);
+    mockWriteToBlob.mockResolvedValue({});
     mockMarkAsProcessed.mockResolvedValue(null);
 
     await SUT.processReports();
@@ -266,10 +270,10 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenCalledTimes(9);
     expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
-    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[PUSHING-TO-BLOB][_PS_SND_20170214_12-51-48-000.json]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(4, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(5, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
-    expect(mockLogInfo).toHaveBeenNthCalledWith(6, '[PUSHING-TO-BLOB][_PS_localhost_20170214_12-51-48-000.json]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(6, '[PUSHING-TO-BLOB][_PS_SND_20170214_12-51-48-000.json]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(7, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][PS-PROCESSED: 3]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(8, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(9, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
@@ -334,7 +338,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC1',
@@ -379,8 +388,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
-
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC2',
@@ -425,8 +438,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
-
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC2',
@@ -471,7 +488,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC2',
@@ -516,7 +538,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC3',
@@ -561,7 +588,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC3',
@@ -606,7 +638,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     },
     {
       documentNumber: 'CC4',
@@ -651,7 +688,12 @@ describe('reportNewLandings', () => {
       durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
         moment.utc('2019-07-11T09:00:00.000Z')
           .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-      extended: {}
+      extended: {
+        dataEverExpected: true,
+        landingDataExpectedDate: "2017-02-12",
+        landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+        landingStatus: "PENDING_LANDING_DATA"
+      }
     }
   ];
 
@@ -671,20 +713,20 @@ describe('reportNewLandings', () => {
   });
 
   it('should call runCcQueryForLandings with the landings', async () => {
-    await SUT.reportNewLandings(landings);
+    await SUT.reportNewLandings(landings, queryTime);
 
     expect(mockRunCcQuery).toHaveBeenCalledWith(landings);
   });
 
   it('will group and save each certificate', async () => {
-    await SUT.reportNewLandings(landings);
+    await SUT.reportNewLandings(landings, queryTime);
 
     expect(mockReportSubmitted).toHaveBeenCalledTimes(3);
     expect(mockReportSubmitted).toHaveBeenCalledWith(expect.anything());
   });
 
   it('will persist the new _status of each landing to mongo', async () => {
-    await SUT.reportNewLandings(landings);
+    await SUT.reportNewLandings(landings, queryTime);
 
     expect(mockRunUpdateLandings).toHaveBeenCalledTimes(3);
     expect(mockRunUpdateLandings).toHaveBeenNthCalledWith(1, [ccQueryResult[0], ccQueryResult[1]], 'CC1');
@@ -1098,57 +1140,16 @@ describe('findNewLandings', () => {
     source: shared.LandingSources.CatchRecording
   }];
 
-  it('should not include landings that have not updated', () => {
-    const ccQueryResults: shared.ICcQueryResult[] = [
-      {
-        documentNumber: 'CC1',
-        documentType: 'catchCertificate',
-        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
-        status: 'COMPLETE',
-        rssNumber: 'rssWA2',
-        da: 'Guernsey',
-        dateLanded: '2019-07-11',
-        species: 'LBE',
-        weightOnCert: 121,
-        rawWeightOnCert: 122,
-        weightOnAllCerts: 200,
-        weightOnAllCertsBefore: 0,
-        weightOnAllCertsAfter: 100,
-        weightFactor: 5,
-        isLandingExists: true,
-        isSpeciesExists: true,
-        numberOfLandingsOnDay: 1,
-        weightOnLanding: 30,
-        weightOnLandingAllSpecies: 30,
-        landingTotalBreakdown: [
-          {
-            factor: 1,
-            isEstimate: true,
-            weight: 30,
-            liveWeight: 30,
-            source: shared.LandingSources.CatchRecording
-          }
-        ],
-        source: shared.LandingSources.CatchRecording,
-        isOverusedThisCert: true,
-        isOverusedAllCerts: true,
-        isExceeding14DayLimit: false,
-        overUsedInfo: [],
-        durationSinceCertCreation: moment.duration(
-          queryTime
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
-          moment.utc('2019-07-11T09:00:00.000Z')
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
-          moment.utc('2019-07-11T09:00:00.000Z')
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
-      }
-    ];
+  let mockIsHighRisk;
 
-    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(0);
+  beforeEach(() => {
+    mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
+    mockIsHighRisk.mockReturnValue(false);
   });
+
+  afterEach(() => {
+    mockIsHighRisk.mockRestore();
+  })
 
   it('should include landings that have updated', () => {
     const ccQueryResults: shared.ICcQueryResult[] = [
@@ -1195,11 +1196,16 @@ describe('findNewLandings', () => {
         durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
           moment.utc('2019-07-11T09:00:00.000Z')
             .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
       }
     ];
 
-    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(1);
+    expect(SUT.findNewLandings(ccQueryResults, landings, queryTime)).toHaveLength(1);
   });
 
   it('should include all landings that have updated', () => {
@@ -1247,7 +1253,12 @@ describe('findNewLandings', () => {
         durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
           moment.utc('2019-07-11T09:00:00.000Z')
             .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
       },
       {
         documentNumber: 'CC1',
@@ -1292,68 +1303,16 @@ describe('findNewLandings', () => {
         durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
           moment.utc('2019-07-11T09:00:00.000Z')
             .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
       }
     ];
 
-    expect(SUT.findNewLandings(ccQueryResults, landings)).toHaveLength(2);
-  });
-
-  it('should not include landings that have updated with dateTimeLanded', () => {
-    const ccQueryResults: shared.ICcQueryResult[] = [
-      {
-        documentNumber: 'CC1',
-        documentType: 'catchCertificate',
-        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
-        status: 'COMPLETE',
-        rssNumber: 'rssWA1',
-        da: 'Guernsey',
-        dateLanded: '2019-07-10',
-        species: 'LBE',
-        weightOnCert: 121,
-        rawWeightOnCert: 122,
-        weightOnAllCerts: 200,
-        weightOnAllCertsBefore: 0,
-        weightOnAllCertsAfter: 100,
-        weightFactor: 5,
-        isLandingExists: true,
-        isSpeciesExists: true,
-        numberOfLandingsOnDay: 1,
-        weightOnLanding: 30,
-        weightOnLandingAllSpecies: 30,
-        landingTotalBreakdown: [
-          {
-            factor: 1,
-            isEstimate: true,
-            weight: 30,
-            liveWeight: 30,
-            source: shared.LandingSources.CatchRecording
-          }
-        ],
-        source: shared.LandingSources.CatchRecording,
-        isOverusedThisCert: true,
-        isOverusedAllCerts: true,
-        isExceeding14DayLimit: false,
-        overUsedInfo: [],
-        durationSinceCertCreation: moment.duration(
-          queryTime
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
-          moment.utc('2019-07-11T09:00:00.000Z')
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
-          moment.utc('2019-07-11T09:00:00.000Z')
-            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
-      }
-    ];
-
-    expect(SUT.findNewLandings(ccQueryResults, [{
-      dateTimeLanded: '2019-07-11T00:30:00.000Z',
-      items: [],
-      rssNumber: 'rssWA1',
-      source: shared.LandingSources.CatchRecording
-    }])).toHaveLength(0);
+    expect(SUT.findNewLandings(ccQueryResults, landings, queryTime)).toHaveLength(2);
   });
 
   it('should include landings that have updated with dateTimeLanded', () => {
@@ -1401,7 +1360,12 @@ describe('findNewLandings', () => {
         durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
           moment.utc('2019-07-11T09:00:00.000Z')
             .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
-        extended: {}
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
       }
     ];
 
@@ -1410,14 +1374,800 @@ describe('findNewLandings', () => {
       items: [],
       rssNumber: 'rssWA1',
       source: shared.LandingSources.CatchRecording
-    }])).toHaveLength(1);
+    }], queryTime)).toHaveLength(1);
   });
+
+  it('should include landings that have are overused', () => {
+    mockIsHighRisk.mockReturnValue(true);
+
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        isPreApproved: false,
+        overUsedInfo: ['CC2'],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "LANDING_DATA_OVERUSED"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording
+    }], queryTime)).toHaveLength(1);
+  });
+
+  it('should include landings with elog species mismatch', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 10,
+        rawWeightOnCert: 10,
+        weightOnAllCerts: 10,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 10,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.ELog
+          }
+        ],
+        source: shared.LandingSources.ELog,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "ELOG_SPECIES_MISMATCH"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.ELog
+    }], queryTime)).toHaveLength(1);
+  });
+
+  it('should exclude landing which do not require an update', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 10,
+        rawWeightOnCert: 10,
+        weightOnAllCerts: 10,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 10,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.LandingDeclaration
+          }
+        ],
+        source: shared.LandingSources.LandingDeclaration,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "ELOG_SPECIES_MISMATCH"
+        }
+      },
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'COD',
+        weightOnCert: 100,
+        rawWeightOnCert: 100,
+        weightOnAllCerts: 100,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.LandingDeclaration
+          }
+        ],
+        source: shared.LandingSources.LandingDeclaration,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "HAS_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.LandingDeclaration
+    }], queryTime)).toHaveLength(1);
+  });
+
+  it('should exclude all landings which do not require an update', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 10,
+        rawWeightOnCert: 10,
+        weightOnAllCerts: 10,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 10,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.LandingDeclaration
+          }
+        ],
+        source: shared.LandingSources.LandingDeclaration,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "ELOG_SPECIES_MISMATCH"
+        }
+      },
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'COD',
+        weightOnCert: 100,
+        rawWeightOnCert: 100,
+        weightOnAllCerts: 100,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.LandingDeclaration
+          }
+        ],
+        source: shared.LandingSources.LandingDeclaration,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "HAS_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.LandingDeclaration,
+      _ignore: true
+    }], queryTime)).toHaveLength(0);
+  });
+
+  it('should exclude reported landings that have are overused', () => {
+    mockIsHighRisk.mockReturnValue(true);
+
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        isPreApproved: false,
+        overUsedInfo: ['CC2'],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "HAS_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording,
+      _ignore: true
+    }], queryTime)).toHaveLength(0);
+  });
+
+  it('should exclude reported landings with elog species mismatch', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 10,
+        rawWeightOnCert: 10,
+        weightOnAllCerts: 10,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 10,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.ELog
+          }
+        ],
+        source: shared.LandingSources.ELog,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "ELOG_SPECIES_MISMATCH"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.ELog,
+      _ignore: true
+    }], queryTime)).toHaveLength(0);
+  });
+
+  it('should not include landings that have not updated', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA2',
+        da: 'Guernsey',
+        dateLanded: '2019-07-11',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, landings, queryTime)).toHaveLength(0);
+  });
+
+  it('should not include landings that have updated with dateTimeLanded', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-11T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording
+    }], queryTime)).toHaveLength(0);
+  });
+
+  it('should not include landings outside of thier retrospective window', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "PENDING_LANDING_DATA"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.CatchRecording,
+      _ignore: false
+    }], moment.utc('2024-08-16'))).toHaveLength(0);
+  });
+
+  it('should include reported landings with elog species mismatch that reached the 14 day limit', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 10,
+        rawWeightOnCert: 10,
+        weightOnAllCerts: 10,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 10,
+        weightFactor: 1,
+        isLandingExists: true,
+        isSpeciesExists: false,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 10,
+        weightOnLandingAllSpecies: 10,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.ELog
+          }
+        ],
+        source: shared.LandingSources.ELog,
+        isOverusedThisCert: false,
+        isOverusedAllCerts: false,
+        isExceeding14DayLimit: true,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "ELOG_SPECIES_MISMATCH"
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, [{
+      dateTimeLanded: '2019-07-10T00:30:00.000Z',
+      items: [],
+      rssNumber: 'rssWA1',
+      source: shared.LandingSources.ELog,
+      _ignore: true
+    }], queryTime)).toHaveLength(1);
+  });
+
+  it('should call the findNewLandings function with riskScore and threshold', () => {
+    const ccQueryResults: shared.ICcQueryResult[] = [
+      {
+        documentNumber: 'CC1',
+        documentType: 'catchCertificate',
+        createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+        status: 'COMPLETE',
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2019-07-10',
+        species: 'LBE',
+        weightOnCert: 121,
+        rawWeightOnCert: 122,
+        weightOnAllCerts: 200,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        weightFactor: 5,
+        isLandingExists: true,
+        isSpeciesExists: true,
+        numberOfLandingsOnDay: 1,
+        weightOnLanding: 30,
+        weightOnLandingAllSpecies: 30,
+        landingTotalBreakdown: [
+          {
+            factor: 1,
+            isEstimate: true,
+            weight: 30,
+            liveWeight: 30,
+            source: shared.LandingSources.CatchRecording
+          }
+        ],
+        source: shared.LandingSources.CatchRecording,
+        isOverusedThisCert: true,
+        isOverusedAllCerts: true,
+        isExceeding14DayLimit: false,
+        overUsedInfo: [],
+        durationSinceCertCreation: moment.duration(
+          queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+          moment.utc('2019-07-11T09:00:00.000Z')
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+        extended: {
+          dataEverExpected: true,
+          landingDataExpectedDate: "2017-02-12",
+          landingDataEndDate: moment.utc().add(1).format("YYYY-MM-DD"),
+          landingStatus: "HAS_LANDING_DATA",
+          riskScore: 0.2,
+          threshold: 1
+        }
+      }
+    ];
+
+    expect(SUT.findNewLandings(ccQueryResults, landings, queryTime)).toHaveLength(0);
+  })
+
 });
 
 describe('when a CC is submitted', () => {
 
   const dynamicsMappedData: shared.IDynamicsLandingCase[] = [{
-    status: shared.LandingStatusType.ValidationFailure_NoLandingData,
+    status: shared.LandingStatusType.PendingLandingData_DataExpected,
     id: 'rssWA12019-07-10',
     landingDate: '2019-07-10',
     numberOfFailedSubmissions: 0,
@@ -1576,7 +2326,7 @@ describe('when a CC is submitted', () => {
     mockInsertCcReport = jest.spyOn(defraDataPersistence, 'insertCcDefraValidationReport');
     mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
     mockToCcDefraReport = jest.spyOn(shared, 'toCcDefraReport');
-    mockToLandings = jest.spyOn(shared, 'toLandings');
+    mockToLandings = jest.spyOn(validation, 'toLandings');
     mockToDynamicsLandingDetails = jest.spyOn(dynamicsValidation, 'toDynamicsLandingDetails');
     mockLogInfo = jest.spyOn(logger, 'info');
     mockLogWarn = jest.spyOn(logger, 'warn');
@@ -1615,7 +2365,6 @@ describe('when a CC is submitted', () => {
       }];
 
       mockInsertCcReport.mockResolvedValue(null);
-
       mockGetCertificate.mockResolvedValue(getCatchCertificate);
       mockToCcDefraReport.mockReturnValue(toReportResponse);
       mockToLandings.mockReturnValue(toLandingsResponse);
@@ -1626,7 +2375,7 @@ describe('when a CC is submitted', () => {
       expect(mockInsertCcReport).toHaveBeenCalledWith({ ...toReportResponse, landings: toLandingsResponse });
       expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
       expect(mockToCcDefraReport).toHaveBeenCalledWith('X-CC-1', 'some-uuid-correlation-id', 'COMPLETE', false, mockVesselIdx, getCatchCertificate);
-      expect(mockToLandings).toHaveBeenCalledWith(data, mockVesselIdx);
+      expect(mockToLandings).toHaveBeenCalledWith(data);
       expect(mockInsertCcReport).toHaveBeenCalledWith(toReportResponse);
       expect(mockToDynamicsLandingDetails).toHaveBeenCalledTimes(1);
       expect(mockToDynamicsLandingDetails).toHaveBeenCalledWith(data, getCatchCertificate, 'some-uuid-correlation-id');
@@ -2839,7 +3588,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       weightFactor: 5,
       isLandingExists: true,
       hasSalesNote: true,
-      isSpeciesExists: true,
+      isSpeciesExists: false,
       numberOfLandingsOnDay: 1,
       weightOnLanding: 30,
       weightOnLandingAllSpecies: 30,
@@ -2898,7 +3647,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       }
     }];
 
-    const body: IDefraTradeCatchCertificate = {
+    const body: shared.IDefraTradeCatchCertificate = {
       "documentNumber": "GBR-2020-CC-1BC924FCF",
       "caseType1": CaseOneType.CatchCertificate,
       "caseType2": CaseTwoType.PendingLandingData,
@@ -2945,7 +3694,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       },
       "landings": [
         {
-          "status": shared.LandingStatusType.ValidationSuccess,
+          "status": shared.DefraCcLandingStatusType.ValidationFailure_Species,
           "id": "GBR-2023-CC-C58DF9A73-1777642314",
           "landingDate": "2023-08-31",
           "species": "Lobster",
@@ -2968,6 +3717,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
           "speciesOverriddenByAdmin": false,
           "dataEverExpected": true,
           "landingDataExpectedAtSubmission": true,
+          "landingOutcomeAtRetrospectiveCheck": shared.LandingRetrospectiveOutcomeType.Failure,
           "validation": {
             "liveExportWeight": 121,
             "totalEstimatedForExportSpecies": 30,
@@ -2987,7 +3737,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
             "isSpeciesRiskEnabled": false
           },
           "flag": "GBR",
-          "catchArea": CatchArea.FAO27,
+          "catchArea": shared.CatchArea.FAO27,
           "homePort": "NEWLYN",
           "fishingLicenceNumber": "25072",
           "fishingLicenceValidTo": "2030-12-31",
@@ -3007,7 +3757,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         "isoCodeAlpha3": "ALA",
         "isoNumericCode": "248"
       },
-      "certStatus": CertificateStatus.COMPLETE,
+      "certStatus": shared.CertificateStatus.COMPLETE,
       "transportation": {
         "modeofTransport": "truck",
         "hasRoadTransportDocument": true
@@ -3241,7 +3991,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       }
     };
 
-    const body: IDefraTradeCatchCertificate = {
+    const body: shared.IDefraTradeCatchCertificate = {
       "documentNumber": "GBR-2020-CC-1BC924FCF",
       "caseType1": CaseOneType.CatchCertificate,
       "caseType2": CaseTwoType.VoidByExporter,
@@ -3300,7 +4050,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         "isoCodeAlpha3": "ALA",
         "isoNumericCode": "248"
       },
-      "certStatus": CertificateStatus.VOID,
+      "certStatus": shared.CertificateStatus.VOID,
       "transportation": {
         "modeofTransport": "truck",
         "hasRoadTransportDocument": true
@@ -3320,7 +4070,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
         SchemaVersion: 2,
         Type: "Internal",
-        Status: CertificateStatus.VOID,
+        Status: shared.CertificateStatus.VOID,
         TimestampUtc: expect.any(String)
       },
       subject: shared.MessageLabel.CATCH_CERTIFICATE_VOIDED + '-GBR-2020-CC-1BC924FCF'
@@ -3479,7 +4229,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       }]
     };
 
-    const body: IDefraTradeCatchCertificate = {
+    const body: shared.IDefraTradeCatchCertificate = {
       "documentNumber": "GBR-2020-CC-1BC924FCF",
       "caseType1": CaseOneType.CatchCertificate,
       "caseType2": CaseTwoType.VoidByAdmin,
@@ -3523,7 +4273,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         "isoCodeAlpha3": "ALA",
         "isoNumericCode": "248"
       },
-      "certStatus": CertificateStatus.VOID,
+      "certStatus": shared.CertificateStatus.VOID,
       "transportation": {
         "modeofTransport": "truck",
         "hasRoadTransportDocument": true
@@ -3543,7 +4293,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
         SchemaVersion: 2,
         Type: "Internal",
-        Status: CertificateStatus.VOID,
+        Status: shared.CertificateStatus.VOID,
         TimestampUtc: expect.any(String)
       },
       subject: shared.MessageLabel.CATCH_CERTIFICATE_VOIDED + '-GBR-2020-CC-1BC924FCF'

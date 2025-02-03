@@ -8,7 +8,7 @@ export default () => {
     appInsights.setup(instrumentationKey)
     .setAutoDependencyCorrelation(true)
     .setAutoCollectRequests(true)
-    .setAutoCollectPerformance(true)
+    .setAutoCollectPerformance(true, true)
     .setAutoCollectExceptions(true)
     .setAutoCollectDependencies(true)
     .setAutoCollectConsole(true)

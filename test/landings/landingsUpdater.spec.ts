@@ -1,5 +1,6 @@
 const moment = require('moment');
 const mongoose = require('mongoose');
+import _ from 'lodash';
 
 import axios from 'axios'
 
@@ -26,8 +27,6 @@ import fs from 'fs';
 jest.mock('axios')
 const mockedAxios = axios as jest.Mocked<typeof axios>
 
-const sinon = require('sinon');
-const dataMock = sinon.stub(cache, 'getVesselsIdx')
 const vessels = [
   {
     registrationNumber: "WA1",
@@ -45,25 +44,29 @@ const vessels = [
   }
 ];
 const vesselsIdx = generateIndex(vessels);
-dataMock.returns(vesselsIdx);
 
 describe('getMissingLandingsArray', () => {
 
   let mockGetCatchCerts;
   let mockIsHighRisk;
+  let dataMock;
 
   beforeEach(() => {
     mockGetCatchCerts = jest.spyOn(catchCerts, 'getCatchCerts');
     mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
     mockIsHighRisk.mockReturnValue(true);
+
+    dataMock = jest.spyOn(cache, 'getVesselsIdx');
+    dataMock.mockReturnValue(vesselsIdx);
   })
 
   afterEach(() => {
     mockGetCatchCerts.mockRestore();
     mockIsHighRisk.mockRestore();
+    dataMock.mockRestore();
   });
 
-  it('Should not return a list if all landings are present', async () => {
+  it('should not return a list if all landings are present', async () => {
 
     const documents: any[] = [
       {
@@ -116,7 +119,7 @@ describe('getMissingLandingsArray', () => {
 
   })
 
-  it('Should return a list of items of missing landings', async () => {
+  it('should return a list of items of missing landings', async () => {
 
     const documents = [
       {
@@ -147,7 +150,7 @@ describe('getMissingLandingsArray', () => {
 
   })
 
-  it('Should not return a list of items of missing landings when landing data is unavailable', async () => {
+  it('should not return a list of items of missing landings when landing data is unavailable', async () => {
 
     const documents = [
       {
@@ -418,7 +421,7 @@ describe('getMissingLandingsArray', () => {
 
   })
 
-  it('Should return a list of items needing a landing refresh for an overuse', async () => {
+  it('should return a list of items needing a landing refresh for an overuse', async () => {
 
     const documents = [
       {
@@ -466,13 +469,14 @@ describe('getMissingLandingsArray', () => {
 
 describe('landingAndReportingCronJobs', () => {
 
-  const updateLandings = jest.spyOn(landingConsolidation, 'updateConsolidateLandings');
-  const fetchRefereshLandings = jest.spyOn(landingConsolidation, 'fetchRefereshLandings');
-  const fetchMock = jest.spyOn(landingRefresher, 'fetchLandings');
-  const reportNewLandings = jest.spyOn(report, 'reportNewLandings');
-  const reportsMock = jest.spyOn(report, 'processReports');
-  const loggerMock = jest.spyOn(logger, 'info');
-  const loggerErrorMock = jest.spyOn(logger, 'error');
+  let updateLandings;
+  let fetchRefereshLandings;
+  let fetchMock;
+  let reportNewLandings;
+  let reportsMock;
+  let loggerMock;
+  let loggerErrorMock;
+  let dataMock;
 
   let mongoServer;
 
@@ -494,6 +498,16 @@ describe('landingAndReportingCronJobs', () => {
     jest.resetAllMocks();
     await LandingModel.deleteMany({});
     await DocumentModel.deleteMany({});
+
+    updateLandings = jest.spyOn(landingConsolidation, 'updateConsolidateLandings');
+    fetchRefereshLandings = jest.spyOn(landingConsolidation, 'fetchRefereshLandings');
+    fetchMock = jest.spyOn(landingRefresher, 'fetchLandings');
+    reportNewLandings = jest.spyOn(report, 'reportNewLandings');
+    reportsMock = jest.spyOn(report, 'processReports');
+    loggerMock = jest.spyOn(logger, 'info');
+    loggerErrorMock = jest.spyOn(logger, 'error');
+    dataMock = jest.spyOn(cache, 'getVesselsIdx');
+    dataMock.mockReturnValue(vesselsIdx);
   });
 
   it('can fetch missing landings', async () => {
@@ -882,7 +896,7 @@ describe('landingAndReportingCronJobs', () => {
     const result = await SUT.landingsAndReportingCron();
 
     expect(reportNewLandings).toHaveBeenCalledTimes(1);
-    expect(reportNewLandings).toHaveBeenCalledWith(newLandings);
+    expect(reportNewLandings).toHaveBeenCalledWith(newLandings, expect.any(Object));
     expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][LANDING-AND-REPORTING-CRON][ERROR][Error: error]');
     expect(reportsMock).toHaveBeenCalledTimes(1);
     expect(result).toBeUndefined();
@@ -959,7 +973,7 @@ describe('landingAndReportingCronJobs', () => {
       await SUT.landingsAndReportingCron();
 
       expect(mockReportNew).toHaveBeenCalledTimes(1);
-      expect(mockReportNew).toHaveBeenCalledWith(landings);
+      expect(mockReportNew).toHaveBeenCalledWith(landings, expect.any(Object));
       expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][NEW-LANDINGS][1]');
     });
 
@@ -1146,10 +1160,12 @@ describe('resubmitCCToTrade', () => {
   let mockGetReferenceServiceUrl;
   let mockGetLandingsMultiple;
   let loggerErrorMock;
+  let loggerInfoMock;
   let mongoServer;
   let mockGetLandings;
   let mockCommodityCodeSearch;
   let mockResendCcToTrade;
+  let dataMock;
 
   const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
 
@@ -1178,22 +1194,28 @@ describe('resubmitCCToTrade', () => {
       stateLabel: "fresh",
       presentationLabel: "whole"
     }])
-    mockGetReferenceServiceUrl = jest.spyOn(appConfig ,'getReferenceServiceUrl');
+    mockGetReferenceServiceUrl = jest.spyOn(appConfig, 'getReferenceServiceUrl');
     mockGetReferenceServiceUrl.mockReturnValue('aUrlPath');
     loggerErrorMock = jest.spyOn(logger, 'error');
+    loggerInfoMock = jest.spyOn(logger, 'info');
     mockResendCcToTrade = jest.spyOn(report, 'resendCcToTrade');
     mockResendCcToTrade.mockResolvedValue(undefined);
+    dataMock = jest.spyOn(cache, 'getVesselsIdx');
+    dataMock.mockReturnValue(vesselsIdx);
   });
 
   afterEach(async () => {
     jest.resetAllMocks();
     await LandingModel.deleteMany({});
     await DocumentModel.deleteMany({});
+
+    dataMock.mockRestore();
   })
 
   it('if appConfig.runResubmitCcToTrade is false', async () => {
-    appConfig.runResubmitCcToTrade = false
-    const result = await SUT.resubmitCCToTrade()
+    appConfig.runResubmitCcToTrade = false;
+    const result = await SUT.resubmitCCToTrade();
+    expect(loggerInfoMock).not.toHaveBeenCalled();
     expect(result).toBeUndefined();
   });
 
@@ -1321,6 +1343,155 @@ describe('resubmitCCToTrade', () => {
       const result = await SUT.resubmitCCToTrade()
       expect(result).toBeUndefined();
     });
+    it('when getLandingsFromCatchCertificate is undefined should give zero landings', async () => {
+      const catchCert: sharedRefData.IDocument[] = [{
+        documentNumber: 'GBR-2024-CC-08F28C758',
+        status: 'COMPLETE',
+        createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+        createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
+        createdByEmail: 'foo@foo.com',
+        requestByAdmin: false,
+        contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
+        __t: 'catchCert',
+        audit: [],
+        exportData: {
+          landingsEntryOption: 'directLanding',
+          transportation: {
+            vehicle: 'directLanding',
+            exportedFrom: 'United Kingdom',
+            exportedTo: {
+              officialCountryName: 'France',
+              isoCodeAlpha2: 'FR',
+              isoCodeAlpha3: 'FRA',
+              isoNumericCode: '250'
+            }
+          },
+          exporterDetails: {
+            contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+            addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
+            buildingNumber: null,
+            subBuildingName: 'NATURAL ENGLAND',
+            buildingName: 'LANCASTER HOUSE',
+            streetName: 'HAMPSHIRE COURT',
+            county: null,
+            country: 'United Kingdom of Great Britain and Northern Ireland',
+            postcode: 'NE4 7YH',
+            townCity: 'NEWCASTLE UPON TYNE',
+            exporterCompanyName: 'capgemini',
+            exporterFullName: 'Automation Tester',
+            _dynamicsAddress: {
+              defra_uprn: '10091818796',
+              defra_buildingname: 'LANCASTER HOUSE',
+              defra_subbuildingname: 'NATURAL ENGLAND',
+              defra_premises: null,
+              defra_street: 'HAMPSHIRE COURT',
+              defra_locality: 'NEWCASTLE BUSINESS PARK',
+              defra_dependentlocality: null,
+              defra_towntext: 'NEWCASTLE UPON TYNE',
+              defra_county: null,
+              defra_postcode: 'NE4 7YH',
+              _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
+              defra_internationalpostalcode: null,
+              defra_fromcompanieshouse: false,
+              defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
+              _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
+              _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
+              _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
+              defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
+            },
+            _dynamicsUser: {
+              firstName: 'Automation',
+              lastName: 'Tester'
+            }
+          },
+          products: [
+          ],
+          conservation: {
+            conservationReference: 'UK Fisheries Policy'
+          }
+        },
+        documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
+      }]
+      mockGetLandings.mockReturnValue(undefined)
+      await SUT.processResubmitCCToTrade(catchCert)
+      const landings = _.flatten((sharedRefData.getLandingsFromCatchCertificate(catchCert, true) || []));
+      expect(landings).toEqual([]);
+    });
+    it('When there are no landings in the document then show no landings logger', async () => {
+      const catchCert: sharedRefData.IDocument[] = [{
+        documentNumber: 'GBR-2024-CC-08F28C758',
+        status: 'COMPLETE',
+        createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+        createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
+        createdByEmail: 'foo@foo.com',
+        requestByAdmin: false,
+        contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
+        __t: 'catchCert',
+        audit: [],
+        exportData: {
+          landingsEntryOption: 'directLanding',
+          transportation: {
+            vehicle: 'directLanding',
+            exportedFrom: 'United Kingdom',
+            exportedTo: {
+              officialCountryName: 'France',
+              isoCodeAlpha2: 'FR',
+              isoCodeAlpha3: 'FRA',
+              isoNumericCode: '250'
+            }
+          },
+          exporterDetails: {
+            contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+            addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
+            buildingNumber: null,
+            subBuildingName: 'NATURAL ENGLAND',
+            buildingName: 'LANCASTER HOUSE',
+            streetName: 'HAMPSHIRE COURT',
+            county: null,
+            country: 'United Kingdom of Great Britain and Northern Ireland',
+            postcode: 'NE4 7YH',
+            townCity: 'NEWCASTLE UPON TYNE',
+            exporterCompanyName: 'capgemini',
+            exporterFullName: 'Automation Tester',
+            _dynamicsAddress: {
+              defra_uprn: '10091818796',
+              defra_buildingname: 'LANCASTER HOUSE',
+              defra_subbuildingname: 'NATURAL ENGLAND',
+              defra_premises: null,
+              defra_street: 'HAMPSHIRE COURT',
+              defra_locality: 'NEWCASTLE BUSINESS PARK',
+              defra_dependentlocality: null,
+              defra_towntext: 'NEWCASTLE UPON TYNE',
+              defra_county: null,
+              defra_postcode: 'NE4 7YH',
+              _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
+              defra_internationalpostalcode: null,
+              defra_fromcompanieshouse: false,
+              defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
+              _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
+              _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
+              _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
+              defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
+            },
+            _dynamicsUser: {
+              firstName: 'Automation',
+              lastName: 'Tester'
+            }
+          },
+          products: [
+          ],
+          conservation: {
+            conservationReference: 'UK Fisheries Policy'
+          }
+        },
+        documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
+      }]
+
+      await SUT.processResubmitCCToTrade(catchCert)
+      expect(loggerInfoMock).toHaveBeenCalledWith(
+        `[RUN-RESUBMIT-TRADE-DOCUMENT][GBR-2024-CC-08F28C758][NO-LANDINGS-FOUND][GBR-2024-CC-08F28C758]`
+      );
+    });
   })
 
   it('should resubmitCCToTrade for document without a commodity code', async () => {
@@ -1328,7 +1499,7 @@ describe('resubmitCCToTrade', () => {
       {
         documentNumber: 'GBR-2024-CC-08F28C758',
         documentType: 'catchCertificate',
-        createdAt: '2020-09-26T08:26:06.939Z',
+        createdAt: '2024-09-27T08:26:06.939Z',
         status: 'COMPLETE',
         extended: {
           exporterContactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
@@ -1402,7 +1573,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -1583,7 +1754,7 @@ describe('resubmitCCToTrade', () => {
       {
         documentNumber: 'GBR-2024-CC-08F28C758',
         documentType: 'catchCertificate',
-        createdAt: '2020-09-26T08:26:06.939Z',
+        createdAt: '2024-09-27T08:26:06.939Z',
         status: 'COMPLETE',
         extended: {
           exporterContactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
@@ -1657,7 +1828,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -1833,7 +2004,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -1955,7 +2126,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -2040,7 +2211,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -2161,7 +2332,7 @@ describe('resubmitCCToTrade', () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2024-CC-08F28C758',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2024-09-27T08:26:06.939Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,

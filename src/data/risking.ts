@@ -3,7 +3,9 @@ import { WEIGHT } from 'mmo-shared-reference-data';
 
 export const isRiskEnabled = (): boolean => getSpeciesRiskToggle();
 
-export const isHighRisk = (riskScore: number): boolean => riskScore > getRiskThreshold();
+export const isHighRisk = (riskScore: number, threshold?: number): boolean => {
+  return threshold === undefined ? riskScore > getRiskThreshold() : riskScore > threshold; 
+};
 
 export function getTotalRiskScore(pln: string, speciesCode: string, exporterAccountId: string, exporterContactId: string): number {
   const vesselRiskScore = getVesselOfInterestRiskScore(pln);

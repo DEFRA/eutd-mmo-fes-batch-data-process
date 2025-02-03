@@ -51,6 +51,9 @@ export const fetchLandings = async (rssNumber: string, dateLanded: string): Prom
     logger.info(`[LANDINGS][FETCH-LANDING][${rssNumber}-${dateLanded}][LANDINGS-FETCHED: ${landings.length}]`);
 
     if (landings.length) {
+      landings = await _ignoreUnchangedLandings(rssNumber, dateLanded, landings);
+      logger.info(`[LANDINGS][FETCH-LANDING][${rssNumber}-${dateLanded}][FILTERED-LANDINGS: ${landings.length}]`);
+
       await updateLandings(landings);
       logger.info(`[LANDINGS][FETCH-LANDING][${rssNumber}-${dateLanded}][LANDINGS-UPDATE]`);
 
@@ -127,7 +130,7 @@ export const _fetchLandingsVesselsUnder10Meters = async (rssNumber: string, date
 
     _saveRawLandingData(landings, 'UNDER10', rssNumber, dateLanded);
 
-    const domainLandings = catchRecordingToLandings(landings, rssNumber, getToLiveWeightFactor);
+    const domainLandings: ILanding[] = catchRecordingToLandings(landings, rssNumber, getToLiveWeightFactor);
 
     logger.info(`[LANDINGS][FETCH-LANDING-UNDER10][${rssNumber}-${dateLanded}][${domainLandings.length}-LANDINGS-RETRIEVED]`)
 
@@ -182,11 +185,7 @@ export const _ignoreUnchangedLandings = async (rssNumber: string, dateLanded: st
         ));
 
         logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][HAS-LANDING][${hasLanding}]`);
-
-        if (hasLanding)
-          return acc;
-
-        return [landing, ...acc]
+        return hasLanding ? [{...landing, _ignore: true}, ...acc] : [landing, ...acc];
       }, []);
     } else {
       return landings;

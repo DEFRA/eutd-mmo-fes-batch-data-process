@@ -6,7 +6,6 @@ import {
 import * as SUT from "../../../src/landings/transformations/dynamicsValidation";
 import * as Cache from "../../../src/data/cache";
 import * as risking from '../../../src/data/risking';
-import * as species from "../../../src/data/species";
 import * as Vessel from '../../../src/data/vessel';
 import * as Shared from 'mmo-shared-reference-data' ;
 import { CaseTwoType } from "../../../src/types/dynamicsValidation";
@@ -699,7 +698,7 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
     documentNumber: '',
     documentType: '',
     status: 'COMPLETE',
-    createdAt: '2019-01-01',
+    createdAt: '2023-05-27',
     rssNumber: '',
     da: 'England',
     dateLanded: '2019-01-01',
@@ -913,9 +912,11 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
   it('should set dataEverExpected as true when it is undefined', async () => {
     const result = SUT.toLanding({
       ...sampleICcQueryResult,
+      createdAt: '2019-01-01',
       extended: {
         ...sampleICcQueryResult.extended,
-        dataEverExpected: undefined
+        dataEverExpected: undefined,
+        isLegallyDue: false
       }
     });
 
@@ -939,7 +940,7 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
   it('should set landingDataExpectedAtSubmission when dataEverExpected is true', async () => {
     const result = SUT.toLanding(sampleICcQueryResult);
 
-    expect(result.landingDataExpectedAtSubmission).toBe(false);
+    expect(result.landingDataExpectedAtSubmission).toBe(true);
   });
 
 
@@ -959,14 +960,221 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
   it('should set landingDataExpectedAtSubmission=false when expecteddate is after date of submission', async () => {
     const result = SUT.toLanding({
       ...sampleICcQueryResult,
-      createdAt: "2023-05-30",
+      createdAt: "2020-05-30",
       extended: {
         ...sampleICcQueryResult.extended,
         dataEverExpected: true,
-        landingDataExpectedDate: "2023-06-01"
+        landingDataExpectedDate: "2025-05-26",
+        landingDataEndDate: "2025-06-05",
+        isLegallyDue: false
       }
     });
     expect(result.landingDataExpectedAtSubmission).toBe(false);
+  });
+
+
+  it('should set landingOutcomeAtRetrospectiveCheck when dataEverExpected is true', async () => {
+    const result = SUT.toLanding(sampleICcQueryResult);
+
+    expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
+  });
+
+  
+  it('should set landingOutcomeAtRetrospectiveCheck to Failure when there is no landing data, high risk and end date has passed', async () => {
+    const result = SUT.toLanding({
+      "documentNumber":"GBR-2024-CC-CD4947996",
+      "documentType":"catchCertificate",
+      "createdAt":"2024-10-15T11:10:15.259Z",
+      "status":"COMPLETE",
+      "extended":{
+         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
+         "exporterName":"single org business exporter",
+         "exporterCompanyName":"Ady company",
+         "exporterPostCode":"B1 1TT",
+         "vessel":"SHAMU",
+         "landingId":"GBR-2024-CC-CD4947996-4865866801",
+         "pln":"M60",
+         "fao":"FAO27",
+         "flag":"GBR",
+         "cfr":"GBR000C20597",
+         "presentation":"WHL",
+         "presentationName":"Whole",
+         "species":"European seabass (BSS)",
+         "scientificName":"Dicentrarchus labrax",
+         "state":"FRE",
+         "stateName":"Fresh",
+         "commodityCode":"03028410",
+         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+         "transportationVehicle":"truck",
+         "numberOfSubmissions":2,
+         "speciesOverriddenByAdmin":false,
+         "licenceHolder":"MR M H  CROMWELL ",
+         "dataEverExpected":true,
+         "landingDataExpectedDate":"2024-10-16",
+         "landingDataEndDate":"2024-10-16",
+         "isLegallyDue":false,
+         "homePort":"SAUNDERSFOOT",
+         "imoNumber":null,
+         "licenceNumber":"11379",
+         "licenceValidTo":"2030-12-31"
+      },
+      "rssNumber":"C20597",
+      "da":"Wales",
+      "dateLanded":"2024-10-16",
+      "species":"BSS",
+      "weightFactor":1,
+      "weightOnCert":100,
+      "rawWeightOnCert":100,
+      "weightOnAllCerts":100,
+      "weightOnAllCertsBefore":0,
+      "weightOnAllCertsAfter":100,
+      "isLandingExists":false,
+      "isExceeding14DayLimit":false,
+      "speciesAlias":"N",
+      "durationSinceCertCreation":"PT0.261S",
+      "weightOnLandingAllSpecies":0,
+      "isSpeciesExists":false,
+      "weightOnLanding":0,
+      "numberOfLandingsOnDay":0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
+      "durationBetweenCertCreationAndLastLandingRetrieved":null,
+      "isOverusedAllCerts":false,
+      "isOverusedThisCert":false,
+      "overUsedInfo":[]
+   });
+
+    expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
+  });
+
+  it('should set landingOutcomeAtRetrospectiveCheck to Success when dataEverExpected is true', async () => {
+    const result = SUT.toLanding({
+      "documentNumber":"GBR-2024-CC-CD4947996",
+      "documentType":"catchCertificate",
+      "createdAt":"2024-10-15T11:10:15.259Z",
+      "status":"COMPLETE",
+      "extended":{
+         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
+         "exporterName":"single org business exporter",
+         "exporterCompanyName":"Ady company",
+         "exporterPostCode":"B1 1TT",
+         "vessel":"SHAMU",
+         "landingId":"GBR-2024-CC-CD4947996-4865866801",
+         "pln":"M60",
+         "fao":"FAO27",
+         "flag":"GBR",
+         "cfr":"GBR000C20597",
+         "presentation":"WHL",
+         "presentationName":"Whole",
+         "species":"European seabass (BSS)",
+         "scientificName":"Dicentrarchus labrax",
+         "state":"FRE",
+         "stateName":"Fresh",
+         "commodityCode":"03028410",
+         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+         "transportationVehicle":"truck",
+         "numberOfSubmissions":2,
+         "speciesOverriddenByAdmin":false,
+         "licenceHolder":"MR M H  CROMWELL ",
+         "dataEverExpected": false,
+         "landingDataExpectedDate":"2024-10-16",
+         "landingDataEndDate":"2024-10-16",
+         "isLegallyDue":false,
+         "homePort":"SAUNDERSFOOT",
+         "imoNumber":null,
+         "licenceNumber":"11379",
+         "licenceValidTo":"2030-12-31"
+      },
+      "rssNumber":"C20597",
+      "da":"Wales",
+      "dateLanded":"2024-10-16",
+      "species":"BSS",
+      "weightFactor":1,
+      "weightOnCert":100,
+      "rawWeightOnCert":100,
+      "weightOnAllCerts":100,
+      "weightOnAllCertsBefore":0,
+      "weightOnAllCertsAfter":100,
+      "isLandingExists": false,
+      "isExceeding14DayLimit":false,
+      "speciesAlias":"N",
+      "durationSinceCertCreation":"PT0.261S",
+      "weightOnLandingAllSpecies":0,
+      "isSpeciesExists":false,
+      "weightOnLanding":0,
+      "numberOfLandingsOnDay":0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
+      "durationBetweenCertCreationAndLastLandingRetrieved":null,
+      "isOverusedAllCerts":false,
+      "isOverusedThisCert":false,
+      "overUsedInfo":[]
+   });
+
+    expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Success");
+  });
+
+  it('should set landingOutcomeAtRetrospectiveCheck to Failure when landingDataExpectedDate is undefined', async () => {
+    const result = SUT.toLanding({
+      "documentNumber":"GBR-2024-CC-CD4947996",
+      "documentType":"catchCertificate",
+      "createdAt":"2024-10-15T11:10:15.259Z",
+      "status":"COMPLETE",
+      "extended":{
+         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
+         "exporterName":"single org business exporter",
+         "exporterCompanyName":"Ady company",
+         "exporterPostCode":"B1 1TT",
+         "vessel":"SHAMU",
+         "landingId":"GBR-2024-CC-CD4947996-4865866801",
+         "pln":"M60",
+         "fao":"FAO27",
+         "flag":"GBR",
+         "cfr":"GBR000C20597",
+         "presentation":"WHL",
+         "presentationName":"Whole",
+         "species":"European seabass (BSS)",
+         "scientificName":"Dicentrarchus labrax",
+         "state":"FRE",
+         "stateName":"Fresh",
+         "commodityCode":"03028410",
+         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+         "transportationVehicle":"truck",
+         "numberOfSubmissions":2,
+         "speciesOverriddenByAdmin":false,
+         "licenceHolder":"MR M H  CROMWELL ",
+         "dataEverExpected": true,
+         "landingDataExpectedDate": undefined,
+         "landingDataEndDate":"2024-10-16",
+         "isLegallyDue":false,
+         "homePort":"SAUNDERSFOOT",
+         "imoNumber":null,
+         "licenceNumber":"11379",
+         "licenceValidTo":"2030-12-31"
+      },
+      "rssNumber":"C20597",
+      "da":"Wales",
+      "dateLanded":"2024-10-16",
+      "species":"BSS",
+      "weightFactor":1,
+      "weightOnCert":100,
+      "rawWeightOnCert":100,
+      "weightOnAllCerts":100,
+      "weightOnAllCertsBefore":0,
+      "weightOnAllCertsAfter":100,
+      "isLandingExists": false,
+      "isExceeding14DayLimit":false,
+      "speciesAlias":"N",
+      "durationSinceCertCreation":"PT0.261S",
+      "weightOnLandingAllSpecies":0,
+      "isSpeciesExists": true,
+      "weightOnLanding":0,
+      "numberOfLandingsOnDay":0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
+      "durationBetweenCertCreationAndLastLandingRetrieved":null,
+      "isOverusedAllCerts":false,
+      "isOverusedThisCert":false,
+      "overUsedInfo":[]
+   });
+    expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
   });
 
   it('should set isLate=true when firstDateTimeLandingDataRetrieved is after the expected date and before or on the end date', async () => {
@@ -1045,6 +1253,85 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
 
   });
 });
+
+describe('When mapping from an ICcQueryResult to a IDynamicsLanding (risking fields)', () => {
+  let mockGetTotalRiskScore;
+  let mockGetExporterRisk;
+  let mockVesselLength;
+
+  const sampleICcQueryResult: Shared.ICcQueryResult = {
+    documentNumber: '',
+    documentType: '',
+    status: 'COMPLETE',
+    createdAt: '2023-05-27',
+    rssNumber: '',
+    da: 'England',
+    dateLanded: '2019-01-01',
+    species: ' a species',
+    weightFactor: 0,
+    weightOnCert: 89,
+    rawWeightOnCert: 89,
+    weightOnAllCerts: 0,
+    weightOnAllCertsBefore: 0,
+    weightOnAllCertsAfter: 0,
+    // Is there a landing?
+    isLandingExists: true,
+    isSpeciesExists: true,
+    // From the landing
+    numberOfLandingsOnDay: 0,
+    weightOnLanding: 0,
+    weightOnLandingAllSpecies: 0,
+    // Some derivations
+    isOverusedThisCert: true,
+    isOverusedAllCerts: true,
+    // Linked certs
+    overUsedInfo: [],
+    durationSinceCertCreation: '',
+    durationBetweenCertCreationAndFirstLandingRetrieved: null,
+    durationBetweenCertCreationAndLastLandingRetrieved: null,
+    extended: {
+      landingId: 'an id',
+      state: 'a state',
+      presentation: 'a presentation',
+      vessel: 'a vessel name',
+      pln: ' a pln',
+      dataEverExpected: true,
+      landingDataExpectedDate: "2023-05-26",
+      landingDataEndDate: "2023-06-05",
+      isLegallyDue: true,
+      vesselRiskScore: 0.2,
+      exporterRiskScore: 0.8,
+      speciesRiskScore: 1,
+      riskScore: 0.2,
+      threshold: 1,
+      isSpeciesRiskEnabled: false
+    },
+    isExceeding14DayLimit: true
+  };
+
+  beforeEach(() => {
+    mockVesselLength = jest.spyOn(Vessel, 'getVesselLength');
+    mockVesselLength.mockReturnValue(undefined);
+    mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
+    mockGetTotalRiskScore.mockReturnValue(1.0);
+    mockGetExporterRisk = jest.spyOn(risking, 'getExporterBehaviourRiskScore');
+    mockGetExporterRisk.mockReturnValue(1.0);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should set vaidation.risking same as passed in the landing object', async () => {
+    const result = SUT.toLanding(sampleICcQueryResult);
+    expect(result.risking?.vessel).toEqual("0.2");
+    expect(result.risking?.exporterRiskScore).toEqual("0.8");
+    expect(result.risking?.speciesRisk).toEqual("1");
+    expect(result.risking?.landingRiskScore).toEqual("0.2");
+    expect(result.risking?.isSpeciesRiskEnabled).toBeFalsy();
+
+  });
+})
 
 describe('When mapping from an ICcQueryResult to an IDynamicsLandingValidation', () => {
 
@@ -1648,7 +1935,7 @@ describe('When mapping from an ICcQueryResult to an IDynamicsRisk', () => {
 
     const result: Shared.IDynamicsLanding = SUT.toLanding(input);
 
-    expect(mockIsHighRisk).toHaveBeenCalledWith(1.0);
+    expect(mockIsHighRisk).toHaveBeenCalledWith(1.0, undefined);
     expect(mockTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
     expect(mockVesselOfInterestRiskScore).toHaveBeenCalledWith('WA1');
     expect(mockExporterSpeciesRiskScore).toHaveBeenCalledWith('some-account-id', 'some-contact-id');
@@ -2036,7 +2323,7 @@ describe('When validating a single landing', () => {
   let mockIsHighRisk;
   let mockGetTotalRiskScore;
   let mockIsRiskEnabled;
-  let mockIsSpeciesFailure;
+  //let mockIsSpeciesFailure;
   let mockIsElog;
   let mockIsWithinDeminimus;
 
@@ -2044,7 +2331,7 @@ describe('When validating a single landing', () => {
     mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
     mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
     mockIsRiskEnabled = jest.spyOn(risking, 'isRiskEnabled');
-    mockIsSpeciesFailure = jest.spyOn(species, 'isSpeciesFailure');
+    //mockIsSpeciesFailure = jest.spyOn(Shared, 'isSpeciesFailure');
     mockIsElog = jest.spyOn(Shared, 'isElog');
     mockIsWithinDeminimus = jest.spyOn(Shared, 'isWithinDeminimus');
   });
@@ -2053,7 +2340,7 @@ describe('When validating a single landing', () => {
     mockIsHighRisk.mockRestore();
     mockGetTotalRiskScore.mockRestore();
     mockIsRiskEnabled.mockRestore();
-    mockIsSpeciesFailure.mockRestore();
+   // mockIsSpeciesFailure.mockRestore();
     mockIsElog.mockRestore();
     mockIsWithinDeminimus.mockRestore();
   });
@@ -2149,7 +2436,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species and weight check PASS but over-use FAIL', () => {
@@ -2231,7 +2518,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species PASS but weight check and over-use FAIL', () => {
@@ -2312,7 +2599,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species FAIL and species toggle is enabled', () => {
@@ -2395,8 +2682,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
-        expect(mockIsSpeciesFailure).toHaveBeenCalledWith(mockIsHighRisk);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
     });
@@ -2490,7 +2776,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Overuse` when species and weight check PASS but over-use FAIL', () => {
@@ -2572,7 +2858,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Overuse);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Rejected` when species PASS but weight check and over-use FAIL', () => {
@@ -2654,7 +2940,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Rejected);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Rejected` when species PASS but weight check FAIL and over-use PASS', () => {
@@ -2736,7 +3022,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Rejected);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Rejected` when species FAIL and species toggle is enabled', () => {
@@ -2819,10 +3105,178 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Rejected);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
-        expect(mockIsSpeciesFailure).toHaveBeenCalledWith(mockIsHighRisk);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
     });
+
+    describe("When risk details are passed in the extended object", () => {
+      it('mockGetTotalRiskScore will not be called when riskScore is passed in the landing object', () => {
+        const input: Shared.ICcQueryResult[] = [{
+          documentNumber: "CC1",
+          documentType: "catchCertificate",
+          createdAt: moment.utc("2019-07-13T08:26:06.939Z").toISOString(),
+          status: "COMPLETE",
+          rssNumber: "rssWA1",
+          da: "Guernsey",
+          dateLanded: "2019-07-10",
+          species: "LBE",
+          weightOnCert: 121,
+          rawWeightOnCert: 122,
+          weightOnAllCerts: 200,
+          weightOnAllCertsBefore: 0,
+          weightOnAllCertsAfter: 100,
+          weightFactor: 5,
+          isLandingExists: true,
+          isSpeciesExists: true,
+          numberOfLandingsOnDay: 1,
+          weightOnLanding: 30,
+          weightOnLandingAllSpecies: 30,
+          landingTotalBreakdown: [
+            {
+              factor: 1.7,
+              isEstimate: true,
+              weight: 30,
+              liveWeight: 51,
+              source: LandingSources.CatchRecording
+            },
+          ],
+          source: LandingSources.CatchRecording,
+          isOverusedThisCert: false,
+          isOverusedAllCerts: false,
+          isExceeding14DayLimit: false,
+          overUsedInfo: [],
+          durationSinceCertCreation: moment
+            .duration(queryTime.diff(moment.utc("2019-07-13T08:26:06.939Z")))
+            .toISOString(),
+          durationBetweenCertCreationAndFirstLandingRetrieved: moment
+            .duration(
+              moment
+                .utc("2019-07-11T09:00:00.000Z")
+                .diff(moment.utc("2019-07-13T08:26:06.939Z"))
+            )
+            .toISOString(),
+          durationBetweenCertCreationAndLastLandingRetrieved: moment
+            .duration(
+              moment
+                .utc("2019-07-11T09:00:00.000Z")
+                .diff(moment.utc("2019-07-13T08:26:06.939Z"))
+            )
+            .toISOString(),
+          extended: {
+            landingId: "rssWA12019-07-10",
+            exporterContactId: "some-contact-id",
+            exporterAccountId: "some-account-id",
+            exporterName: "Mr Bob",
+            presentation: "SLC",
+            documentUrl: "_887ce0e0-9ab1-4f4d-9524-572a9762e021.pdf",
+            presentationName: "sliced",
+            vessel: "DAYBREAK",
+            fao: "FAO27",
+            pln: "WA1",
+            species: "Lobster",
+            state: "FRE",
+            stateName: "fresh",
+            commodityCode: "1234",
+            investigation: {
+              investigator: "Investigator Gadget",
+              status: InvestigationStatus.Open,
+            },
+            transportationVehicle: "directLanding",
+            licenceHolder: "Mr Bob",
+            riskScore: "0.2",
+            threshold: "1"
+          },
+        }];
+
+        const result = SUT.toDynamicsCase2(input);
+        expect(result).toEqual(CaseTwoType.Success);
+        expect(mockGetTotalRiskScore).toHaveBeenCalledTimes(0);
+      });
+
+      it('mockIsRiskEnabled will not be called when isSpeciesRiskEnabled is passed in the landing object', () => {
+        const input: Shared.ICcQueryResult[] = [{
+          documentNumber: "CC1",
+          documentType: "catchCertificate",
+          createdAt: moment.utc("2019-07-13T08:26:06.939Z").toISOString(),
+          status: "COMPLETE",
+          rssNumber: "rssWA1",
+          da: "Guernsey",
+          dateLanded: "2019-07-10",
+          species: "LBE",
+          weightOnCert: 121,
+          rawWeightOnCert: 122,
+          weightOnAllCerts: 200,
+          weightOnAllCertsBefore: 0,
+          weightOnAllCertsAfter: 100,
+          weightFactor: 5,
+          isLandingExists: true,
+          isSpeciesExists: true,
+          numberOfLandingsOnDay: 1,
+          weightOnLanding: 30,
+          weightOnLandingAllSpecies: 30,
+          landingTotalBreakdown: [
+            {
+              factor: 1.7,
+              isEstimate: true,
+              weight: 30,
+              liveWeight: 51,
+              source: LandingSources.CatchRecording
+            },
+          ],
+          source: LandingSources.CatchRecording,
+          isOverusedThisCert: false,
+          isOverusedAllCerts: false,
+          isExceeding14DayLimit: false,
+          overUsedInfo: [],
+          durationSinceCertCreation: moment
+            .duration(queryTime.diff(moment.utc("2019-07-13T08:26:06.939Z")))
+            .toISOString(),
+          durationBetweenCertCreationAndFirstLandingRetrieved: moment
+            .duration(
+              moment
+                .utc("2019-07-11T09:00:00.000Z")
+                .diff(moment.utc("2019-07-13T08:26:06.939Z"))
+            )
+            .toISOString(),
+          durationBetweenCertCreationAndLastLandingRetrieved: moment
+            .duration(
+              moment
+                .utc("2019-07-11T09:00:00.000Z")
+                .diff(moment.utc("2019-07-13T08:26:06.939Z"))
+            )
+            .toISOString(),
+          extended: {
+            landingId: "rssWA12019-07-10",
+            exporterContactId: "some-contact-id",
+            exporterAccountId: "some-account-id",
+            exporterName: "Mr Bob",
+            presentation: "SLC",
+            documentUrl: "_887ce0e0-9ab1-4f4d-9524-572a9762e021.pdf",
+            presentationName: "sliced",
+            vessel: "DAYBREAK",
+            fao: "FAO27",
+            pln: "WA1",
+            species: "Lobster",
+            state: "FRE",
+            stateName: "fresh",
+            commodityCode: "1234",
+            investigation: {
+              investigator: "Investigator Gadget",
+              status: InvestigationStatus.Open,
+            },
+            transportationVehicle: "directLanding",
+            licenceHolder: "Mr Bob",
+            riskScore: "0.2",
+            threshold: "1",
+            isSpeciesRiskEnabled: true
+          },
+        }];
+
+        const result = SUT.toDynamicsCase2(input);
+        expect(result).toEqual(CaseTwoType.Success);
+        expect(mockIsRiskEnabled).toHaveBeenCalledTimes(0);
+      });
+    })
 
     it('will flag as `Real Time Validation - Rejected` when species FAIL when toggle is disabled', () => {
       mockIsRiskEnabled.mockReturnValue(false);
@@ -3084,7 +3538,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species and weight check PASS but over-use FAIL', () => {
@@ -3169,7 +3623,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species PASS but weight check and over-use FAIL', () => {
@@ -3254,7 +3708,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Successful` when species FAIL and is over 50 KG deminimus and the species toggle is enabled', () => {
@@ -3341,7 +3795,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
     });
@@ -3438,7 +3892,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.Success);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Overuse Failure` when species and weight check PASS but over-use FAIL', () => {
@@ -3523,7 +3977,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Overuse);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Rejected` when species PASS but weight check and over-use FAIL', () => {
@@ -3608,7 +4062,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Rejected);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
       it('will flag as `Real Time Validation - Rejected` when species FAIL and is over 50 KG deminimus and the species toggle is disabled', () => {
@@ -3780,7 +4234,7 @@ describe('When validating a single landing', () => {
         const result = SUT.toDynamicsCase2(input);
         expect(result).toEqual(CaseTwoType.RealTimeValidation_Rejected);
         expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+        expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
       });
 
     });
@@ -4107,7 +4561,7 @@ describe('When validating a single landing', () => {
           const result = SUT.toDynamicsCase2(input);
           expect(result).toEqual(CaseTwoType.Success);
           expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
         });
 
       });
@@ -4236,7 +4690,7 @@ describe('When validating a single landing', () => {
                 licenceHolder: "Mr Bob",
                 dataEverExpected: true,
                 landingDataExpectedDate: '2019-07-08',
-                landingDataEndDate: '2019-07-13',
+                landingDataEndDate: moment.utc().add(1, 'day').toISOString(),
               },
             }];
 
@@ -4375,7 +4829,7 @@ describe('When validating a single landing', () => {
           const result = SUT.toDynamicsCase2(input);
           expect(result).toEqual(CaseTwoType.RealTimeValidation_NoLandingData);
           expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
         });
 
         it('will set caseType2=`Pending Landing Data` when end date is after submission date', () => {
@@ -4439,7 +4893,7 @@ describe('When validating a single landing', () => {
           const result = SUT.toDynamicsCase2(input);
           expect(result).toEqual(CaseTwoType.PendingLandingData);
           expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
         });
 
         it('will set caseType2=`Pending Landing Data` when end date is same as submission date', () => {
@@ -4563,7 +5017,7 @@ describe('When validating a single landing', () => {
           const result = SUT.toDynamicsCase2(input);
           expect(result).toEqual(CaseTwoType.PendingLandingData);
           expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
         });
 
       });
@@ -4709,7 +5163,7 @@ describe('When validating a single landing', () => {
           const result = SUT.toDynamicsCase2(input);
           expect(result).toEqual(CaseTwoType.DataNeverExpected);
           expect(mockGetTotalRiskScore).toHaveBeenCalledWith('WA1', 'LBE', 'some-account-id', 'some-contact-id');
-          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore);
+          expect(mockIsHighRisk).toHaveBeenCalledWith(riskScore, undefined);
         });
 
       });

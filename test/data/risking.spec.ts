@@ -31,6 +31,20 @@ describe('isHighRisk', () => {
   });
 });
 
+describe('isHighRisk when threshold is passed as a parameter', () => {
+  it('should return false if the total risk score falls below the threshold', () => {
+      const result = SUT.isHighRisk(0.9, 1);
+
+      expect(result).toBe(false);
+  });
+
+  it('should return true if the total risk score is above to the threshold', () => {
+      const result = SUT.isHighRisk(1.1, 1);
+
+      expect(result).toBe(true);
+  });
+});
+
 describe('getTotalRiskScore', () => {
 
   const accountId = 'some-account-id';

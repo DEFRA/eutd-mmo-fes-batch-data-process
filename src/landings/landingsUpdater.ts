@@ -58,7 +58,8 @@ export const landingsAndReportingCron = async (): Promise<void> => {
 
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][OVERUSED-ELOG-DEMINMUS-LANDINGS][${landingsRefresh.length}]`);
 
-    const missingLandings: ILandingQuery[] = await getMissingLandingsArray(moment.utc());
+    const queryTime: moment.Moment = moment.utc();
+    const missingLandings: ILandingQuery[] = await getMissingLandingsArray(queryTime);
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][MISSING-LANDINGS][${missingLandings.length}]`);
 
     const fetchLandings: ILandingQuery[] = landingsRefresh
@@ -75,7 +76,7 @@ export const landingsAndReportingCron = async (): Promise<void> => {
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][NEW-LANDINGS][${newLandings.length}]`);
 
     if (newLandings && newLandings.length) {
-      await reportNewLandings(newLandings);
+      await reportNewLandings(newLandings, queryTime);
       updateConsolidateLandings(newLandings);
     }
   } catch (e) {
@@ -146,11 +147,17 @@ export const resubmitCCToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
 
+    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC]');
+    
+    const startDate = new Date("2021-04-22T00:00:00.000Z");
+
     const query: FilterQuery<IDocumentModel> = {
       __t: 'catchCert',
       'exportData.products': { $exists: true },
+      'exportData.products.commodityCode': { $exists: true },
       'exportData.products.commodityCodeDescription': { $exists: false },
-      'status': DocumentStatuses.Complete
+      'status': DocumentStatuses.Complete,
+      'createdAt':  { '$gt': startDate }
     }
 
     const certsToUpdate: IDocument[]  = await DocumentModel

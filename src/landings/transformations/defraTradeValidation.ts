@@ -1,10 +1,10 @@
-import { ICcQueryResult, IDocument, IDynamicsLanding, Product } from "mmo-shared-reference-data";
+import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus } from "mmo-shared-reference-data";
 import { CertificateTransport } from "../../types/defraValidation";
 import { IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
-import { CertificateStatus, IDefraTradeCatchCertificate, IDefraTradeLanding } from "../../types/defraTradeValidation";
 import { toLanding } from "./dynamicsValidation";
 import { Catch } from "../../types/document";
 import { ApplicationConfig } from "../../config";
+import { getTotalRiskScore, isHighRisk } from "../../data/risking";
 
 const TRANSPORT_VEHICLE_TRUCK  = 'truck';
 const TRANSPORT_VEHICLE_TRAIN  = 'train';
@@ -43,9 +43,15 @@ const getVesselCount = (products: Product[]) => {
 
 export const toDefraTradeLanding = (landing: ICcQueryResult): IDefraTradeLanding => {
   const dynamicsLanding: IDynamicsLanding = toLanding(landing);
+  const riskScore = landing.extended.riskScore === undefined ? getTotalRiskScore(
+    landing.extended.pln,
+    landing.species,
+    landing.extended.exporterAccountId,
+    landing.extended.exporterContactId) : landing.extended.riskScore;
 
   return {
     ...dynamicsLanding,
+    status: toDefraCcLandingStatus(landing, isHighRisk(riskScore, landing.extended.threshold)),
     species: landing.extended.species,
     flag: landing.extended.flag,
     catchArea: landing.extended.fao,

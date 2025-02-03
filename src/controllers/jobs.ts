@@ -21,9 +21,8 @@ export const runLandingsAndReportingJob = async (): Promise<void> => {
   await exceeding14DayLandingsAndReportingCron()
     .catch(e => logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAY-LANDINGS-AND-REPORTING-CRON][ERROR][${e}]`));
 
-  logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC]');
-    await resubmitCCToTrade()
-      .catch(e => logger.error(`[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][${e}]`));
+  await resubmitCCToTrade()
+    .catch(e => logger.error(`[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][${e}]`));
 
   logger.info('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
 }

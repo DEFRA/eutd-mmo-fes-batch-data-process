@@ -15,10 +15,10 @@ TODO: Describe and show how to build your code and run the tests.
 TODO: Explain how other users and developers can contribute to make your code better. 
 
 # Things to Consider
-* This repository should use Trunk Based Development as a branching strategy.
+* This repository should use GitFlow as a branching strategy.
 * <img
-    src="docs/images/trunk-based-development.png"
+    src="docs/images/GitFlow-branching-strategy.png"
     alt="Branching Strategy"
-    title="Trunk-Based-Development"
+    title="GitFlow"
     style="display: inline-block; margin: 0 auto; max-width: 350px">
 * If you won't call your branch as per agreed branching `standards`, the Azure pipeline won't start or may fail.

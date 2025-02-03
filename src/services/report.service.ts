@@ -1,19 +1,21 @@
 const moment = require('moment')
 const _ = require('lodash');
 import Ajv from 'ajv';
-import  addFormats from "ajv-formats";
+import addFormats from "ajv-formats";
 import { v4 as uuidv4 } from 'uuid';
 import {
   type ICcQueryResult,
   type ILanding,
   toCcDefraReport,
-  toLandings,
   MessageLabel,
   IDocument,
-  addToReportQueue
+  addToReportQueue,
+  IDefraTradeCatchCertificate,
+  LandingStatus
 } from 'mmo-shared-reference-data';
 import { ServiceBusMessage } from "@azure/service-bus";
-import { getUnprocessedReports, markAsProcessed, insertCcDefraValidationReport } from "../persistence/defraValidation";
+import { isInWithinRetrospectiveWindow } from '../query/ccQuery';
+import { getUnprocessedReports, markAsProcessed, insertCcDefraValidationReport } from '../persistence/defraValidation';
 import { getCertificateByDocumentNumberWithNumberOfFailedAttempts } from '../persistence/catchCerts';
 import { getExtendedValidationData } from '../persistence/extendedValidationDataService';
 import { runCcQueryForLandings } from '../query/runCcQueryForLandings';
@@ -25,26 +27,54 @@ import logger from '../logger';
 import { ICommodityCodeExtended } from '../types/species';
 import { commoditySearch } from '../data/species';
 import { toDynamicsCcCase } from '../landings/transformations/dynamicsValidation';
+import { toLandings } from '../landings/transformations/defraValidation';
 import { IDynamicsCatchCertificateCase } from '../types/dynamicsValidation';
-import { IDefraTradeCatchCertificate, Type } from '../types/defraTradeValidation';
+import { Type } from '../types/defraTradeValidation';
 import { toDefraTradeCc } from '../landings/transformations/defraTradeValidation';
 import config from "../config";
 import { readFileSync } from 'fs';
 import path from 'path';
+import { getTotalRiskScore, isHighRisk } from '../data/risking';
 
 export const reportExceeding14DaysLandings = async (queryResults: ICcQueryResult[]): Promise<void> => {
   await reportLandings(queryResults, reportCc14DayLimitReached, '14-DAY-LIMIT-REACHED');
 }
 
-export const findNewLandings = (queryResults: ICcQueryResult[], landings: ILanding[]): ICcQueryResult[] =>
-  queryResults.filter((_: ICcQueryResult) => landings.some((landing: ILanding) =>
-    moment(landing.dateTimeLanded).isSame(_.dateLanded, "day") &&
-    landing.rssNumber === _.rssNumber &&
-    landing.source === _.source))
+export const findNewLandings = (queryResults: ICcQueryResult[], landings: ILanding[], queryTime: moment.Moment): ICcQueryResult[] =>
+  queryResults.filter((_: ICcQueryResult) => {
 
-export const reportNewLandings = async (landings: ILanding[]): Promise<void> => {
+    // checking 14 day / EoD limit+1 day here
+    if (!isInWithinRetrospectiveWindow(queryTime, _)) {
+      return false;
+    }
+
+    // Landing data is in the system
+    // Landing status is PENDING LANDING DATA
+    // Update Case Management irrespective of ignore flag 
+    if (_.extended.landingStatus === LandingStatus.Pending) {
+      return landings.some((landing: ILanding) =>
+        moment(landing.dateTimeLanded).isSame(_.dateLanded, "day") &&
+        landing.rssNumber === _.rssNumber &&
+        landing.source === _.source);
+    }
+
+    const riskScore = _.extended.riskScore === undefined ? getTotalRiskScore(_.extended.pln, _.species, _.extended.exporterAccountId, _.extended.exporterContactId) : _.extended.riskScore;
+    const _isHighRisk = isHighRisk(riskScore, _.extended.threshold);
+    if (_.extended.landingStatus === LandingStatus.Elog || (_.extended.landingStatus === LandingStatus.LandingOveruse && _isHighRisk)) {
+      return landings.some((landing: ILanding) =>
+        moment(landing.dateTimeLanded).isSame(_.dateLanded, "day") &&
+        landing.rssNumber === _.rssNumber &&
+        landing.source === _.source &&
+        (!landing._ignore || (_.isExceeding14DayLimit && _.extended.landingStatus === LandingStatus.Elog)));
+    }
+
+    return false;
+
+  })
+
+export const reportNewLandings = async (landings: ILanding[], queryTime: moment.Moment): Promise<void> => {
   const qry: IterableIterator<ICcQueryResult> = await runCcQueryForLandings(landings);
-  const newLandings: ICcQueryResult[] = findNewLandings(Array.from(qry), landings);
+  const newLandings: ICcQueryResult[] = findNewLandings(Array.from(qry), landings, queryTime);
 
   logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][REPORTING-NEW-LANDINGS][${newLandings.length}]`);
   await reportLandings(newLandings, reportCcSubmitted, 'CC-SUBMITTED');
@@ -83,7 +113,7 @@ export const reportEvents = async (unprocessed: any[], documentType: string) => 
   logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][SUCCESS][${documentType}-PROCESSED: ${unprocessed.length}]`);
 }
 
-export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]) : Promise<void> => {
+export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   try {
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][VALIDATIONS][${ccValidationData.length}]`);
     if (ccValidationData.length > 0) {
@@ -103,6 +133,7 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]) : Pr
       }
 
       const requestByAdmin = catchCertificate.requestByAdmin;
+
       try {
         ccReport = toCcDefraReport(certificateId, correlationId, ccValidationData[0].status, requestByAdmin, getVesselsIdx(), catchCertificate);
         logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][toCcDefraReport][${certificateId}][SUCCESS]`);
@@ -113,7 +144,7 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]) : Pr
       }
 
       try {
-        ccReport.landings = toLandings(ccValidationData, getVesselsIdx());
+        ccReport.landings = toLandings(ccValidationData);
         logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][toLandings][${certificateId}][SUCCESS]`);
       }
       catch (e) {
@@ -130,7 +161,7 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]) : Pr
         throw e;
       }
 
-      await sendReport(catchCertificate, ccValidationData,  correlationId, certificateId);
+      await sendReport(catchCertificate, ccValidationData, correlationId, certificateId);
     }
   } catch (e) {
     logger.warn(`[RUN-LANDINGS-AND-REPORTING-JOB][ERROR][${e}]`);
@@ -163,7 +194,7 @@ async function sendReport(catchCertificate, ccValidationData, correlationId, cer
   }
 }
 
-export const reportCc14DayLimitReached = async (ccValidationData: ICcQueryResult[]) : Promise<void> => {
+export const reportCc14DayLimitReached = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   const validations = ccValidationData || [];
 
   if (validations.length) {
@@ -215,7 +246,7 @@ export const reportCcToTrade = async (
   ccQueryResults: ICcQueryResult[] | null
 ): Promise<void> => {
 
-  const catchCertificateCase = {...certificateCase}
+  const catchCertificateCase = { ...certificateCase }
 
   delete catchCertificateCase.clonedFrom;
   delete catchCertificateCase.landingsCloned;

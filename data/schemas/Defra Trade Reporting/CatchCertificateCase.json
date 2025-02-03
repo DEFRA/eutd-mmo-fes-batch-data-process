@@ -345,7 +345,10 @@
           ]
         },
         "defra_postcode": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "defra_premises": {
           "type": [
@@ -390,7 +393,6 @@
       "required": [
         "defra_addressid",
         "defra_buildingname",
-        "defra_postcode",
         "defra_premises",
         "defra_street",
         "defra_towntext"
@@ -487,8 +489,11 @@
             "Validation Failure - Species",
             "Validation Failure - No Landing Data",
             "Validation Failure - No Licence Holder",
-            "Pending Landing Data",
-            "Data Never Expected"
+            "Data Never Expected",
+            "Pending Landing Data - Data Not Yet Expected",
+            "Pending Landing Data - Data Expected",
+            "Pending Landing Data - Elog Species",
+            "Validation Failure - Weight And Overuse"
           ]
         },
         "id": {
@@ -898,10 +903,7 @@
     "exportedTo": {
       "type": "object",
       "required": [
-        "officialCountryName",
-        "isoCodeAlpha2",
-        "isoCodeAlpha3",
-        "isoNumericCode"
+        "officialCountryName"
       ],
       "additionalProperties": false,
       "properties": {

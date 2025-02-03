@@ -1,42 +1,51 @@
-import sinon from 'sinon';
 import logger from "../../src/logger";
-import { getVesselsData } from '../../src/data/blob-storage';
 import * as blob from '../../src/data/blob-storage';
-import * as storage from '../../__mocks__/azure-storage';
-import { type IVessel } from 'mmo-shared-reference-data';
+import { BlobServiceClient, ContainerClient, BlobClient, BlockBlobClient } from "@azure/storage-blob";
 import config from '../../src/config';
+import { IVessel } from "mmo-shared-reference-data";
+import vesselsJSON from "../../data/vessels.json";
+import speciesmismatch from "../../data/speciesmismatch.json";
+import { Readable } from "stream";
 
+jest.mock("@azure/storage-blob");
 
 describe('saving validation reporting data to remote blob storage', () => {
 
     let mockLoggerInfo;
     let mockLoggerError;
-    let mockWriteToBlobWithSas;
-    let mockDateNow;
+    let mockBlobClient;
+    let mockWriteToBlob;
 
     beforeEach(() => {
+        config.azureContainer = "t1-catchcerts";
+        config.externalAppUrl = 'some-snd-url';
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(config.azureContainer);
+        containerObj.getBlockBlobClient = (url) => {
+            expect(url.includes('CC')).toBeTruthy();
+            expect(url.includes('.json')).toBeTruthy();
+            return new BlockBlobClient(url);
+        };
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: (container) => {
+                expect(container).toEqual('t1-catchcerts');
+                return containerObj;
+            }
+        }));
+
+        mockWriteToBlob = jest.spyOn(blob, 'writeToBlob');
         mockLoggerInfo = jest.spyOn(logger, 'info');
-        mockLoggerError = sinon.spy(logger, 'error');
-        mockWriteToBlobWithSas = sinon.spy(blob, 'writeToBlobWithSas');
-        mockDateNow = jest.spyOn(global.Date, 'now')
-            .mockImplementation(() => new Date('2019-10-15T11:01:58.135Z').valueOf())
+        mockLoggerError = jest.spyOn(logger, 'error');
+        jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2019-10-15T11:01:58.135Z').valueOf())
     });
 
     afterEach(() => {
-        mockLoggerError.restore();
-        mockWriteToBlobWithSas.restore();
-        sinon.restore();
-        mockLoggerInfo.mockRestore();
-        mockDateNow.mockRestore();
+        jest.restoreAllMocks()
     });
 
-
-
     it('should save a reporting validation JSON object to a file', async () => {
-        storage.__setMockService();
-        config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'some-snd-url'
-
+        mockWriteToBlob.mockResolvedValue({});
         const data = {
             certificateId: 'GBR-3434-3434-3434',
             status: "COMPLETE"
@@ -50,19 +59,13 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         const result = await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[0]).toBe(storage.createBlobServiceWithSas());
-        expect(mockWriteToBlobWithSas.getCall(0).args[1]).toEqual('t1-catchcerts');
-        expect(mockWriteToBlobWithSas.getCall(0).args[2].includes('.json')).toBeTruthy();
-        expect(mockWriteToBlobWithSas.getCall(0).args[3]).toEqual(JSON.stringify(data));
-
+        expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify(data));
+        expect(mockLoggerInfo.mock.calls[0][0]).toEqual('[PUSHING-TO-BLOB][_CC_SND_20191015_11-01-58-135.json]');
         expect(result).toEqual(expected);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be prepended with doc type', async () => {
-        storage.__setMockService();
-        config.azureContainer = "t1-catchcerts";
+        mockWriteToBlob.mockResolvedValue({});
 
         const data = {
             certificateId: 'GBR-3434-3434-3434',
@@ -70,15 +73,11 @@ describe('saving validation reporting data to remote blob storage', () => {
         }
 
         await blob.saveReportingValidation(data, 'CC');
-
-        expect(mockWriteToBlobWithSas.getCall(0).args[2].includes('CC')).toBeTruthy();
-
-        mockWriteToBlobWithSas.restore();
+        expect(mockLoggerInfo.mock.calls[0][0].includes('CC')).toBeTruthy();
     });
 
     it('the filename of the file generated will be appended with the date and time', async () => {
-        storage.__setMockService();
-        config.azureContainer = "t1-catchcerts";
+        mockWriteToBlob.mockResolvedValue({});
 
         const data = {
             certificateId: 'GBR-3434-3434-3434',
@@ -90,14 +89,11 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be appended with the correct environment name when its tst', async () => {
-        storage.__setMockService();
+        mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
         config.externalAppUrl = 'some-tst-url'
 
@@ -111,14 +107,11 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be appended with the correct environment name when its pre', async () => {
-        storage.__setMockService();
+        mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
         config.externalAppUrl = 'some-preprod-url'
 
@@ -132,14 +125,11 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be appended with the correct environment name when its premo', async () => {
-        storage.__setMockService();
+        mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
         config.externalAppUrl = 'some-premo-url'
 
@@ -153,14 +143,11 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be appended with the correct environment name when its production', async () => {
-        storage.__setMockService();
+        mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
         config.externalAppUrl = 'some-other-gov.uk'
 
@@ -174,14 +161,11 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('the filename of the file generated will be appended with the correct environment name when its local host', async () => {
-        storage.__setMockService();
+        mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
         config.externalAppUrl = 'localhost:1234'
 
@@ -195,14 +179,13 @@ describe('saving validation reporting data to remote blob storage', () => {
 
         await blob.saveReportingValidation(data, 'CC');
 
-        expect(mockWriteToBlobWithSas.getCall(0).args[2]).toBe(`_CC_${environment}_${expected}.json`);
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-
-        mockWriteToBlobWithSas.restore();
     });
 
     it('should catch errors when attempting to save a reporting validation JSON object to a file', async () => {
-        storage.__setMockServiceWithError();
+        mockWriteToBlob.mockResolvedValue({
+            errorCode: 500
+        });
         config.azureContainer = "t1-catchcerts";
         const data = {
             certificateId: 'GBR-3434-3434-3434',
@@ -210,7 +193,7 @@ describe('saving validation reporting data to remote blob storage', () => {
         }
 
         await expect(blob.saveReportingValidation(data, 'CC')).rejects.toThrow("Cannot save validation report to container t1-catchcerts");
-        expect(mockLoggerError.getCall(0).args[0]).toContain('Cannot save validation report to container t1-catchcerts');
+        expect(mockLoggerError.mock.calls[0][0]).toContain('Cannot save validation report to container t1-catchcerts');
     });
 
 });
@@ -218,9 +201,22 @@ describe('saving validation reporting data to remote blob storage', () => {
 describe('getExporterBehaviourData', () => {
 
     let mockLogError;
+    let mockReadToText;
+    let mockBlobClient;
+
+    const container = "exporterbehaviour";
+    const file = "exporter_behaviour.csv";
 
     beforeEach(() => {
         mockLogError = jest.spyOn(logger, 'error');
+        mockReadToText = jest.spyOn(blob, 'readToText');
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(container);
+        containerObj.getBlobClient = () => new BlobClient(file);
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: () => containerObj,
+        }));
     });
 
     afterEach(() => {
@@ -230,21 +226,21 @@ describe('getExporterBehaviourData', () => {
     it('will log and rethrow any errors', async () => {
         const error = new Error('ExporterBehaviourMockError');
 
-        storage.__setMockServiceWithError();
+        mockReadToText.mockRejectedValue(error);
 
-        await expect(blob.getExporterBehaviourData('connString')).rejects.toThrow(error);
+        await expect(blob.getExporterBehaviourData('connString')).rejects.toThrow('ExporterBehaviourMockError');
 
         expect(mockLogError).toHaveBeenNthCalledWith(1, error);
         expect(mockLogError).toHaveBeenNthCalledWith(2, 'Cannot read remote file exporter_behaviour.csv from container exporterbehaviour')
     });
 
     it('will return exporter behaviour data', async () => {
-        storage.__setMockService();
+        mockReadToText.mockResolvedValue('accountId,contactId,name,score\nID1,,Exporter 1,0.5\nID2,,Exporter 2,0.75');
 
         const expected = [
             { accountId: 'ID1', name: 'Exporter 1', score: 0.5 },
             { accountId: 'ID2', name: 'Exporter 2', score: 0.75 }
-        ]
+        ];
 
         const res = await blob.getExporterBehaviourData('connString');
 
@@ -256,12 +252,22 @@ describe('getExporterBehaviourData', () => {
 describe('getConversionFactorsData', () => {
 
     let mockLogError;
+    let mockReadToText;
+    let mockBlobClient;
 
     const container = 'conversionfactors';
     const file = 'conversionfactors.csv'
 
     beforeEach(() => {
         mockLogError = jest.spyOn(logger, 'error');
+        mockReadToText = jest.spyOn(blob, 'readToText');
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(container);
+        containerObj.getBlobClient = () => new BlobClient(file);
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: () => containerObj,
+        }));
     });
 
     afterEach(() => {
@@ -271,16 +277,16 @@ describe('getConversionFactorsData', () => {
     it('will log and rethrow any errors', async () => {
         const error = new Error('ConversionFactorsMockError');
 
-        storage.__setMockServiceWithError();
+        mockReadToText.mockRejectedValue(error);
 
-        await expect(blob.getConversionFactorsData('connString')).rejects.toThrow('Error: ConversionFactorsMockError');
+        await expect(blob.getConversionFactorsData('connString')).rejects.toThrow('ConversionFactorsMockError');
 
         expect(mockLogError).toHaveBeenNthCalledWith(1, error);
         expect(mockLogError).toHaveBeenNthCalledWith(2, `Cannot read remote file ${file} from container ${container}`);
     });
 
     it('will return conversion factors data', async () => {
-        storage.__setMockService();
+        mockReadToText.mockResolvedValue('species,state,presentation,toLiveWeightFactor,quotaStatus,riskScore\nALB,FRE,GUT,1.11,quota,1');
 
         const res = await blob.getConversionFactorsData('connString');
 
@@ -294,18 +300,27 @@ describe('getConversionFactorsData', () => {
             toLiveWeightFactor: "1.11"
         });
     });
-
 });
 
 describe('getSpeciesData', () => {
 
     let mockLogError;
+    let mockReadToText;
+    let mockBlobClient;
 
     const container = 'commoditycodedata';
     const file = 'commodity_code.txt'
 
     beforeEach(() => {
         mockLogError = jest.spyOn(logger, 'error');
+        mockReadToText = jest.spyOn(blob, 'readToText');
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(container);
+        containerObj.getBlobClient = () => new BlobClient(file);
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: () => containerObj,
+        }));
     });
 
     afterEach(() => {
@@ -314,9 +329,7 @@ describe('getSpeciesData', () => {
 
     it('will log and rethrow any errors', async () => {
         const error = new Error('SpeciesMockError');
-
-        storage.__setMockServiceWithError();
-
+        mockReadToText.mockRejectedValue(error);
         await expect(blob.getSpeciesData('connString')).rejects.toThrow('Error: SpeciesMockError');
 
         expect(mockLogError).toHaveBeenNthCalledWith(1, error);
@@ -324,8 +337,9 @@ describe('getSpeciesData', () => {
     });
 
     it('will return species data', async () => {
-        storage.__setMockService();
-
+        const commodity_code = `faoCode	faoName	scientificName	preservationState	preservationDescr	presentationState	presentationDescr	commodityCode	commodityCodeDescr
+ALB	Albacore	Thunnus alalunga	FRE	fresh	GUH	gutted and headed	03023190	"Fresh or chilled albacore or longfinned tunas ""Thunnus alalunga"" (excl. for industrial processing or preservation)"`
+        mockReadToText.mockResolvedValue(commodity_code);
         const res = await blob.getSpeciesData('connString');
 
         expect(res.length).toBeGreaterThan(0);
@@ -335,12 +349,22 @@ describe('getSpeciesData', () => {
 
 describe('getSpeciesAliases', () => {
     let mockLogError;
+    let mockReadToText;
+    let mockBlobClient;
 
     const container = 'speciesmismatch';
     const file = 'speciesmismatch.json';
 
     beforeEach(() => {
         mockLogError = jest.spyOn(logger, 'error');
+        mockReadToText = jest.spyOn(blob, 'readToText');
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(container);
+        containerObj.getBlobClient = () => new BlobClient(file);
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: () => containerObj,
+        }));
     });
 
     afterEach(() => {
@@ -349,9 +373,7 @@ describe('getSpeciesAliases', () => {
 
     it('will log and rethrow any errors', async () => {
         const error = new Error('SpeciesAliasesMockError');
-
-        storage.__setMockServiceWithError();
-
+        mockReadToText.mockRejectedValue(error);
         await expect(blob.getSpeciesAliases('connString')).rejects.toThrow('Error: SpeciesAliasesMockError');
 
         expect(mockLogError).toHaveBeenNthCalledWith(1, error);
@@ -359,8 +381,7 @@ describe('getSpeciesAliases', () => {
     });
 
     it('will return species aliases data', async () => {
-        storage.__setMockService();
-
+        mockReadToText.mockResolvedValue(JSON.stringify(speciesmismatch));
         const res = await blob.getSpeciesAliases('connString');
 
         expect(res).toBeInstanceOf(Object);
@@ -369,20 +390,29 @@ describe('getSpeciesAliases', () => {
 });
 
 describe('When getting vessels from a blob storage', () => {
-    const connectionString: string = 'connection-string';
+    let mockLogError;
+    let mockReadToText;
+    let mockBlobClient;
     let mockLoggerInfo;
-    let mockLoggerError;
+
+    const container = 'speciesmismatch';
+    const file = 'speciesmismatch.json';
 
     beforeEach(() => {
-        mockLoggerInfo = sinon.spy(logger, 'info');
-        mockLoggerError = sinon.spy(logger, 'error');
+        mockLogError = jest.spyOn(logger, 'error');
+        mockReadToText = jest.spyOn(blob, 'readToText');
+        mockLoggerInfo = jest.spyOn(logger, 'info');
+
+        mockBlobClient = jest.spyOn(BlobServiceClient, 'fromConnectionString');
+        const containerObj = new ContainerClient(container);
+        containerObj.getBlobClient = () => new BlobClient(file);
+        mockBlobClient.mockImplementation(() => ({
+            getContainerClient: () => containerObj,
+        }));
     });
 
     afterEach(() => {
-        mockLoggerInfo.restore();
-        mockLoggerError.restore();
-
-        sinon.restore();
+        jest.restoreAllMocks();
     });
 
     it('should return a list of vessels with valid connection string', async () => {
@@ -403,46 +433,79 @@ describe('When getting vessels from a blob storage', () => {
             "licenceHolderName": "MR  KEVIN MCMILLEN "
         }];
 
-        storage.__setMockService();
+        mockReadToText
+            .mockReturnValueOnce('[{ "viewName": "VesselAndLicenceData", "blobName": "vessels.json" }]')
+            .mockReturnValueOnce(JSON.stringify(vesselsJSON));
 
-        const result = await getVesselsData(connectionString);
+        const result = await blob.getVesselsData('connString');
         const vessels = [result[0]];
 
-        expect(mockLoggerInfo.getCall(0).args[0]).toEqual('connecting to blob storage');
-        expect(mockLoggerInfo.getCall(1).args[0]).toEqual('reading notification file');
-        expect(mockLoggerInfo.getCall(2).args[0]).toEqual('parsing notification file to json');
-        expect(mockLoggerInfo.getCall(3).args[0]).toEqual('searching notification json');
-        expect(mockLoggerInfo.getCall(4).args[0]).toEqual('Reading vessel data from');
+        expect(mockLoggerInfo.mock.calls[0][0]).toEqual('connecting to blob storage');
+        expect(mockLoggerInfo.mock.calls[1][0]).toEqual('reading notification file');
+        expect(mockLoggerInfo.mock.calls[2][0]).toEqual('parsing notification file to json');
+        expect(mockLoggerInfo.mock.calls[3][0]).toEqual('searching notification json');
+        expect(mockLoggerInfo.mock.calls[4][0]).toEqual('Reading vessel data from');
         expect(vessels).toEqual(expected);
     });
 
     it('should throw an error if vessels key is not defined in notification JSON', async () => {
-        storage.__setMockServiceWithError();
+        mockReadToText.mockReturnValueOnce('[{ "viewName": "other", "blobName": "vessels.json" }]');
 
-        await expect(getVesselsData(connectionString)).rejects.toThrow('Cannot find vessel data in notification json, looking for key VesselAndLicenceData');
+        await expect(blob.getVesselsData('connString')).rejects.toThrow('Cannot find vessel data in notification json, looking for key VesselAndLicenceData');
 
-        expect(mockLoggerInfo.getCall(0).args[0]).toEqual('connecting to blob storage');
-        expect(mockLoggerInfo.getCall(1).args[0]).toEqual('reading notification file');
-        expect(mockLoggerInfo.getCall(2).args[0]).toEqual('parsing notification file to json');
-        expect(mockLoggerInfo.getCall(3).args[0]).toEqual('searching notification json');
-        expect(mockLoggerInfo.getCall(4)).toEqual(null);
+        expect(mockLoggerInfo.mock.calls[0][0]).toEqual('connecting to blob storage');
+        expect(mockLoggerInfo.mock.calls[1][0]).toEqual('reading notification file');
+        expect(mockLoggerInfo.mock.calls[2][0]).toEqual('parsing notification file to json');
+        expect(mockLoggerInfo.mock.calls[3][0]).toEqual('searching notification json');
+        expect(mockLoggerInfo.mock.calls[4]).toEqual(undefined);
     });
 
-    it('should throw an error if an error is thorwn in the try block', async () => {
-        const fakeError = { name: 'error', message: 'something went wrong' };
-        const mockReadToText = sinon.stub(blob, 'readToText');
-        mockReadToText.throws(fakeError);
+    it('should throw an error if an error is thrown in the try block', async () => {
+        const error = new Error('something went wrong')
+        mockReadToText.mockRejectedValue(error);
 
-        storage.__setMockService();
+        await expect(blob.getVesselsData('connString')).rejects.toThrow('Error: something went wrong');
 
-        await expect(getVesselsData(connectionString)).rejects.toThrow(fakeError.toString());
+        expect(mockLoggerInfo.mock.calls[0][0]).toEqual('connecting to blob storage');
+        expect(mockLoggerInfo.mock.calls[1][0]).toEqual('reading notification file');
 
-        expect(mockLoggerInfo.getCall(0).args[0]).toEqual('connecting to blob storage');
-        expect(mockLoggerInfo.getCall(1).args[0]).toEqual('reading notification file');
+        expect(mockLogError.mock.calls[0][0]).toEqual(error);
+        expect(mockLogError.mock.calls[1][0]).toEqual('Cannot read remote file Notification.json from container catchcertdata');
+    });
+});
 
-        expect(mockLoggerError.getCall(0).args[0]).toEqual(fakeError);
-        expect(mockLoggerError.getCall(1).args[0]).toEqual('Cannot read remote file Notification.json from container catchcertdata');
+describe('readToText', () => {
 
-        mockLoggerError.restore();
+    let mockBlobClient;
+
+    it('will return downloaded blob as a string', async () => {
+        const stream = new Readable();
+        stream.push("testing");
+        stream.push(null);
+
+        mockBlobClient = {
+            download: () => {
+                return {
+                    readableStreamBody: stream
+                }
+            }
+        }
+        const result = await blob.readToText(mockBlobClient);
+        expect(result).toEqual('testing');
+    });
+});
+
+describe('writeToBlob', () => {
+
+    let mockBlobClient;
+
+    it('will call the upload stream with corect data', async () => {
+        mockBlobClient = {
+            uploadStream: (data) => {
+                expect(data._readableState.length).toEqual(7);
+                return true;
+            }
+        }
+        await blob.writeToBlob(mockBlobClient, 'testing');
     });
 });

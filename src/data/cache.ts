@@ -93,9 +93,9 @@ export const loadProdFishCountriesAndSpecies = async () => {
   const weightingRisk = await getWeightingRisk();
   const speciesToggle = await getSpeciesToggle();
 
-  logger.info(`[LOAD-PROD-CONFIG] Finished reading data, previously factors: ${CONVERSION_FACTORS.length}, speciesAliases: ${Object.keys(SPECIES_ALIASES).length}`);
+  logger.info(`[LOAD-PROD-CONFIG] Finished reading data, previously species: ${SPECIES.length}, factors: ${CONVERSION_FACTORS.length}, speciesAliases: ${Object.keys(SPECIES_ALIASES).length}`);
   updateCache(species, factors, speciesAliases);
-  logger.info(`[LOAD-PROD-CONFIG] Finished loading data into cache, currently factors: ${CONVERSION_FACTORS.length}, speciesAliases: ${Object.keys(SPECIES_ALIASES).length}`);
+  logger.info(`[LOAD-PROD-CONFIG] Finished loading data into cache, currently species: ${SPECIES.length}, factors: ${CONVERSION_FACTORS.length}, speciesAliases: ${Object.keys(SPECIES_ALIASES).length}`);
 
   logger.info(`[LOAD-PROD-CONFIG] Finished reading vessels of interest, previously: ${VESSELS_OF_INTEREST.length}`);
   updateVesselsOfInterestCache(vesselsOfInterest);

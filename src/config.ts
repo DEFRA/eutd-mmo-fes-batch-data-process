@@ -89,7 +89,7 @@ export class ApplicationConfig {
     ApplicationConfig.prototype.landingReprocessingLimit = env.LANDING_REPROCESSING_LIMIT || 50;
 
     //Resubmit to Trade
-    ApplicationConfig.prototype.runResubmitCcToTrade = env.RUN_RESUBMIT_CC_TO_TRADE;
+    ApplicationConfig.prototype.runResubmitCcToTrade = env.RUN_RESUBMIT_CC_TO_TRADE === 'true';
   }
 
   public getReferenceServiceUrl(): string {

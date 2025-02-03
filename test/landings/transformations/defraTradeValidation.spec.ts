@@ -1,9 +1,8 @@
 import moment from "moment";
 import * as SUT from "../../../src/landings/transformations/defraTradeValidation";
 import * as vessel from "../../../src/data/vessel";
-import { ICcQueryResult, IDocument, InvestigationStatus, LandingSources, LandingStatusType, LevelOfRiskType } from "mmo-shared-reference-data";
+import { ICcQueryResult, IDocument, InvestigationStatus, LandingRetrospectiveOutcomeType, LandingSources, DefraCcLandingStatusType, LevelOfRiskType, IDefraTradeCatchCertificate, LandingStatusType, CatchArea, CertificateStatus } from "mmo-shared-reference-data";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../../src/types/dynamicsValidation";
-import { CatchArea, CertificateStatus, IDefraTradeCatchCertificate } from "../../../src/types/defraTradeValidation";
 
 describe('when transforming Catch Certificate data from IDocument, ICcQuery to IDefraTradeCatchCertificate', () => {
 
@@ -323,6 +322,87 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
     }
   }]
 
+  const ccQueryResultsWithRiskScore: ICcQueryResult[] = [{
+    documentNumber: 'CC1',
+    documentType: 'catchCertificate',
+    createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+    status: 'COMPLETE',
+    rssNumber: 'C20415',
+    da: 'Scotland',
+    dateLanded: '2023-08-31',
+    species: 'BSF',
+    weightOnCert: 121,
+    rawWeightOnCert: 122,
+    weightOnAllCerts: 200,
+    weightOnAllCertsBefore: 0,
+    weightOnAllCertsAfter: 100,
+    weightFactor: 5,
+    isLandingExists: true,
+    hasSalesNote: true,
+    isSpeciesExists: false,
+    numberOfLandingsOnDay: 1,
+    weightOnLanding: 30,
+    weightOnLandingAllSpecies: 30,
+    speciesAlias: "N",
+    landingTotalBreakdown: [
+      {
+        factor: 1.7,
+        isEstimate: true,
+        weight: 30,
+        liveWeight: 51,
+        source: LandingSources.CatchRecording
+      }
+    ],
+    source: LandingSources.CatchRecording,
+    isExceeding14DayLimit: false,
+    isOverusedThisCert: false,
+    isOverusedAllCerts: false,
+    overUsedInfo: [],
+    durationSinceCertCreation: moment.duration(
+      moment.utc()
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+      moment.utc('2019-07-11T09:00:00.000Z')
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+      moment.utc('2019-07-11T09:00:00.000Z')
+        .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+    extended: {
+      landingId: 'GBR-2023-CC-C58DF9A73-1777642314',
+      exporterName: 'Mr Bob',
+      presentation: 'GUT',
+      documentUrl: '_887ce0e0-9ab1-4f4d-9524-572a9762e021.pdf',
+      presentationName: 'sliced',
+      vessel: 'AGAN BORLOWEN',
+      fao: 'FAO27',
+      pln: 'SS229',
+      species: 'Lobster',
+      scientificName: "Aphanopus carbo",
+      state: 'FRE',
+      stateName: 'fresh',
+      commodityCode: '03028990',
+      commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+      investigation: {
+        investigator: "Investigator Gadget",
+        status: InvestigationStatus.Open
+      },
+      transportationVehicle: 'truck',
+      flag: "GBR",
+      homePort: "NEWLYN",
+      licenceNumber: "25072",
+      licenceValidTo: "2030-12-31",
+      licenceHolder: "MR S CLARY-BROM ",
+      imoNumber: null,
+      numberOfSubmissions: 1,
+      isLegallyDue: true,
+      riskScore: 0.2,
+      threshold: 1,
+      vesselRiskScore: 1,
+      speciesRiskScore: 0.1,
+      exporterRiskScore: 0.3,
+      isSpeciesRiskEnabled: false
+    }
+  }]
   let mockGetRssNumber;
   let mockGetVesselService;
 
@@ -404,7 +484,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -431,6 +511,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -548,7 +629,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -575,6 +656,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1271,7 +1353,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1298,6 +1380,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1412,7 +1495,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1439,6 +1522,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1552,7 +1636,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1579,6 +1663,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1692,7 +1777,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1719,6 +1804,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1826,7 +1912,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1853,6 +1939,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -1950,7 +2037,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -1977,6 +2064,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -2225,7 +2313,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       },
       landings: [
         {
-          status: LandingStatusType.ValidationFailure_Species,
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
           landingDate: "2023-08-31",
           species: "Lobster",
@@ -2252,6 +2340,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           landingDataEndDate: undefined,
           landingDataExpectedAtSubmission: true,
           landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
           catchArea: CatchArea.FAO27,
           fishingLicenceNumber: "25072",
           fishingLicenceValidTo: "2030-12-31",
@@ -2298,6 +2387,131 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         hasRoadTransportDocument: true,
         modeofTransport: "truck",
       }
+    });
+  })
+
+  it('will return a IDefraTradeCatchCertificate payload with risk score data', () => {
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: undefined }, dynamicsCatchCertificateCase, ccQueryResultsWithRiskScore);
+    expect(result).toStrictEqual({
+      documentNumber: "GBR-2023-CC-C58DF9A73",
+      certStatus: CertificateStatus.COMPLETE,
+      caseType1: CaseOneType.CatchCertificate,
+      caseType2: CaseTwoType.PendingLandingData,
+      numberOfFailedSubmissions: 0,
+      isDirectLanding: false,
+      documentUrl: "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      exportedTo: undefined,
+      documentDate: "2023-08-31T18:27:00.000Z",
+      exporter: {
+        fullName: "Automation Tester",
+        companyName: "Automation Testing Ltd",
+        contactId: "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        accountId: "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        address: {
+          building_number: null,
+          sub_building_name: "NATURAL ENGLAND",
+          building_name: "LANCASTER HOUSE",
+          street_name: "HAMPSHIRE COURT",
+          county: null,
+          country: "United Kingdom of Great Britain and Northern Ireland",
+          line1: "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          city: "NEWCASTLE UPON TYNE",
+          postCode: "NE4 7YH"
+        },
+        dynamicsAddress: {
+          defra_uprn: "10091818796",
+          defra_buildingname: "LANCASTER HOUSE",
+          defra_subbuildingname: "NATURAL ENGLAND",
+          defra_premises: null,
+          defra_street: "HAMPSHIRE COURT",
+          defra_locality: "NEWCASTLE BUSINESS PARK",
+          defra_dependentlocality: null,
+          defra_towntext: "NEWCASTLE UPON TYNE",
+          defra_county: null,
+          defra_postcode: "NE4 7YH",
+          _defra_country_value: "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          defra_internationalpostalcode: null,
+          defra_fromcompanieshouse: false,
+          defra_addressid: "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          _defra_country_value_OData_Community_Display_V1_FormattedValue: "United Kingdom of Great Britain and Northern Ireland",
+          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: "defra_Country",
+          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: "defra_country",
+          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: "No"
+        }
+      },
+      landings: [
+        {
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
+          id: "GBR-2023-CC-C58DF9A73-1777642314",
+          landingDate: "2023-08-31",
+          species: "Lobster",
+          cnCode: "03028990",
+          commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+          scientificName: "Aphanopus carbo",
+          is14DayLimitReached: true,
+          state: "FRE",
+          presentation: "GUT",
+          vesselName: "AGAN BORLOWEN",
+          vesselPln: "SS229",
+          vesselLength: 6.88,
+          vesselAdministration: "Scotland",
+          licenceHolder: "MR S CLARY-BROM ",
+          speciesAlias: "N",
+          speciesAnomaly: undefined,
+          weight: 122,
+          numberOfTotalSubmissions: 1,
+          vesselOverriddenByAdmin: false,
+          speciesOverriddenByAdmin: false,
+          dataEverExpected: true,
+          dateDataReceived: undefined,
+          isLate: undefined,
+          landingDataEndDate: undefined,
+          landingDataExpectedAtSubmission: true,
+          landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
+          catchArea: CatchArea.FAO27,
+          fishingLicenceNumber: "25072",
+          fishingLicenceValidTo: "2030-12-31",
+          flag: "GBR",
+          homePort: "NEWLYN",
+          source: "CATCH_RECORDING",
+          imo: null,
+          validation: {
+            isLegallyDue: true,
+            landedWeightExceededBy: 143.9,
+            liveExportWeight: 121,
+            rawLandingsUrl: "undefined/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=C20415",
+            salesNoteUrl: "undefined/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=C20415",
+            totalEstimatedForExportSpecies: 30,
+            totalEstimatedWithTolerance: 56.1,
+            totalLiveForExportSpecies: undefined,
+            totalRecordedAgainstLanding: 200,
+            totalWeightForSpecies: undefined,
+          },
+          risking: {
+            vessel: "1",
+            speciesRisk: "0.1",
+            exporterRiskScore: "0.3",
+            landingRiskScore: "0.2",
+            highOrLowRisk: LevelOfRiskType.Low,
+            isSpeciesRiskEnabled: false,
+            overuseInfo: undefined,
+          },
+          adminCommodityCode: undefined,
+          adminPresentation: undefined,
+          adminSpecies: undefined,
+          adminState: undefined,
+        }
+      ],
+      _correlationId: "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      requestedByAdmin: false,
+      isUnblocked: false,
+      da: "England",
+      vesselOverriddenByAdmin: false,
+      speciesOverriddenByAdmin: false,
+      failureIrrespectiveOfRisk: true,
+      multiVesselSchedule: false,
+      transportation: undefined,
     });
   })
 });

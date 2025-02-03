@@ -6,6 +6,8 @@ import {
   type IDocument,
   type IDynamicsLanding,
   LandingSources,
+  isElog,
+  isWithinDeminimus,
   isLandingDataExpectedAtSubmission,
   isInRetrospectivePeriod,
   isLandingDataLate,
@@ -14,13 +16,14 @@ import {
   LevelOfRiskType,
   toExporter,
   toExportedTo,
+  LandingRetrospectiveOutcomeType,
+  has14DayLimitReached,
   postCodeDaLookup,
   postCodeToDa,
-  isElog,
-  isWithinDeminimus,
   DocumentStatuses,
   TRANSPORT_VEHICLE_DIRECT,
-  LandingStatusType,
+  toFailureIrrespectiveOfRisk,
+  LandingStatusType
 } from "mmo-shared-reference-data";
 import {
   getExportedSpeciesRiskScore,
@@ -33,31 +36,93 @@ import {
 import { getVesselLength } from "../../data/vessel";
 import { ApplicationConfig } from "../../config";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
-import { isSpeciesFailure } from "../../data/species";
 import { isEmpty } from "lodash";
 import { CertificateAudit, IAuditEvent } from "../../types/defraValidation";
+
+export const isSpeciesFailure = (func: (riskScore: number, threshold?: number) => boolean) => (
+  enabled: boolean,
+  isSpeciesExists: boolean,
+  riskScore: number,
+  threshold?: number
+): boolean => {
+  if (isSpeciesExists) {
+    return false;
+  }
+
+  if (enabled) {
+    return func(riskScore, threshold);
+  }
+
+  return true;
+}
+
+const getRiskScore = (ccQueryLanding: ICcQueryResult): number => {
+  const riskScore = ccQueryLanding.extended.riskScore === undefined ? getTotalRiskScore(
+    ccQueryLanding.extended.pln,
+    ccQueryLanding.species,
+    ccQueryLanding.extended.exporterAccountId,
+    ccQueryLanding.extended.exporterContactId) : ccQueryLanding.extended.riskScore;
+  return riskScore;
+}
+
+const isFailedWeightCheck = (ccQueryLanding: ICcQueryResult) =>
+  ccQueryLanding.isSpeciesExists &&
+  ccQueryLanding.isOverusedThisCert &&
+  isHighRisk(getRiskScore(ccQueryLanding), ccQueryLanding.extended.threshold)
+
+const isFailedSpeciesCheck = (ccQueryLanding: ICcQueryResult) => {
+  return isSpeciesFailure(isHighRisk)(ccQueryLanding.extended.isSpeciesRiskEnabled ?? isRiskEnabled(), ccQueryLanding.isSpeciesExists, getRiskScore(ccQueryLanding), ccQueryLanding.extended.threshold) &&
+  !isElog(isWithinDeminimus)(ccQueryLanding) &&
+  ccQueryLanding.isLandingExists
+}
+
+const isFailedNoLandingDataCheck = (ccQueryLanding: ICcQueryResult) =>
+  !ccQueryLanding.isLandingExists &&
+  isHighRisk(getRiskScore(ccQueryLanding), ccQueryLanding.extended.threshold) &&
+  ((ccQueryLanding.extended.dataEverExpected !== false && isLandingDataExpectedAtSubmission(ccQueryLanding.createdAt, ccQueryLanding.extended.landingDataExpectedDate)) || ccQueryLanding.extended.vesselOverriddenByAdmin)
+
+
+const isFailedNoLandingDataCheckAtRetro = (ccQueryLanding: ICcQueryResult) => !ccQueryLanding.isLandingExists &&
+  isHighRisk(getRiskScore(ccQueryLanding), ccQueryLanding.extended.threshold) &&
+  ((ccQueryLanding.extended.dataEverExpected !== false && isLandingDataExpectedAtRetro(ccQueryLanding.extended.landingDataExpectedDate)) || ccQueryLanding.extended.vesselOverriddenByAdmin)
+
+const pendingLandingDataRetrospectiveTransformation = (status: LandingStatusType) => {
+  if (status === LandingStatusType.PendingLandingData_ElogSpecies) {
+    return LandingStatusType.PendingLandingData
+  } else if (status === LandingStatusType.PendingLandingData_DataExpected) {
+    return LandingStatusType.PendingLandingData
+  } else if (status === LandingStatusType.PendingLandingData_DataNotYetExpected) {
+    return LandingStatusType.PendingLandingData
+  } else {
+    return status;
+  }
+}
+
+export const isLandingDataExpectedAtRetro = (landingExpectedDate: string): boolean => 
+  landingExpectedDate === undefined ? true : moment.utc().isSameOrAfter(moment.utc(landingExpectedDate), 'day');
+
+export const isRejectedLanding = (ccQuery: ICcQueryResult): boolean => (
+  isFailedWeightCheck(ccQuery)
+  || isFailedSpeciesCheck(ccQuery)
+  || isFailedNoLandingDataCheckAtRetro(ccQuery)) && !ccQuery.isPreApproved
 
 export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
   const ccBatchReportForLanding: ICcBatchValidationReport = Array.from(ccBatchReport([validatedLanding][Symbol.iterator]()))[0];
   const hasLegalTimeLimitPassed = (validatedLanding.extended.vesselOverriddenByAdmin && !validatedLanding.rssNumber) ? false : validatedLanding.extended.isLegallyDue;
 
-  const riskScore = getTotalRiskScore(
+  const riskScore = validatedLanding.extended.riskScore === undefined ? getTotalRiskScore(
     validatedLanding.extended.pln,
     validatedLanding.species,
     validatedLanding.extended.exporterAccountId,
-    validatedLanding.extended.exporterContactId);
-
-
-  const has14DayLimitReached: (item: ICcQueryResult, landingDataNotExpected: boolean) => boolean = (item: ICcQueryResult, landingDataNotExpected: boolean) =>
-    landingDataNotExpected || !isInRetrospectivePeriod(moment.utc(), item) ? true : item.isLandingExists;
+    validatedLanding.extended.exporterContactId) : validatedLanding.extended.riskScore;
 
   const isDataNeverExpected = validatedLanding.extended.dataEverExpected === false;
   const hasLandingData = !isDataNeverExpected && validatedLanding.firstDateTimeLandingDataRetrieved !== undefined
-  const landingStatus = toLandingStatus(validatedLanding, isHighRisk(riskScore));
+  const landingStatus = toLandingStatus(validatedLanding, isHighRisk(riskScore, validatedLanding.extended.threshold));
   const riskingObject = getRiskingObject(validatedLanding, riskScore);
   const validationObject = getValidationObject(validatedLanding, ccBatchReportForLanding, isDataNeverExpected, hasLegalTimeLimitPassed);
   return {
-    status: landingStatus,
+    status: pendingLandingDataRetrospectiveTransformation(landingStatus),
     id: validatedLanding.extended.landingId,
     landingDate: validatedLanding.dateLanded,
     species: validatedLanding.species,
@@ -82,11 +147,12 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     dataEverExpected: !isDataNeverExpected,
     landingDataExpectedDate: validatedLanding.extended.landingDataExpectedDate,
     landingDataEndDate: validatedLanding.extended.landingDataEndDate,
-    landingDataExpectedAtSubmission: !isDataNeverExpected ? isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate) : undefined,
     isLate: hasLandingData ? isLandingDataLate(moment.utc(validatedLanding.firstDateTimeLandingDataRetrieved).subtract(1, 'day').toISOString(), validatedLanding.extended.landingDataExpectedDate) : undefined,
     dateDataReceived: hasLandingData ? moment.utc(validatedLanding.firstDateTimeLandingDataRetrieved).subtract(1, 'day').toISOString() : undefined,
     validation: validationObject,
     risking: riskingObject,
+    landingDataExpectedAtSubmission: !isDataNeverExpected ? isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate) : undefined,
+    landingOutcomeAtRetrospectiveCheck: isRejectedLanding(validatedLanding) ? LandingRetrospectiveOutcomeType.Failure : LandingRetrospectiveOutcomeType.Success,
     adminSpecies: validatedLanding.extended.speciesAdmin,
     adminState: validatedLanding.extended.stateAdmin,
     adminPresentation: validatedLanding.extended.presentationAdmin,
@@ -114,12 +180,12 @@ function getRiskingObject(validatedLanding: ICcQueryResult, riskScore: number) {
   return {
     overuseInfo: validatedLanding.overUsedInfo.some(_ => _ !== validatedLanding.documentNumber)
       ? validatedLanding.overUsedInfo.filter(_ => _ !== validatedLanding.documentNumber) : undefined,
-    vessel: getVesselOfInterestRiskScore(validatedLanding.extended.pln).toString(),
-    speciesRisk: getExportedSpeciesRiskScore(validatedLanding.species).toString(),
-    exporterRiskScore: getExporterBehaviourRiskScore(validatedLanding.extended.exporterAccountId, validatedLanding.extended.exporterContactId).toString(),
+    vessel: (validatedLanding.extended.vesselRiskScore ?? getVesselOfInterestRiskScore(validatedLanding.extended.pln)).toString(),
+    speciesRisk: (validatedLanding.extended.speciesRiskScore ?? getExportedSpeciesRiskScore(validatedLanding.species)).toString(),
+    exporterRiskScore: (validatedLanding.extended.exporterRiskScore ?? getExporterBehaviourRiskScore(validatedLanding.extended.exporterAccountId, validatedLanding.extended.exporterContactId)).toString(),
     landingRiskScore: riskScore.toString(),
-    highOrLowRisk: isHighRisk(riskScore) ? LevelOfRiskType.High : LevelOfRiskType.Low,
-    isSpeciesRiskEnabled: isRiskEnabled()
+    highOrLowRisk: isHighRisk(riskScore, validatedLanding.extended.threshold) ? LevelOfRiskType.High : LevelOfRiskType.Low,
+    isSpeciesRiskEnabled: validatedLanding.extended.isSpeciesRiskEnabled ?? isRiskEnabled()
   }
 }
 
@@ -161,33 +227,18 @@ export const isValidationOveruse = (item: ICcQueryResult): boolean =>
   item.isSpeciesExists &&
   !item.isOverusedThisCert &&
   !item.isPreApproved &&
-  isHighRisk(getTotalRiskScore(item.extended.pln, item.species, item.extended.exporterAccountId, item.extended.exporterContactId)) &&
+  isHighRisk(getRiskScore(item), item.extended.threshold) &&
   item.isOverusedAllCerts
 
 const isNoLandingDataAvailable = (ccQuery: ICcQueryResult) =>
   ccQuery.extended.dataEverExpected !== false &&
   moment.utc(ccQuery.createdAt).isAfter(moment.utc(ccQuery.extended.landingDataEndDate), 'day');
 
-const isFailedWeightCheck = (ccQueryLanding: ICcQueryResult) =>
-  ccQueryLanding.isSpeciesExists &&
-  ccQueryLanding.isOverusedThisCert &&
-  isHighRisk(getTotalRiskScore(ccQueryLanding.extended.pln, ccQueryLanding.species, ccQueryLanding.extended.exporterAccountId, ccQueryLanding.extended.exporterContactId))
-
-const isFailedSpeciesCheck = (ccQueryLanding: ICcQueryResult) =>
-  isSpeciesFailure(isHighRisk)(isRiskEnabled(), ccQueryLanding.isSpeciesExists, getTotalRiskScore(ccQueryLanding.extended.pln, ccQueryLanding.species, ccQueryLanding.extended.exporterAccountId, ccQueryLanding.extended.exporterContactId)) &&
-  !isElog(isWithinDeminimus)(ccQueryLanding) &&
-  ccQueryLanding.isLandingExists
-
-const isFailedNoLandingDataCheck = (ccQueryLanding: ICcQueryResult) =>
-  !ccQueryLanding.isLandingExists &&
-  isHighRisk(getTotalRiskScore(ccQueryLanding.extended.pln, ccQueryLanding.species, ccQueryLanding.extended.exporterAccountId, ccQueryLanding.extended.exporterContactId)) &&
-  ((ccQueryLanding.extended.dataEverExpected !== false && isLandingDataExpectedAtSubmission(ccQueryLanding.createdAt, ccQueryLanding.extended.landingDataExpectedDate)) || ccQueryLanding.extended.vesselOverriddenByAdmin)
-
 export function toDynamicsCase2(validatedLandings: ICcQueryResult[]): CaseTwoType {
   let caseType2Status: CaseTwoType = CaseTwoType.Success;
 
   const dataNeverExpected = validatedLandings.some((landing: ICcQueryResult) => landing.extended.dataEverExpected === false &&
-    isHighRisk(getTotalRiskScore(landing.extended.pln, landing.species, landing.extended.exporterAccountId, landing.extended.exporterContactId)));
+    isHighRisk(getRiskScore(landing), landing.extended.threshold));
 
   if (dataNeverExpected) {
     caseType2Status = CaseTwoType.DataNeverExpected;
@@ -272,13 +323,4 @@ export function toAudit(systemAudit: IAuditEvent): CertificateAudit {
   }
 
   return result;
-}
-
-export function toFailureIrrespectiveOfRisk(landings: IDynamicsLanding[]): boolean {
-  return landings.some(landing => [
-    LandingStatusType.ValidationFailure_Weight,
-    LandingStatusType.ValidationFailure_Species,
-    LandingStatusType.ValidationFailure_NoLandingData,
-    LandingStatusType.ValidationFailure_NoLicenceHolder
-  ].includes(landing.status));
 }

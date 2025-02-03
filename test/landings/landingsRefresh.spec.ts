@@ -898,11 +898,12 @@ describe('_ignoreUnchangedLandings', () => {
     mockGetLandings.mockRestore();
   });
 
-  it('should remove landings that are unchanged since last fetch', async () => {
+  it('should add an ignore flag to landings that are unchanged since last fetch', async () => {
     const fetchedlandings: shared.ILanding[] = [
       {
         rssNumber: 'rssWA1',
         dateTimeLanded: '2019-07-20T00:30:00.000+00:00',
+        dateTimeRetrieved: '2019-07-21T00:30:00.000+00:00',
         source: 'LANDING_DECLARATION',
         items: [{
           species: 'COD',
@@ -935,7 +936,22 @@ describe('_ignoreUnchangedLandings', () => {
     const result = await SUT._ignoreUnchangedLandings(rssNumber, dateLanded, fetchedlandings);
 
     expect(mockGetLandings).toHaveBeenCalledWith('rssWA1', '2019-07-20T00:30:00.000+00:00');
-    expect(result).toStrictEqual([]);
+    expect(result).toStrictEqual([
+      {
+        _ignore: true,
+        rssNumber: 'rssWA1',
+        dateTimeLanded: '2019-07-20T00:30:00.000+00:00',
+        dateTimeRetrieved: '2019-07-21T00:30:00.000+00:00',
+        source: 'LANDING_DECLARATION',
+        items: [{
+          species: 'COD',
+          weight: 2800,
+          factor: 1,
+          state: 'FRE',
+          presentation: 'WHL'
+        }]
+      }
+    ]);
   });
 
   describe('when a landing has been updated', () => {

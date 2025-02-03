@@ -1,5 +1,5 @@
 import { ICcQueryResult, IDocument, ILandingQuery, LandingStatus, generateIndex } from 'mmo-shared-reference-data';
-import { missingLandingRefreshQuery, exceedingLimitLandingQuery } from '../../src/query/ccQuery';
+import { missingLandingRefreshQuery, exceedingLimitLandingQuery, retrospectiveValidationRequired } from '../../src/query/ccQuery';
 import * as cache from '../../src/data/cache';
 
 const moment = require('moment');
@@ -397,6 +397,47 @@ describe('the query for refreshing missing landings', () => {
     const results: ILandingQuery[] = Array.from(missingLandingRefreshQuery(documents, queryTime));
 
     expect(results).toHaveLength(1);
+
+  });
+
+  it('will not include legally due landing(s) that have a later landing data expected date than the query date', () => {
+
+    const queryTime = moment.utc('2019-07-01T12:00:00');
+    const certificateDate = moment.utc('2019-08-01T12:00:00');
+
+    const documents: IDocument[] = [
+      {
+        __t: "catchCert",
+        documentNumber: "CC1",
+        createdAt: certificateDate.toISOString(),
+        status: 'COMPLETE',
+        createdBy: 'foo',
+        createdByEmail: 'foo@foo.com',
+        exportData: {
+          products: [
+            {
+              speciesCode: "LBE",
+              caughtBy: [
+                { 
+                  vessel: "DAYBREAK",
+                  pln: "WA1",
+                  date: "2019-07-10",
+                  weight: 351,
+                  dataEverExpected: true,
+                  landingDataExpectedDate: '2019-08-02',
+                  landingDataEndDate: '2019-08-12',
+                  _status: LandingStatus.Pending,
+                  isLegallyDue: true
+                }
+              ]
+            }]
+        }
+      }
+    ];
+
+    const results: ILandingQuery[] = Array.from(missingLandingRefreshQuery(documents, queryTime));
+
+    expect(results).toHaveLength(0);
 
   });
 
@@ -1161,4 +1202,88 @@ describe('the query for refreshing landings exceeding 14 day', () => {
     expect(results.length).toEqual(0);
   });
 
+});
+
+describe('the query for check whether retrospective validation is required', () => {
+
+  it('should not validate for validation outside of validation period', () => {
+    const ccQuery: ICcQueryResult = {
+      "documentNumber": "GBR-2024-CC-D9B78B127",
+      "documentType": "catchCertificate",
+      "createdAt": "2024-08-13T08:57:59.064Z",
+      "status": "COMPLETE",
+      "extended": {
+        "exporterContactId": "f72591a1-6d8b-e911-a96f-000d3a29b5de",
+        "exporterName": "single org business exporter",
+        "exporterCompanyName": "test CG",
+        "exporterPostCode": "B1 1TT",
+        "vessel": "HARMONI",
+        "landingId": "GBR-2024-CC-D9B78B127-3768580547",
+        "pln": "M147",
+        "fao": "FAO27",
+        "flag": "GBR",
+        "cfr": "GBR000C18074",
+        "presentation": "WHL",
+        "presentationName": "Whole",
+        "species": "Haddock (HAD)",
+        "scientificName": "Melanogrammus aeglefinus",
+        "state": "FRE",
+        "stateName": "Fresh",
+        "commodityCode": "03025200",
+        "commodityCodeDescription": "Fresh or chilled haddock \"Melanogrammus aeglefinus\"",
+        "transportationVehicle": "truck",
+        "numberOfSubmissions": 1,
+        "speciesOverriddenByAdmin": false,
+        "licenceHolder": "G&M ROBERTS FISHING (NEFYN) LTD",
+        "dataEverExpected": true,
+        "landingDataExpectedDate": "2024-08-12",
+        "landingDataEndDate": "2024-08-12",
+        "isLegallyDue": false,
+        "homePort": "PWLLHELI",
+        "imoNumber": 8567535,
+        "licenceNumber": "50151",
+        "licenceValidTo": "2030-12-31"
+      },
+      "rssNumber": "C18074",
+      "da": "Wales",
+      "dateLanded": "2024-08-11",
+      "species": "HAD",
+      "weightFactor": 1,
+      "weightOnCert": 1,
+      "rawWeightOnCert": 1,
+      "weightOnAllCerts": 102,
+      "weightOnAllCertsBefore": 101,
+      "weightOnAllCertsAfter": 102,
+      "isLandingExists": true,
+      "isExceeding14DayLimit": false,
+      "speciesAlias": "N",
+      "durationSinceCertCreation": "PT0.117S",
+      "source": "ELOG",
+      "weightOnLandingAllSpecies": 100,
+      "numberOfLandingsOnDay": 1,
+      "durationBetweenCertCreationAndFirstLandingRetrieved": "-PT21H27M40.432S",
+      "durationBetweenCertCreationAndLastLandingRetrieved": "-PT21H27M40.432S",
+      "firstDateTimeLandingDataRetrieved": "2024-08-12T11:30:18.632Z",
+      "isSpeciesExists": true,
+      "weightOnLanding": 100,
+      "landingTotalBreakdown": [
+        {
+          "presentation": "WHL",
+          "state": "FRE",
+          "source": "ELOG",
+          "isEstimate": true,
+          "factor": 1,
+          "weight": 100,
+          "liveWeight": 100
+        }
+      ],
+      "isOverusedThisCert": false,
+      "isOverusedAllCerts": false,
+      "overUsedInfo": []
+    };
+
+    const queryTime = moment.utc('2024-08-16T13:15:06.143Z');
+    const result = retrospectiveValidationRequired(queryTime, ccQuery);
+    expect(result).toBe(false);
+  });
 });
