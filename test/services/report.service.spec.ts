@@ -135,6 +135,19 @@ describe('processReports', () => {
     jest.restoreAllMocks();
   });
 
+  it('will not process any reports', async () => {
+    mockGetUnprocessed.mockResolvedValueOnce(undefined);
+    mockWriteToBlob.mockResolvedValue({});
+    mockMarkAsProcessed.mockResolvedValue(null);
+
+    await SUT.processReports();
+
+    expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
+    expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: undefined]');
+    expect(mockGetUnprocessed).toHaveBeenCalled();
+    expect(mockWriteToBlob.mock.calls.length).toEqual(0);
+  });
+
   it('will get all unprocessed reports and write them to the blob storage, per type', async () => {
     const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }, { _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
 
@@ -3756,6 +3769,467 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         "isoCodeAlpha2": "AX",
         "isoCodeAlpha3": "ALA",
         "isoNumericCode": "248"
+      },
+      "certStatus": shared.CertificateStatus.COMPLETE,
+      "transportation": {
+        "modeofTransport": "truck",
+        "hasRoadTransportDocument": true
+      },
+      "multiVesselSchedule": false
+    };
+
+    const expected: ServiceBusMessage = {
+      body,
+      messageId: expect.any(String),
+      correlationId: dynamicsCatchCertificateCase._correlationId,
+      contentType: 'application/json',
+      applicationProperties: {
+        EntityKey: dynamicsCatchCertificateCase.documentNumber,
+        PublisherId: 'FES',
+        OrganisationId: dynamicsCatchCertificateCase.exporter.accountId || null,
+        UserId: dynamicsCatchCertificateCase.exporter.contactId || null,
+        SchemaVersion: 2,
+        Type: "Internal",
+        Status: "COMPLETE",
+        TimestampUtc: expect.any(String)
+      },
+      subject: shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED + '-GBR-2020-CC-1BC924FCF'
+    };
+
+    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeCc');
+
+    await SUT.reportCcToTrade(cc, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, ccQueryResults);
+
+    expect(mockMapper).toHaveBeenCalledWith(cc, dynamicsCatchCertificateCase, ccQueryResults);
+    expect(mockPersistence).toHaveBeenCalledWith('GBR-2020-CC-1BC924FCF', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('clonedFrom');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('landingsCloned');
+    expect(dynamicsCatchCertificateCase).not.toHaveProperty('parentDocumentVoid');
+  });
+
+  it('will add CC payload to the the report queue for exportedTo with NI', async () => {
+    const cc: shared.IDocument = {
+      "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+      "__t": "catchCert",
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "status": "COMPLETE",
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "audit": [
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:18.780Z"
+          },
+          "data": {
+            "investigationStatus": "UNDER_INVESTIGATION"
+          }
+        },
+        {
+          "eventType": "INVESTIGATED",
+          "triggeredBy": "Chris Waugh",
+          "timestamp": {
+            "$date": "2020-06-24T10:40:23.439Z"
+          },
+          "data": {
+            "investigationStatus": "CLOSED_NFA"
+          }
+        }
+      ],
+      "userReference": "MY REF",
+      "exportData": {
+        "products": [
+          {
+            "speciesId": "GBR-2023-CC-C58DF9A73-35f724fd-b026-4ba7-80cf-4f458a780486",
+            "species": "Black scabbardfish (BSF)",
+            "speciesCode": "BSF",
+            "commodityCode": "03028990",
+            "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+            "scientificName": "Aphanopus carbo",
+            "state": {
+              "code": "FRE",
+              "name": "Fresh"
+            },
+            "presentation": {
+              "code": "GUT",
+              "name": "Gutted"
+            },
+            "factor": 1.24,
+            "caughtBy": [
+              {
+                "vessel": "AGAN BORLOWEN",
+                "pln": "SS229",
+                "homePort": "NEWLYN",
+                "flag": "GBR",
+                "cfr": "GBR000C20415",
+                "imoNumber": null,
+                "licenceNumber": "25072",
+                "licenceValidTo": "2030-12-31",
+                "licenceHolder": "MR S CLARY-BROM ",
+                "id": "GBR-2023-CC-C58DF9A73-1777642314",
+                "date": "2023-08-31",
+                "faoArea": "FAO27",
+                "weight": 122,
+                "numberOfSubmissions": 1,
+                "isLegallyDue": false,
+                "dataEverExpected": true,
+                "landingDataExpectedDate": "2023-08-31",
+                "landingDataEndDate": "2023-09-02",
+                "_status": "PENDING_LANDING_DATA"
+              }
+            ]
+          }
+        ],
+        "transportation": {
+          "exportedFrom": "United Kingdom",
+          "exportedTo" : {
+            "officialCountryName" : "Northern Ireland",
+            "isoCodeAlpha2" : "XI",
+            "isoCodeAlpha3" : null,
+            "isoNumericCode" : null
+          },
+          "vehicle": "truck",
+          "cmr": true
+        },
+        "conservation": {
+          "conservationReference": "UK Fisheries Policy"
+        },
+        "exporterDetails": {
+          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "Automation Testing Ltd",
+          "exporterFullName": "Automation Tester",
+          "_dynamicsAddress": {
+            "defra_uprn": "10091818796",
+            "defra_buildingname": "LANCASTER HOUSE",
+            "defra_subbuildingname": "NATURAL ENGLAND",
+            "defra_premises": null,
+            "defra_street": "HAMPSHIRE COURT",
+            "defra_locality": "NEWCASTLE BUSINESS PARK",
+            "defra_dependentlocality": null,
+            "defra_towntext": "NEWCASTLE UPON TYNE",
+            "defra_county": null,
+            "defra_postcode": "NE4 7YH",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "defra_internationalpostalcode": null,
+            "defra_fromcompanieshouse": false,
+            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+          },
+          "_dynamicsUser": {
+            "firstName": "Automation",
+            "lastName": "Tester"
+          }
+        },
+        "landingsEntryOption": "manualEntry"
+      },
+      "createdByEmail": "foo@foo.com",
+      "documentUri": "_44fd226f-598f-4615-930f-716b2762fea4.pdf",
+      "investigation": {
+        "investigator": "Chris Waugh",
+        "status": "CLOSED_NFA"
+      },
+      "numberOfFailedAttempts": 5
+    };
+
+    const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.LandingStatusType.DataNeverExpected,
+          "id": "GBR-2023-CC-C58DF9A73-4248789552",
+          "landingDate": "2023-08-31",
+          "species": "BSF",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "ASHLEIGH JANE",
+          "vesselPln": "OB81",
+          "vesselLength": 9.91,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "C & J SHELLFISH LTD",
+          "speciesAlias": "N",
+          "weight": 89,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": false,
+          "isLate": false,
+          "validation": {
+            "liveExportWeight": 110.36,
+            "totalRecordedAgainstLanding": 220.72,
+            "landedWeightExceededBy": null,
+            "rawLandingsUrl": "http://localhost:6500/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=A12860",
+            "salesNoteUrl": "http://localhost:6500/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=A12860",
+            "isLegallyDue": false
+          },
+          "risking": {
+            "vessel": "0.5",
+            "speciesRisk": "1",
+            "exporterRiskScore": "1",
+            "landingRiskScore": "0.5",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          }
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName": "Åland Islands",
+        "isoCodeAlpha2": "AX",
+        "isoCodeAlpha3": "ALA"
+      }
+    };
+
+    const ccQueryResults: shared.ICcQueryResult[] = [{
+      documentNumber: 'GBR-2020-CC-1BC924FCF',
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'C20415',
+      da: 'Scotland',
+      dateLanded: '2023-08-31',
+      species: 'BSF',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: true,
+      hasSalesNote: true,
+      isSpeciesExists: false,
+      numberOfLandingsOnDay: 1,
+      weightOnLanding: 30,
+      weightOnLandingAllSpecies: 30,
+      speciesAlias: "N",
+      landingTotalBreakdown: [
+        {
+          factor: 1.7,
+          isEstimate: true,
+          weight: 30,
+          liveWeight: 51,
+          source: shared.LandingSources.CatchRecording
+        }
+      ],
+      source: shared.LandingSources.CatchRecording,
+      isExceeding14DayLimit: false,
+      isOverusedThisCert: false,
+      isOverusedAllCerts: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+        moment.utc()
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndLastLandingRetrieved: moment.duration(
+        moment.utc('2019-07-11T09:00:00.000Z')
+          .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      extended: {
+        landingId: 'GBR-2023-CC-C58DF9A73-1777642314',
+        exporterName: 'Mr Bob',
+        presentation: 'GUT',
+        documentUrl: '_887ce0e0-9ab1-4f4d-9524-572a9762e021.pdf',
+        presentationName: 'sliced',
+        vessel: 'AGAN BORLOWEN',
+        fao: 'FAO27',
+        pln: 'SS229',
+        species: 'Lobster',
+        scientificName: "Aphanopus carbo",
+        state: 'FRE',
+        stateName: 'fresh',
+        commodityCode: '03028990',
+        commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+        investigation: {
+          investigator: "Investigator Gadget",
+          status: shared.InvestigationStatus.Open
+        },
+        transportationVehicle: 'truck',
+        flag: "GBR",
+        homePort: "NEWLYN",
+        licenceNumber: "25072",
+        licenceValidTo: "2030-12-31",
+        licenceHolder: "MR S CLARY-BROM ",
+        imoNumber: null,
+        numberOfSubmissions: 1,
+        isLegallyDue: true
+      }
+    }];
+
+    const body: shared.IDefraTradeCatchCertificate = {
+      "documentNumber": "GBR-2020-CC-1BC924FCF",
+      "caseType1": CaseOneType.CatchCertificate,
+      "caseType2": CaseTwoType.PendingLandingData,
+      "numberOfFailedSubmissions": 0,
+      "isDirectLanding": false,
+      "documentUrl": "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      "documentDate": "2023-08-31T18:27:00.000Z",
+      "exporter": {
+        "fullName": "Automation Tester",
+        "companyName": "Automation Testing Ltd",
+        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        "address": {
+          "building_number": null,
+          "sub_building_name": "NATURAL ENGLAND",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "line1": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "dynamicsAddress": {
+          "defra_uprn": "10091818796",
+          "defra_buildingname": "LANCASTER HOUSE",
+          "defra_subbuildingname": "NATURAL ENGLAND",
+          "defra_premises": null,
+          "defra_street": "HAMPSHIRE COURT",
+          "defra_locality": "NEWCASTLE BUSINESS PARK",
+          "defra_dependentlocality": null,
+          "defra_towntext": "NEWCASTLE UPON TYNE",
+          "defra_county": null,
+          "defra_postcode": "NE4 7YH",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "defra_internationalpostalcode": null,
+          "defra_fromcompanieshouse": false,
+          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+        }
+      },
+      "landings": [
+        {
+          "status": shared.DefraCcLandingStatusType.ValidationFailure_Species,
+          "id": "GBR-2023-CC-C58DF9A73-1777642314",
+          "landingDate": "2023-08-31",
+          "species": "Lobster",
+          "cnCode": "03028990",
+          "commodityCodeDescription": "Fresh or chilled fish, n.e.s.",
+          "scientificName": "Aphanopus carbo",
+          "is14DayLimitReached": true,
+          "state": "FRE",
+          "presentation": "GUT",
+          "vesselName": "AGAN BORLOWEN",
+          "vesselPln": "SS229",
+          "vesselLength": 6.88,
+          "vesselAdministration": "Scotland",
+          "licenceHolder": "MR S CLARY-BROM ",
+          "source": "CATCH_RECORDING",
+          "speciesAlias": "N",
+          "weight": 122,
+          "numberOfTotalSubmissions": 1,
+          "vesselOverriddenByAdmin": false,
+          "speciesOverriddenByAdmin": false,
+          "dataEverExpected": true,
+          "landingDataExpectedAtSubmission": true,
+          "landingOutcomeAtRetrospectiveCheck": shared.LandingRetrospectiveOutcomeType.Failure,
+          "validation": {
+            "liveExportWeight": 121,
+            "totalEstimatedForExportSpecies": 30,
+            "totalEstimatedWithTolerance": 56.1,
+            "totalRecordedAgainstLanding": 200,
+            "landedWeightExceededBy": 143.9,
+            "rawLandingsUrl": "undefined/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=C20415",
+            "salesNoteUrl": "undefined/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=C20415",
+            "isLegallyDue": true
+          },
+          "risking": {
+            "vessel": "0",
+            "speciesRisk": "0",
+            "exporterRiskScore": "0",
+            "landingRiskScore": "0",
+            "highOrLowRisk": shared.LevelOfRiskType.Low,
+            "isSpeciesRiskEnabled": false
+          },
+          "flag": "GBR",
+          "catchArea": shared.CatchArea.FAO27,
+          "homePort": "NEWLYN",
+          "fishingLicenceNumber": "25072",
+          "fishingLicenceValidTo": "2030-12-31",
+          "imo": null
+        }
+      ],
+      "_correlationId": "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      "requestedByAdmin": false,
+      "isUnblocked": false,
+      "da": "England",
+      "vesselOverriddenByAdmin": false,
+      "speciesOverriddenByAdmin": false,
+      "failureIrrespectiveOfRisk": true,
+      "exportedTo": {
+        "officialCountryName" : "Northern Ireland",
+        "isoCodeAlpha2" : "XI",
+        "isoCodeAlpha3": null,
+        "isoNumericCode": null
       },
       "certStatus": shared.CertificateStatus.COMPLETE,
       "transportation": {

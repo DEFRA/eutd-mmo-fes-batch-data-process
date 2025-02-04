@@ -27,7 +27,6 @@ export class ApplicationConfig {
   public azureReportTradeQueueName: string;
   public enableReportToQueue: boolean;
   public consolidationServicUrl: string;
-  public referenceDataServiceServicUrl: string;
 
   // vessel not found
   public vesselNotFoundEnabled: boolean;
@@ -41,7 +40,9 @@ export class ApplicationConfig {
   public runLandingReprocessingJob: boolean;
   public landingReprocessingLimit: number;
 
+  //Resubmit CC to Trade
   public runResubmitCcToTrade: boolean;
+  public runResubmitCcToTradeStartDate: string;
 
   public static loadEnv(env: any): void {
     ApplicationConfig.prototype.basicAuthUser = env.REF_SERVICE_BASIC_AUTH_USER;
@@ -72,9 +73,6 @@ export class ApplicationConfig {
 
     // landing service url
     ApplicationConfig.prototype.consolidationServicUrl = env.MMO_CC_LANDINGS_CONSOLIDATION_SVC_URL;
-
-    // landing service url
-    ApplicationConfig.prototype.referenceDataServiceServicUrl = env.MMO_ECC_REFERENCE_SVC_URL;
     
     // vessel not found
     ApplicationConfig.prototype.vesselNotFoundEnabled = env.VESSEL_NOT_FOUND_ENABLE || true;
@@ -90,14 +88,10 @@ export class ApplicationConfig {
 
     //Resubmit to Trade
     ApplicationConfig.prototype.runResubmitCcToTrade = env.RUN_RESUBMIT_CC_TO_TRADE === 'true';
-  }
 
-  public getReferenceServiceUrl(): string {
-    const urlParser = require('url-parse');
-    const parsed = urlParser(this.referenceDataServiceServicUrl);
-    parsed.set('username', this.basicAuthUser);
-    parsed.set('password', this.basicAuthPassword);
-    return parsed.toString().replace(/(\/)+$/, '');
+    //Resubmit CC to trade startDate
+    ApplicationConfig.prototype.runResubmitCcToTradeStartDate = env.RUN_RESUBMIT_CC_TO_TRADE_START_DATE || '2024-06-27T00:00:00.000Z';
+    
   }
 
 }

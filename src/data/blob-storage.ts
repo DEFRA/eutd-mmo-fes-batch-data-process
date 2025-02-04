@@ -182,7 +182,7 @@ export const saveReportingValidation = async (data: any, docType: string): Promi
     const fileNameWithDateAndTime = moment.utc(Date.now()).toISOString()
       .replace(/T/gi, '_')
       .replace(/[-Z]/gi, '')
-      .replace(/[:\.]/gi, '-');
+      .replace(/[:.]/gi, '-');
 
     const blob = `_${docType}_${environment}_${fileNameWithDateAndTime}.json`;
     const blockBlobClient: BlockBlobClient = containerClient.getBlockBlobClient(blob);

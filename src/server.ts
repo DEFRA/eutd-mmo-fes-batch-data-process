@@ -6,6 +6,7 @@ import { schedule } from 'node-cron';
 import appInsights from './app-insights';
 import appConfig, { ApplicationConfig } from './config';
 import { jobsRoutes } from './handler/jobs';
+import { staticRoutesWithoutAuth } from './handler/static-routes';
 import { loadExporterBehaviour, loadFishCountriesAndSpecies, loadVessels } from './data/cache';
 
 import logger from './logger';
@@ -26,8 +27,8 @@ export class Server {
           socketTimeoutMS: 600000,
           serverSelectionTimeoutMS: 60000
         }
-        
-        await mongoose.connect(ApplicationConfig.prototype.dbConnectionUri, options).catch(err => {console.log(err)});
+
+        await mongoose.connect(ApplicationConfig.prototype.dbConnectionUri, options).catch(err => { console.log(err) });
       }
 
       await Promise.all([
@@ -87,7 +88,7 @@ export class Server {
   }
 
   private static onPreResponse() {
-    Server.instance.ext('onPreResponse', function (request:  Hapi.Request<Hapi.ReqRefDefaults>, h) {
+    Server.instance.ext('onPreResponse', function (request: Hapi.Request<Hapi.ReqRefDefaults>, h) {
       const { response } = request;
 
       const permissions =
@@ -119,15 +120,16 @@ const scheduleVesselsJob = () => {
 }
 
 const validate = (request, username, password) => {
-    const isValid = username === appConfig.basicAuthUser && password === appConfig.basicAuthPassword;
-    return {
-      isValid,
-      credentials: {
-  
-      }
-    };
-  }
+  const isValid = username === appConfig.basicAuthUser && password === appConfig.basicAuthPassword;
+  return {
+    isValid,
+    credentials: {
+
+    }
+  };
+}
 
 const setupRoutes = server => {
   jobsRoutes(server);
+  staticRoutesWithoutAuth(server);
 }

@@ -82,7 +82,7 @@ export const getVesselLength = (pln: string, date: string): number => {
   if (vesselRss) {
      const vesselDetails = getVesselDetails(vesselRss);
 
-     if (vesselDetails && vesselDetails.vesselLength) {
+     if (vesselDetails?.vesselLength) {
         return vesselDetails.vesselLength;
      }
   }

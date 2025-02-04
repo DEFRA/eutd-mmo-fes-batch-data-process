@@ -24,8 +24,6 @@ import { mapPlnLandingsToRssLandings } from '../query/plnToRss';
 import { getLandingsMultiple } from '../persistence/landing';
 import { DocumentModel, IDocumentModel } from '../types/document';
 import { FilterQuery } from 'mongoose';
-import { commoditySearch } from '../data/species';
-import { ICommodityCodeExtended } from '../types/species';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
 
 export const getMissingLandingsArray = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
@@ -73,9 +71,9 @@ export const landingsAndReportingCron = async (): Promise<void> => {
 
     const newLandings: ILanding[] = await fetchAndProcessNewLandings(fetchLandings);
 
-    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][NEW-LANDINGS][${newLandings.length}]`);
+    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][NEW-LANDINGS][${newLandings?.length}]`);
 
-    if (newLandings && newLandings.length) {
+    if (newLandings?.length) {
       await reportNewLandings(newLandings, queryTime);
       updateConsolidateLandings(newLandings);
     }
@@ -125,39 +123,25 @@ export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Prom
     await resendCcToTrade(results);
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
 
-    const { exportData } = certToUpdate;
-    exportData.products.map((product: any) => {
-      if (product.commodityCodeDescription === undefined) {
-        const commodityCode: ICommodityCodeExtended[] = commoditySearch(product.speciesCode, product.state.code, product.presentation.code);
-        const description: string | undefined = commodityCode.find((c: ICommodityCodeExtended) => c.code === product.commodityCode)?.description;
-        if (description) {
-          product.commodityCodeDescription = description;
-          logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][DESCRIPTION-UPDATED][${product.speciesId}][WITH][${description}]`);
-        }
-      }
-    });
-
-    await upsertCertificate(certToUpdate.documentNumber, { exportData });
-
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
 
 export const resubmitCCToTrade = async (): Promise<void> => {
   try {
+    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC-DEFRA-POSTCODE]')
     if (!appConfig.runResubmitCcToTrade) return;
-
     logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC]');
     
-    const startDate = new Date("2021-04-22T00:00:00.000Z");
-
+    const startDate = new Date(appConfig.runResubmitCcToTradeStartDate);
     const query: FilterQuery<IDocumentModel> = {
       __t: 'catchCert',
-      'exportData.products': { $exists: true },
-      'exportData.products.commodityCode': { $exists: true },
-      'exportData.products.commodityCodeDescription': { $exists: false },
+      'exportData.exporterDetails._dynamicsAddress': { $exists: true },
+      'exportData.exporterDetails._dynamicsAddress.defra_postcode': null,
       'status': DocumentStatuses.Complete,
-      'createdAt':  { '$gt': startDate }
+      'createdAt': {
+        '$gt': startDate
+      }
     }
 
     const certsToUpdate: IDocument[]  = await DocumentModel
@@ -179,7 +163,7 @@ export const exceeding14DayLandingsAndReportingCron = async (): Promise<void> =>
 
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-LANDINGS][${exceeding14DayLimitLandings.length}]`);
 
-    if (exceeding14DayLimitLandings && exceeding14DayLimitLandings.length) {
+    if (exceeding14DayLimitLandings.length) {
       await reportExceeding14DaysLandings(exceeding14DayLimitLandings);
     }
 
@@ -193,7 +177,7 @@ export const runUpdateForLandings = async (rawValidatedCertificates: ICcQueryRes
   const { exportData = {} } = certificate;
 
   logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][RUN-UPDATE-FOR-LANDINGS][${documentNumber}]`);
-  if (exportData.products && exportData.products.length) {
+  if (exportData.products?.length) {
     rawValidatedCertificates
       .filter(c => c.documentNumber === documentNumber)
       .forEach((validation: ICcQueryResult) => {

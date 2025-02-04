@@ -1,8 +1,8 @@
-var vesselsJson = require(__dirname + '/../data/vessels.json');
-var speciesmismatch = require(__dirname + '/../data/speciesmismatch.json');
-var fs = require('fs');
+const vesselsJson = require(__dirname + '/../data/vessels.json');
+const speciesmismatch = require(__dirname + '/../data/speciesmismatch.json');
+const fs = require('fs');
 
-var storage = jest.genMockFromModule('azure-storage');
+const storage = jest.genMockFromModule('azure-storage');
 
 
 function __setMockService() {

@@ -393,9 +393,9 @@ export const processReports = async (): Promise<void> => {
 
     let unprocessed: any[] = await getUnprocessedReports();
 
-    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: ${unprocessed.length}]`);
+    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: ${unprocessed?.length}]`);
 
-    while (unprocessed && unprocessed.length) {
+    while (unprocessed?.length) {
       await filterReports(unprocessed);
       unprocessed = await getUnprocessedReports();
       logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: ${unprocessed.length}]`);

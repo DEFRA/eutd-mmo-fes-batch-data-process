@@ -315,7 +315,7 @@ export const getConversionFactor: (species: string, state: string, presentation:
 export const getToLiveWeightFactor: (species: string, state: string, presentation: string) => number = (species: string, state: string, presentation: string): number => {
   const conversionFactor: IConversionFactor | undefined = getConversionFactor(species, state, presentation);
 
-  if (!conversionFactor || !conversionFactor.toLiveWeightFactor) {
+  if (!conversionFactor?.toLiveWeightFactor) {
     return 1;
   }
 
