@@ -13,7 +13,7 @@ trigger:
 resources:
   repositories:
     - repository: CentralAdoPipelineTemplates
-      name: mmo-fes-central-ado-pipeline-templates
+      name: mmo-fes-pipeline-common
       type: git
       ref: main
 
