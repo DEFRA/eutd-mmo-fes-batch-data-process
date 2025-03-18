@@ -220,7 +220,7 @@ describe('scheduled jobs controller', () => {
       expect(mockRunJob).toHaveBeenCalled();
       expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][Error: testing 123]')
+      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC-DEFRA-POSTCODE][ERROR][Error: testing 123]')
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 

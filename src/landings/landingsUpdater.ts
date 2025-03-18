@@ -129,9 +129,8 @@ export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Prom
 
 export const resubmitCCToTrade = async (): Promise<void> => {
   try {
-    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC-DEFRA-POSTCODE]')
     if (!appConfig.runResubmitCcToTrade) return;
-    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC]');
+    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][START]');
     
     const startDate = new Date(appConfig.runResubmitCcToTradeStartDate);
     const query: FilterQuery<IDocumentModel> = {
