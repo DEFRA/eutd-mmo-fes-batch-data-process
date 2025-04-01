@@ -254,6 +254,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
     rssNumber: 'C20415',
     da: 'Scotland',
     dateLanded: '2023-08-31',
+    startDate: '2023-08-31',
     species: 'BSF',
     weightOnCert: 121,
     rawWeightOnCert: 122,

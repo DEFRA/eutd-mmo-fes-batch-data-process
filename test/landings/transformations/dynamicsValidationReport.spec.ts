@@ -179,6 +179,7 @@ describe("When mapping from an Shared.ICcQueryResult to a Shared.IDynamicsLandin
     rssNumber: 'rssWA1',
     da: 'Guernsey',
     dateLanded: '2019-07-10',
+    startDate: '2019-07-10',
     species: 'LBE',
     weightOnCert: 121,
     rawWeightOnCert: 122,
@@ -243,6 +244,7 @@ describe("When mapping from an Shared.ICcQueryResult to a Shared.IDynamicsLandin
     expect(result.status).toEqual('No Landing Data Failure');
     expect(result.id).toEqual('rssWA12019-07-10');
     expect(result.landingDate).toEqual('2019-07-10');
+    expect(result.startDate).toEqual('2019-07-10');
     expect(result.species).toEqual('LBE');
     expect(result.state).toEqual('FRE');
     expect(result.vesselPln).toEqual('WA1');

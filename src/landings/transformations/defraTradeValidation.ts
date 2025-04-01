@@ -49,6 +49,8 @@ export const toDefraTradeLanding = (landing: ICcQueryResult): IDefraTradeLanding
     landing.extended.exporterAccountId,
     landing.extended.exporterContactId) : landing.extended.riskScore;
 
+  delete dynamicsLanding['startDate'];
+
   return {
     ...dynamicsLanding,
     status: toDefraCcLandingStatus(landing, isHighRisk(riskScore, landing.extended.threshold)),

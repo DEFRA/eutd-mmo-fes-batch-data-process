@@ -125,6 +125,7 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     status: pendingLandingDataRetrospectiveTransformation(landingStatus),
     id: validatedLanding.extended.landingId,
     landingDate: validatedLanding.dateLanded,
+    startDate: validatedLanding.startDate,
     species: validatedLanding.species,
     cnCode: validatedLanding.extended.commodityCode,
     commodityCodeDescription: validatedLanding.extended.commodityCodeDescription,
