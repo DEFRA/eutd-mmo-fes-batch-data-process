@@ -68,6 +68,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
               "licenceValidTo": "2030-12-31",
               "licenceHolder": "MR S CLARY-BROM ",
               "id": "GBR-2023-CC-C58DF9A73-1777642314",
+              "startDate": "2023-08-31",
               "date": "2023-08-31",
               "faoArea": "FAO27",
               "weight": 122,
@@ -330,6 +331,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
     status: 'COMPLETE',
     rssNumber: 'C20415',
     da: 'Scotland',
+    startDate: '2023-08-31',
     dateLanded: '2023-08-31',
     species: 'BSF',
     weightOnCert: 121,
@@ -487,6 +489,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -632,6 +635,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -1356,6 +1360,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -1498,6 +1503,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -1639,6 +1645,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -1780,6 +1787,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -1915,6 +1923,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -2040,6 +2049,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -2179,6 +2189,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -2332,6 +2343,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       rssNumber: 'C20415',
       da: 'Scotland',
       dateLanded: '2023-08-31',
+      startDate: '2023-08-31',
       species: 'BSF',
       weightOnCert: 121,
       rawWeightOnCert: 122,
@@ -2457,6 +2469,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
@@ -2585,6 +2598,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         {
           status: DefraCcLandingStatusType.ValidationFailure_Species,
           id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
           landingDate: "2023-08-31",
           species: "Lobster",
           cnCode: "03028990",
