@@ -17,6 +17,7 @@ describe('toLandings', () => {
     status: 'COMPLETE',
     rssNumber: 'rssWA1',
     da: 'Guernsey',
+    startDate: moment.utc('2019-07-10').format('YYYY-MM-DD'),
     dateLanded: moment.utc('2019-07-10').format('YYYY-MM-DD'),
     species: 'LBE',
     weightOnCert: 121,
@@ -139,6 +140,7 @@ describe('toLandings', () => {
     expect(result[0].isOveruse).toEqual(true);
     expect(result[0].isExporterLandingOveruse).toEqual(true);
     expect(result[0].isValidationFailed).toEqual(true);
+    expect(result[0].startDate).toEqual('2019-07-10');
     expect(result[0].date).toEqual('2019-07-10');
     expect(result[0].cnCode).toEqual('1234');
     expect(result[0].isLegallyDue).toBe(false);
@@ -152,6 +154,7 @@ describe('toLandings', () => {
       status: 'COMPLETE',
       rssNumber: 'rssWA1',
       da: 'Guernsey',
+      startDate: moment.utc('2019-07-10').format('YYYY-MM-DD'),
       dateLanded: moment.utc('2019-07-10').format('YYYY-MM-DD'),
       species: 'LBE',
       weightOnCert: 121,
@@ -243,6 +246,7 @@ describe('toLandings', () => {
     expect(result[0].isOveruse).toEqual(true);
     expect(result[0].isExporterLandingOveruse).toEqual(true);
     expect(result[0].isValidationFailed).toEqual(true);
+    expect(result[0].startDate).toEqual('2019-07-10');
     expect(result[0].date).toEqual('2019-07-10');
     expect(result[0].cnCode).toEqual('1234');
     expect(result[0].isLegallyDue).toBe(false);
@@ -591,6 +595,7 @@ describe('toLandings', () => {
         "cnCode": "1234",
         "cnCodeDesc": undefined,
         "dataEverExpected": true,
+        "startDate": "2019-07-10",
         "date": "2019-07-10",
         "dateDataReceived": "2023-01-01T00:00:00.000Z",
         "daysWithNoLandingData": "0.0.0.0",

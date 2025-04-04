@@ -27,7 +27,6 @@ import {
 
 
 export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
-
    return queryRes.map((rawValidatedLanding: ICcQueryResult) => {
 
       const ccBatchReportForLanding : ICcBatchValidationReport = Array.from(ccBatchReport([rawValidatedLanding][Symbol.iterator]()))[0]
@@ -41,6 +40,7 @@ export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
          rawValidatedLanding.extended.exporterContactId) : rawValidatedLanding.extended.riskScore;
 
       return {
+         startDate: rawValidatedLanding.startDate,
          date: rawValidatedLanding.dateLanded,
          species: {
             name: rawValidatedLanding.extended.species,
