@@ -1,23 +1,28 @@
 name: $(BuildID).$(Date:yyyyMMdd).$(SourceBranchName)
 
+parameters:
+  - name: deployFromFeature
+    displayName: "Deploy from Feature Branch"
+    type: boolean
+    default: false
+
 trigger:
   branches:
     include:
-      # in order as per GitFlow Branching strategy
       - 'main'
-      - 'hotfix/FI0-*'
-      - 'release/*'
       - 'develop'
-      - 'feature/FI0-*'
+      - 'hotfix/*'
+      - 'feature/*'
 
 resources:
   repositories:
-    - repository: CentralAdoPipelineTemplates
+    - repository: MMOPipelineCommon
       name: mmo-fes-pipeline-common
       type: git
       ref: main
 
 extends:
-  template: /includes/app-deployment.yaml@CentralAdoPipelineTemplates
+  template: /includes/app-deployment.yaml@MMOPipelineCommon
   parameters:
     appName: 'mmo-fes-batch-data-process'
+    deployFromFeature: ${{ parameters.deployFromFeature }}
