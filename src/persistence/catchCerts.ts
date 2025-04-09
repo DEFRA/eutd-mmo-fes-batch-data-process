@@ -83,8 +83,8 @@ export const getCatchCerts = async (
     .sort({ createdAt: -1 })
 }
 
-export const getCertificateByDocumentNumberWithNumberOfFailedAttempts = async (documentNumber: string): Promise<IDocument> => {
-  return await DocumentModel.aggregate(getCertificateByDocumentNumberWithNumberOfFailedAttemptsQuery(documentNumber)).then(results => results[0]);
+export const getCertificateByDocumentNumberWithNumberOfFailedAttempts = async (documentNumber: string, discriminator: string): Promise<IDocument> => {
+  return await DocumentModel.aggregate(getCertificateByDocumentNumberWithNumberOfFailedAttemptsQuery(documentNumber, discriminator)).then(results => results[0]);
 }
 
 export const getCertificateByDocumentNumber = async (documentNumber: string): Promise<IDocument> => {

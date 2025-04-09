@@ -124,7 +124,7 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]): Pro
       logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][REPORTING-CC][${certificateId}][REPORT-ID][${correlationId}]`);
 
       try {
-        catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId);
+        catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId, "catchCert");
         logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][getCertificateByDocumentNumberWithNumberOfFailedAttempts][${certificateId}][SUCCESS]`);
       }
       catch (e) {
@@ -202,7 +202,7 @@ export const reportCc14DayLimitReached = async (ccValidationData: ICcQueryResult
 
     logger.info(`[REPORTING-CC-14-DAY-LIMIT-REACHED][DOCUMENT-NUMBER][${certificateId}]`);
 
-    const catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId);
+    const catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId, "catchCert");
 
     if (Object.prototype.hasOwnProperty.call(catchCertificate, 'exportData') && catchCertificate.exportData.exporterDetails !== undefined) {
 
@@ -329,7 +329,7 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
   logger.info(`[LANDINGS][REREPORTING-CC][${certificateId}][REPORT-ID][${correlationId}]`);
 
   try {
-    catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId);
+    catchCertificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId, "catchCert");
     logger.info(`[REREPORT-CC-SUBMITTED][SUCCESS][getCertificateByDocumentNumberWithNumberOfFailedAttempts][${certificateId}]`);
   }
   catch (e) {

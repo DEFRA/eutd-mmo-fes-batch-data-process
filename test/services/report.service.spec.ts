@@ -2386,7 +2386,7 @@ describe('when a CC is submitted', () => {
       await SUT.reportCcSubmitted(data);
 
       expect(mockInsertCcReport).toHaveBeenCalledWith({ ...toReportResponse, landings: toLandingsResponse });
-      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1', 'catchCert');
       expect(mockToCcDefraReport).toHaveBeenCalledWith('X-CC-1', 'some-uuid-correlation-id', 'COMPLETE', false, mockVesselIdx, getCatchCertificate);
       expect(mockToLandings).toHaveBeenCalledWith(data);
       expect(mockInsertCcReport).toHaveBeenCalledWith(toReportResponse);
@@ -2538,7 +2538,7 @@ describe('when a CC is submitted', () => {
       await SUT.reportCc14DayLimitReached(data);
 
       expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[REPORTING-CC-14-DAY-LIMIT-REACHED][DOCUMENT-NUMBER][X-CC-1]');
-      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1', 'catchCert');
       expect(mockGetExtendedValidationData).toHaveBeenCalledWith('2019-07-10', 'rssWA1', 'salesNotes');
       expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(1);
       expect(mockToDynamicsLandingDetails).toHaveBeenCalledTimes(1);
@@ -2635,7 +2635,7 @@ describe('when a CC is submitted', () => {
       await SUT.reportCc14DayLimitReached(data);
 
       expect(mockGetCertificate).toHaveBeenCalled();
-      expect(mockGetCertificate).toHaveBeenCalledWith(documentNumber);
+      expect(mockGetCertificate).toHaveBeenCalledWith(documentNumber, 'catchCert');
       expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled()
       expect(mockToDynamicsLandingDetails).not.toHaveBeenCalled();
 
@@ -3146,7 +3146,7 @@ describe("Report reSubmitted", () => {
       expect(data[1].extended.commodityCodeDescription).toBe('blah blah');
       expect(mockCommoditySearch).toHaveBeenCalled();
       expect(mockCommoditySearch).toHaveBeenCalledWith("LBE", "FRE", "SLC");
-      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1');
+      expect(mockGetCertificate).toHaveBeenCalledWith('X-CC-1', 'catchCert');
       expect(mockToDynamicsCcCase).toHaveBeenCalledTimes(1);
       expect(mockToCCDefraTrade).toHaveBeenCalledTimes(1);
       expect(mockToCCDefraTrade).toHaveBeenCalledWith(getCatchCertificate, shared.MessageLabel.CATCH_CERTIFICATE_SUBMITTED, mockMapCcResponse, data);

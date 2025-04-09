@@ -1020,7 +1020,7 @@ describe('reading individual certificates', () => {
 
   it('can find a certificate by its document number', async () => {
 		const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-TEST-AFJ",
       status: DocumentStatuses.Complete,
       documentUri: "myTestId.pdf",
@@ -1038,7 +1038,7 @@ describe('reading individual certificates', () => {
 
   it('can find a certificate by its document number with the number of failed attempts', async () => {
     const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-XX-1",
       status: DocumentStatuses.Draft,
       documentUri: "myTestId.pdf",
@@ -1069,7 +1069,7 @@ describe('reading individual certificates', () => {
 
     await model.save()
 
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1")
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1", "catchCert")
 
     expect(certificate.documentNumber).toBe("GBR-XX-1");
     expect(certificate.status).toBe(DocumentStatuses.Draft);
@@ -1080,7 +1080,7 @@ describe('reading individual certificates', () => {
 
   it('should return zero number of failed attempts if none found', async () => {
     const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-XX-1",
       status: DocumentStatuses.Draft,
       documentUri: "myTestId.pdf",
@@ -1091,7 +1091,7 @@ describe('reading individual certificates', () => {
 
     await model.save()
 
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1")
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1", "catchCert")
 
     expect(certificate.documentNumber).toBe("GBR-XX-1");
     expect(certificate.status).toBe(DocumentStatuses.Draft);
@@ -1102,7 +1102,7 @@ describe('reading individual certificates', () => {
 
   it('should group matching results by createdAt', async () => {
     const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-XX-1",
       status: DocumentStatuses.Draft,
       documentUri: "myTestId.pdf",
@@ -1131,7 +1131,7 @@ describe('reading individual certificates', () => {
 
     await model.save()
 
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1")
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-1", "catchCert")
 
     expect(certificate.documentNumber).toBe("GBR-XX-1");
     expect(certificate.status).toBe(DocumentStatuses.Draft);
@@ -1142,7 +1142,7 @@ describe('reading individual certificates', () => {
 
   it('will return undefined if a document can not be found', async () => {
     const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-XX-1",
       status: DocumentStatuses.Draft,
       documentUri: "myTestId.pdf",
@@ -1153,14 +1153,14 @@ describe('reading individual certificates', () => {
 
     await model.save()
 
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-2")
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-XX-2", "catchCert")
 
     expect(certificate).toBeUndefined();
   })
 
   it('will not return a certificate with a status with duplicate documents', async () => {
     const _ = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-TEST-AFJ",
       documentUri: "myTestId.pdf",
       createdAt: "2019-07-10T08:26:06.939Z",
@@ -1171,7 +1171,7 @@ describe('reading individual certificates', () => {
     await _.save()
 
 		const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-TEST-AFJ",
       status: "COMPLETE",
       documentUri: "myTestId.pdf",
@@ -1182,7 +1182,7 @@ describe('reading individual certificates', () => {
 
     await model.save()
 
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-TEST-AFJ")
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts("GBR-TEST-AFJ", "catchCert")
 
     expect(certificate.status).toBe(DocumentStatuses.Complete);
   })
@@ -1199,7 +1199,7 @@ describe('updating certificates', () => {
 
   it('can update more than one property', async () => {
 		const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-TEST-AFJ",
       status: DocumentStatuses.Complete,
       createdAt: "2019-07-10T08:26:06.939Z",
@@ -1225,7 +1225,7 @@ describe('updating certificates', () => {
       it('will void a certificate if the status is not DRAFT', async () => {
 
         const model = new DocumentModel({
-          __t: 'processingStatement',
+          __t: 'catchCert',
           documentNumber: "GBR-TEST-AFJ",
           status: DocumentStatuses.Complete,
           createdAt: "2019-07-10T08:26:06.939Z",
@@ -1248,7 +1248,7 @@ describe('updating certificates', () => {
 
       it('will not void a certificate if the status is LOCKED', async () => {
         await new DocumentModel({
-          __t: 'processingStatement',
+          __t: 'catchCert',
           documentNumber: "GBR-TEST-AFJ",
           status: DocumentStatuses.Locked,
           createdAt: "2019-07-10T08:26:06.939Z",
@@ -1268,7 +1268,7 @@ describe('updating certificates', () => {
   describe('When investigating a certificate', () => {
     it('will mark as investigated succesfully if the certificate is COMPLETE', async () => {
       const model = new DocumentModel({
-        __t: 'processingStatement',
+        __t: 'catchCert',
         documentNumber: "GBR-TEST-AFJ",
         status: DocumentStatuses.Complete,
         createdAt: "2019-07-10T08:26:06.939Z",
@@ -1293,7 +1293,7 @@ describe('updating certificates', () => {
 
     it('will mark as investigated succesfully if the certificate is PENDING', async () => {
       const model = new DocumentModel({
-        __t: 'processingStatement',
+        __t: 'catchCert',
         documentNumber: "GBR-TEST-AFJ",
         status: DocumentStatuses.Pending,
         createdAt: "2019-07-10T08:26:06.939Z",
@@ -1318,7 +1318,7 @@ describe('updating certificates', () => {
 
     it('will mark as investigated succesfully if the certificate is DRAFT', async () => {
       const model = new DocumentModel({
-        __t: 'processingStatement',
+        __t: 'catchCert',
         documentNumber: "GBR-TEST-AFJ",
         status: DocumentStatuses.Draft,
         createdAt: "2019-07-10T08:26:06.939Z",
@@ -1343,7 +1343,7 @@ describe('updating certificates', () => {
 
     it('will not mark as investigated a certificate if the status is LOCKED', async () => {
       await new DocumentModel({
-        __t: 'processingStatement',
+        __t: 'catchCert',
         documentNumber: "GBR-TEST-AFJ",
         status: DocumentStatuses.Locked,
         createdAt: "2019-07-10T08:26:06.939Z",
@@ -1367,7 +1367,7 @@ describe('updating certificates', () => {
 
     it('will not mark as investigated a certificate if the status is VOID', async () => {
       await new DocumentModel({
-        __t: 'processingStatement',
+        __t: 'catchCert',
         documentNumber: "GBR-TEST-AFJ",
         status: DocumentStatuses.Void,
         createdAt: "2019-07-10T08:26:06.939Z",
@@ -1392,7 +1392,7 @@ describe('updating certificates', () => {
 
   it('can upsert properties', async () => {
     const model = new DocumentModel({
-      __t: 'processingStatement',
+      __t: 'catchCert',
       documentNumber: "GBR-TEST-AFJ",
       status: DocumentStatuses.Complete,
       createdAt: "2019-07-10T08:26:06.939Z",
