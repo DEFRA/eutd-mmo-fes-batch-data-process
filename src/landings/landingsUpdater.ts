@@ -1,7 +1,7 @@
 import moment from 'moment';
 import { missingLandingRefreshQuery, exceedingLimitLandingQuery } from "../query/ccQuery";
 import { getCatchCerts, getCertificateByDocumentNumber, upsertCertificate } from "../persistence/catchCerts";
-import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendCcToTrade } from "../services/report.service";
+import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendCcToTrade, resendSdToTrade } from "../services/report.service";
 import { fetchRefereshLandings, updateConsolidateLandings } from '../services/landingConsolidate.service';
 import { fetchAndProcessNewLandings } from './landingsRefresh';
 import { getSpeciesAliases, getToLiveWeightFactor, getVesselsIdx, loadLandingReprocessData, updateLandingReprocessData } from "../data/cache";
@@ -15,7 +15,8 @@ import {
   ILandingQuery,
   IDocument,
   getLandingsFromCatchCertificate,
-  DocumentStatuses
+  DocumentStatuses,
+  postCodeToDa
 } from 'mmo-shared-reference-data';
 import logger from '../logger';
 import appConfig from '../config';
@@ -25,6 +26,8 @@ import { getLandingsMultiple } from '../persistence/landing';
 import { DocumentModel, IDocumentModel } from '../types/document';
 import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
+import { ISdPsQueryResult } from '../types/query';
+import { sdpsQuery } from '../query/sdpsQuery';
 
 export const getMissingLandingsArray = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
   const landingStatuses: LandingStatus[] = [LandingStatus.Pending];
@@ -131,16 +134,12 @@ export const resubmitCCToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
     logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][START]');
-    
-    const startDate = new Date(appConfig.runResubmitCcToTradeStartDate);
+
     const query: FilterQuery<IDocumentModel> = {
       __t: 'catchCert',
       'exportData.exporterDetails._dynamicsAddress': { $exists: true },
       'exportData.exporterDetails._dynamicsAddress.defra_postcode': null,
       'status': DocumentStatuses.Complete,
-      'createdAt': {
-        '$gt': startDate
-      }
     }
 
     const certsToUpdate: IDocument[]  = await DocumentModel
@@ -153,6 +152,36 @@ export const resubmitCCToTrade = async (): Promise<void> => {
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][COMPLETE]`);
   } catch (e) {
     logger.error(`[RUN-RESUBMIT-TRADE-DOCUMENT][ERROR][${e}]`);
+  }
+}
+
+export const processResubmitSdToTrade = async (certsToUpdate: IDocument[]): Promise<void> => {
+  for (const certToUpdate of certsToUpdate) {
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
+    let results: ISdPsQueryResult[] = [];
+    results = Array.from(sdpsQuery([certToUpdate], postCodeToDa));
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
+    await resendSdToTrade(results);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
+  }
+}
+export const resubmitSdToTrade = async (): Promise<void> => {
+  try {
+    if (!appConfig.runResubmitCcToTrade) return;
+    logger.info('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-CC][START]');
+    const query: FilterQuery<IDocumentModel> = {
+      'documentNumber': 'GBR-2024-SD-A7FE281B8',                          
+      'status': DocumentStatuses.Complete,      
+    }
+    const certsToUpdate: IDocument[] = await DocumentModel
+      .find(query, null, { timeout: true, lean: true })
+      .sort({ createdAt: -1 });
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERTS][LENGTH:${certsToUpdate.length}]`);
+    await processResubmitSdToTrade(certsToUpdate);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][COMPLETE]`);
+  } catch (e) {
+    logger.error(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][ERROR][${e}]`);
   }
 }
 

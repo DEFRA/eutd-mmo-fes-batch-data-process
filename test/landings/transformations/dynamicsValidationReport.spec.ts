@@ -5,6 +5,8 @@ import * as Cache from "../../../src/data/cache";
 import * as risking from '../../../src/data/risking';
 import * as Vessel from '../../../src/data/vessel';
 import  * as Shared from 'mmo-shared-reference-data' ;
+import { ISdPsQueryResult } from "../../../src/types/query";
+import { SdPsCaseTwoType, SdPsStatus } from "../../../src/types/dynamicsValidationSdPs";
 
 const queryTime = moment.utc();
 
@@ -2461,3 +2463,560 @@ describe('toLanding', () => {
   });
 });
 
+describe('When mapping fron an ISdPsQueryResult to a IDynamicsStorageDocumentProduct', () => {
+  const input: ISdPsQueryResult = {
+    documentNumber: "SD1",
+    catchCertificateNumber: "SD2",
+    catchCertificateType: "uk",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    scientificName: "Gadus morhua",
+    commodityCode: "FRESHCOD",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    weightAfterProcessing: 80,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: null,
+    extended: {
+      id: 'SD2-1610018839',
+    }
+  };
+
+  it('will map the foreignCatchCertificateNumber', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.foreignCatchCertificateNumber).toEqual("SD2");
+  });
+
+  it('will map the certificateType', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.isDocumentIssuedInUK).toEqual(true);
+  });
+
+  it('will map the species code', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.species).toEqual("COD");
+  });
+
+  it('will map the commodity code', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.cnCode).toEqual("FRESHCOD");
+  })
+
+  it('will map the importedWeight', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.importedWeight).toEqual(200);
+  });
+
+  it('will map exportedWeight', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.exportedWeight).toEqual(100)
+  });
+
+  it('will map a scientific name', () => {
+    const result = SUT.toSdProduct(input);
+
+    expect(result.scientificName).toBe("Gadus morhua");
+  });
+
+  describe("The validation within IDynamicsStorageDocumentProduct", () => {
+    it('will contain totalUsedWeightAgainstCertificate', () => {
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.totalWeightExported).toEqual(150)
+    });
+
+    it('will highlight when the failure reason is the weight', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "SD",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: true,
+        overAllocatedByWeight: 0,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.status).toEqual(SdPsStatus.Weight)
+    });
+
+    it('will highlight when the failure reason is overuse', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: true,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 50,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.status).toEqual(SdPsStatus.Overuse)
+    });
+
+    it('will highlight the weight exceeded amount when the failure reason is overuse', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "SD",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 50,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.weightExceededAmount).toEqual(50)
+    });
+
+    it('will have over use array when the failure reason is overuse', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "SD",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: ["SD3"],
+        isMismatch: false,
+        overAllocatedByWeight: 50,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.overuseInfo).toEqual(["SD3"])
+    });
+
+    it('will not have an overuse array when the failure overuse occurs on this document', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "SD",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: ["SD1"],
+        isMismatch: false,
+        overAllocatedByWeight: 50,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.overuseInfo).toBeUndefined();
+    });
+
+    it('will not include current document number in overuseInfo array when the failure overuse occurs on this document', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "SD1",
+        catchCertificateNumber: "SD2",
+        documentType: "SD",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: ["SD1", "SD2"],
+        isMismatch: false,
+        overAllocatedByWeight: 50,
+        da: null,
+        extended: {
+          id: 'SD2-1610018839',
+        }
+      };
+
+      const result = SUT.toSdProduct(input);
+
+      expect(result.validation.overuseInfo).toStrictEqual(["SD2"]);
+    });
+  });
+
+});
+
+describe('When mapping from an ISdPsQueryResult to IDynamicsStorageDocumentCase', () => {
+
+  const exampleSd: Shared.IDocument = {
+    "createdAt": new Date("2020-06-12T20:12:28.201Z"),
+    "__t": "storageDocument",
+    "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+    "createdByEmail": "foo@foo.com",
+    "status": "COMPLETE",
+    "documentNumber": "GBR-2020-SD-C90A88218",
+    "requestByAdmin": false,
+    "audit": [{
+      "eventType": Shared.AuditEventTypes.PreApproved,
+      "triggeredBy": "Bob",
+      "timestamp": new Date(),
+      "data": null
+    }, {
+      "eventType": Shared.AuditEventTypes.Investigated,
+      "triggeredBy": "Bob",
+      "timestamp": new Date(),
+      "data": null
+    }],
+    "userReference": "My Reference",
+    "exportData": {
+      "exporterDetails": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "exporterCompanyName": "Exporter Ltd",
+        "addressOne": "Building Name",
+        "buildingName": "BuildingName",
+        "buildingNumber": "BuildingNumber",
+        "subBuildingName": "SubBuildingName",
+        "streetName": "StreetName",
+        "country": "Country",
+        "county": "County",
+        "townCity": "Town",
+        "postcode": "TF1 3AA",
+        "_dynamicsAddress": { "dynamicsData": 'original address' }
+      },
+      "catches": [{
+        "product": "Atlantic herring (HER)",
+        "commodityCode": "0345603",
+        "productWeight": "1000",
+        "dateOfUnloading": "12/06/2020",
+        "placeOfUnloading": "Dover",
+        "transportUnloadedFrom": "BA078",
+        "certificateNumber": "GBR-3453-3453-3443",
+        "weightOnCC": "1000",
+        "scientificName": "Gadus morhua"
+      }],
+      "storageFacilities": [{
+        "facilityName": "Exporter Person",
+        "facilityAddressOne": "Building Name",
+        "facilityAddressTwo": "Building Street",
+        "facilityTownCity": "Town",
+        "facilityPostcode": "XX12 X34"
+      }],
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGA",
+        "isoNumericCode": "566"
+      },
+      "transportation": {
+        "vehicle": "truck",
+        "cmr": true
+      }
+    },
+    "documentUri": "_0d8f98a1-c372-47c4-803f-dafd642c4941.pdf",
+    "numberOfFailedAttempts": 5
+  };
+
+  const input: ISdPsQueryResult = {
+    documentNumber: "SD1",
+    catchCertificateNumber: "SD2",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    commodityCode: "FRESHCOD",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    weightAfterProcessing: 80,
+    isOverAllocated: false,
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    overUsedInfo: [],
+    da: null,
+    extended: {
+      id: 'SD2-1610018839',
+    }
+  };
+
+  it('will map the products', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.products?.length).toBeGreaterThan(0);
+  });
+
+  it('will map the documentNumber', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.documentNumber).toEqual('GBR-2020-SD-C90A88218');
+  });
+
+  it('will map the Case type One', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.caseType1).toEqual('SD');
+  });
+
+  it('will map the company name', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.companyName).toEqual("Exporter Ltd");
+  });
+
+  it('will map the number of failed submissions', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.numberOfFailedSubmissions).toEqual(5);
+  });
+
+  it('will map the case two type', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.caseType2).toEqual(SdPsCaseTwoType.RealTimeValidation_Success);
+  });
+
+  it('will map an exporter details', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.exporter).toMatchObject({
+      companyName: "Exporter Ltd",
+      address: {
+        line1: "Building Name",
+        building_name: "BuildingName",
+        building_number: "BuildingNumber",
+        sub_building_name: "SubBuildingName",
+        street_name: "StreetName",
+        country: "Country",
+        county: "County",
+        city: "Town",
+        postCode: "TF1 3AA"
+      },
+      contactId: 'a contact id',
+      accountId: 'an account id',
+    }
+    )
+  });
+
+  it('will contains documentDate', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.documentDate).toBe('2020-06-12T20:12:28.201Z');
+  });
+
+  it('will contains documentURI', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.documentUrl).toContain('_0d8f98a1-c372-47c4-803f-dafd642c4941.pdf');
+  });
+
+  it('will include a correlationId', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result._correlationId).toEqual('some-uuid-correlation-id');
+  });
+
+  it('will include a requestedByAdmin flag', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.requestedByAdmin).toEqual(false);
+  });
+
+  it('will include all root properties required for a VOID payload', () => {
+    const result = SUT.toDynamicsSd(null, exampleSd, correlationId, SdPsCaseTwoType.VoidByExporter);
+
+    expect(result.caseType2).toEqual("Void by an Exporter");
+    expect(result.products).toBeUndefined();
+  });
+
+  it('will include an exportedTo', () => {
+    const result = SUT.toDynamicsSd([input], exampleSd, correlationId);
+
+    expect(result.exportedTo).toEqual({
+      officialCountryName: "Nigeria",
+      isoCodeAlpha2: "NG",
+      isoCodeAlpha3: "NGA"
+    });
+  });
+
+  it('isMismatch is true', () => {
+    const result = SUT.toDynamicsSd([{ ...input, isMismatch: true }], exampleSd, correlationId);
+
+    expect(result.exporter).toStrictEqual({
+      "accountId": "an account id",
+      "address":  {
+        "building_name": "BuildingName",
+        "building_number": "BuildingNumber",
+        "city": "Town",
+        "country": "Country",
+        "county": "County",
+        "line1": "Building Name",
+        "postCode": "TF1 3AA",
+        "street_name": "StreetName",
+        "sub_building_name": "SubBuildingName",
+      },
+      "companyName": "Exporter Ltd",
+      "contactId": "a contact id",
+      "dynamicsAddress":  {
+        "dynamicsData": "original address",
+      },
+       })
+  })
+  it('isOverUse is true', () => {
+    const result = SUT.toDynamicsSd([{ ...input, isOverAllocated: true }], exampleSd, correlationId);
+
+    expect(result.exporter).toStrictEqual({
+      "accountId": "an account id",
+      "address":  {
+        "building_name": "BuildingName",
+        "building_number": "BuildingNumber",
+        "city": "Town",
+        "country": "Country",
+        "county": "County",
+        "line1": "Building Name",
+        "postCode": "TF1 3AA",
+        "street_name": "StreetName",
+        "sub_building_name": "SubBuildingName",
+      },
+      "companyName": "Exporter Ltd",
+      "contactId": "a contact id",
+      "dynamicsAddress":  {
+        "dynamicsData": "original address",
+      },
+       })
+  })
+});
+
+describe("Covering toExportedToPsSd optional cases", () => {
+  const examplePS: Shared.IDocument = {
+    createdAt: new Date("2020-06-09T11:27:49.000Z"),
+    __t: "processingStatement",
+    createdBy: "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+    status: "COMPLETE",
+    documentNumber: "GBR-2020-SD-BA8A6BE06",
+    requestByAdmin: false,
+    audit: [{
+      eventType: 'AuditEventTypes.PreApproved',
+      triggeredBy: "Bob",
+      timestamp: new Date(),
+      data: null
+    }, {
+      eventType: 'AuditEventTypes.Investigated',
+      triggeredBy: "Bob",
+      timestamp: new Date(),
+      data: null
+    }],
+    userReference: "test",
+    exportData: {
+      catches: [
+        {
+          species: "Atlantic herring (HER)",
+          catchCertificateNumber: "23462436",
+          totalWeightLanded: 3,
+          exportWeightBeforeProcessing: 3,
+          exportWeightAfterProcessing: 3,
+          scientificName: "Gadus morhua"
+        }],
+      exporterDetails: {
+        contactId: "a contact id",
+        accountId: "an account id",
+        exporterCompanyName: "Exporter Co",
+        addressOne: "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+        townCity: "T",
+        postcode: "AB1 1AB",
+        buildingNumber: "123",
+        subBuildingName: "Unit 1",
+        buildingName: "CJC Fish Ltd",
+        streetName: "17 Old Edinburgh Road",
+        county: "West Midlands",
+        country: "England",
+        _dynamicsAddress: "dynamics"
+      },
+      consignmentDescription: "test",
+      healthCertificateNumber: "3",
+      healthCertificateDate: "01/06/2020",
+      personResponsibleForConsignment: "Bob Bobby",
+      plantApprovalNumber: "111-222",
+      plantName: "Bob's plant",
+      plantAddressOne: "test1",
+      plantAddressTwo: "test2",
+      plantTownCity: "city Test",
+      plantPostcode: "RRR",
+      dateOfAcceptance: "09/06/2020",
+      exportedTo: {
+        officialCountryName: "Nigeria",
+        isoCodeAlpha2: "NG",
+        isoCodeAlpha3: "NGA",
+        isoNumericCode: "566"
+      }
+    },
+    createdByEmail: "foo@foo.com",
+    documentUri: "_fd91895a-85e5-4e1b-90ef-53cffe3ac758.pdf",
+    numberOfFailedAttempts: 5
+  }
+  it("Will cover toExportedToPsSd optional cases", () => {
+    const result = SUT.toExportedToSd({ ...examplePS, exportData: undefined })
+    expect(result).toEqual({})
+  })
+})

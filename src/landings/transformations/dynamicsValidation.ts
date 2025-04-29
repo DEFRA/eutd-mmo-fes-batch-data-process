@@ -23,7 +23,8 @@ import {
   DocumentStatuses,
   TRANSPORT_VEHICLE_DIRECT,
   toFailureIrrespectiveOfRisk,
-  LandingStatusType
+  LandingStatusType,
+  ICountry
 } from "mmo-shared-reference-data";
 import {
   getExportedSpeciesRiskScore,
@@ -37,7 +38,9 @@ import { getVesselLength } from "../../data/vessel";
 import { ApplicationConfig } from "../../config";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
 import { isEmpty } from "lodash";
-import { CertificateAudit, IAuditEvent } from "../../types/defraValidation";
+import { CertificateAudit, CertificateCompany, IAuditEvent } from "../../types/defraValidation";
+import { ISdPsQueryResult } from "../../types/query";
+import {  IDynamicsStorageDocumentCase, IDynamicsStorageDocumentProduct, SdPsCaseTwoType, SdPsStatus } from "../../types/dynamicsValidationSdPs";
 
 export const isSpeciesFailure = (func: (riskScore: number, threshold?: number) => boolean) => (
   enabled: boolean,
@@ -324,4 +327,99 @@ export function toAudit(systemAudit: IAuditEvent): CertificateAudit {
   }
 
   return result;
+}
+
+export function toExporterPsSd(psSdCertificate: any): CertificateCompany {  
+  return {
+    companyName: psSdCertificate.exportData.exporterDetails.exporterCompanyName,
+    contactId: psSdCertificate.exportData.exporterDetails.contactId,
+    accountId: psSdCertificate.exportData.exporterDetails.accountId,
+    address: {
+      building_number: psSdCertificate.exportData.exporterDetails.buildingNumber,
+      sub_building_name: psSdCertificate.exportData.exporterDetails.subBuildingName,
+      building_name: psSdCertificate.exportData.exporterDetails.buildingName,
+      street_name: psSdCertificate.exportData.exporterDetails.streetName,
+      county: psSdCertificate.exportData.exporterDetails.county,
+      country: psSdCertificate.exportData.exporterDetails.country,
+      line1: psSdCertificate.exportData.exporterDetails.addressOne,
+      city: psSdCertificate.exportData.exporterDetails.townCity,
+      postCode: psSdCertificate.exportData.exporterDetails.postcode
+    },
+    dynamicsAddress: psSdCertificate.exportData.exporterDetails._dynamicsAddress
+  };
+}
+export function toSdPsCaseTwoType(validatedSdPsCatches: ISdPsQueryResult[]) {
+  let output = SdPsCaseTwoType.RealTimeValidation_Success;
+  const isMisMatch = validatedSdPsCatches.filter(_ => _.isMismatch).length > 0;
+  const isOverUse = validatedSdPsCatches.filter(_ => _.isOverAllocated).length > 0;
+  if (isMisMatch) output = SdPsCaseTwoType.RealTimeValidation_Weight;
+  if (isOverUse) output = SdPsCaseTwoType.RealTimeValidation_Overuse;
+  return output;
+}
+export function toSpeciesCode(speciesWithCode: string | undefined): string | undefined {
+  if (speciesWithCode) {
+    const regex = /(.*) \((.*)\)/g;
+    const matches = regex.exec(speciesWithCode);
+    if (matches && matches.length >= 3) {
+      return matches[2];
+    }
+  }
+}
+export function toExportedToSd(psSdCertificate: IDocument): ICountry {
+  return {
+    officialCountryName: psSdCertificate.exportData?.exportedTo?.officialCountryName,
+    isoCodeAlpha2: psSdCertificate.exportData?.exportedTo?.isoCodeAlpha2,
+    isoCodeAlpha3: psSdCertificate.exportData?.exportedTo?.isoCodeAlpha3
+  }
+}
+export function toDynamicsSd(
+  validatedSdProducts: ISdPsQueryResult[] | null,
+  storageDocument: IDocument,
+  correlationId: string,
+  caseTypeTwo?: SdPsCaseTwoType
+): IDynamicsStorageDocumentCase {
+  const daLookUp = postCodeDaLookup(postCodeToDa);
+  return {
+    exporter: toExporterPsSd(storageDocument),
+    documentUrl: `${ApplicationConfig.prototype.externalAppUrl}/qr/export-certificates/${storageDocument.documentUri}`,
+    documentDate: moment.utc(storageDocument.createdAt).toISOString(),
+    caseType1: CaseOneType.StorageDocument,
+    caseType2: caseTypeTwo || toSdPsCaseTwoType(validatedSdProducts),
+    numberOfFailedSubmissions: storageDocument.numberOfFailedAttempts,
+    documentNumber: storageDocument.documentNumber,
+    clonedFrom: storageDocument.clonedFrom,
+    parentDocumentVoid: storageDocument.parentDocumentVoid,
+    companyName: storageDocument.exportData.exporterDetails.exporterCompanyName,
+    products: validatedSdProducts ? validatedSdProducts.map(_ => toSdProduct(_)) : undefined,
+    da: daLookUp(storageDocument.exportData.exporterDetails.postcode),
+    _correlationId: correlationId,
+    requestedByAdmin: storageDocument.requestByAdmin,
+    exportedTo: toExportedToSd(storageDocument)
+  };
+}
+export function toSdProduct(validatedSdProducts: ISdPsQueryResult): IDynamicsStorageDocumentProduct {
+  let status = SdPsStatus.Success;
+  if (validatedSdProducts.isMismatch) {
+    status = SdPsStatus.Weight
+  }
+  if (validatedSdProducts.isOverAllocated) {
+    status = SdPsStatus.Overuse
+  }
+  return {
+    foreignCatchCertificateNumber: validatedSdProducts.catchCertificateNumber,
+    isDocumentIssuedInUK: validatedSdProducts.catchCertificateType === 'uk',
+    species: toSpeciesCode(validatedSdProducts.species),
+    id: validatedSdProducts.extended.id,
+    cnCode: validatedSdProducts.commodityCode,
+    scientificName: validatedSdProducts.scientificName,
+    importedWeight: validatedSdProducts.weightOnFCC,
+    exportedWeight: validatedSdProducts.weightOnDoc,
+    validation: {
+      totalWeightExported: validatedSdProducts.weightOnAllDocs,
+      status: status,
+      weightExceededAmount: validatedSdProducts.overAllocatedByWeight,
+      overuseInfo: validatedSdProducts.overUsedInfo.some(_ => _ !== validatedSdProducts.documentNumber)
+        ? validatedSdProducts.overUsedInfo.filter(_ => _ !== validatedSdProducts.documentNumber) : undefined
+    }
+  }
 }

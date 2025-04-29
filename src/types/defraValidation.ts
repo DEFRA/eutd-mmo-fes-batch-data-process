@@ -132,3 +132,23 @@ export interface IAuditEvent {
     timestamp: Date,
     data?: any
 }
+export interface CertificateCompany {
+    companyName: string;
+    address: CertificateAddress;
+    contactId? : string;
+    accountId?: string;
+    dynamicsAddress?: any;
+}
+export interface CertificateAuthority {
+    name: string,
+    companyName: string,
+    address: CertificateAddress,
+    tel: string,
+    email:  string,
+    dateIssued: string,
+  }
+  
+  export interface CertificateStorageFacility {
+    name?: string;
+    address: CertificateAddress;
+}

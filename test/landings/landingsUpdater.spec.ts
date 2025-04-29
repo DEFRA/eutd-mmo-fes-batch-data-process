@@ -1848,7 +1848,6 @@ describe('resubmitCCToTrade', () => {
   });
 
   it('resubmitCCToTrade should execute as expected.', async () => {
-    appConfig.runResubmitCcToTradeStartDate = '2025-01-06T00:00:00'
     const mockMapCcResponse = { documentNumber: 'GBR-2024-CC-08F28C710', status: 'COMPLETE' };
 
     const getCatchCertificate = {
@@ -2458,3 +2457,245 @@ describe('resubmitCCToTrade', () => {
 
 })
 
+describe('resubmitSDToTrade', () => {
+  let mongoServer;
+  let mockResendSdToTrade;
+  let mockGetCertificate;
+  let loggerErrorMock;
+  let loggerInfoMock;
+
+
+  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri, opts).catch(err => { console.log(err) });
+  });
+
+  beforeEach(async () => {
+    appConfig.runResubmitCcToTrade = true;
+    mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
+    mockResendSdToTrade = jest.spyOn(report, 'resendSdToTrade');
+    mockResendSdToTrade.mockResolvedValue(undefined);
+    loggerErrorMock = jest.spyOn(logger, 'error');
+    loggerInfoMock = jest.spyOn(logger, 'info');
+  });
+
+  afterEach(async () => {
+    jest.resetAllMocks();
+    await LandingModel.deleteMany({});
+    await DocumentModel.deleteMany({});    
+  })
+
+  afterAll(async () => {
+    jest.restoreAllMocks();
+    await mongoose.disconnect();
+    await mongoServer.stop();
+  });
+
+  it('if appConfig.runResubmitSdToTrade is false then return', async () => {
+    appConfig.runResubmitCcToTrade = false;
+    const result = await SUT.resubmitSdToTrade();
+    expect(result).toBeUndefined();
+  });
+
+  it('runResubmitSdToTrade should execute as expected.', async () => {
+    
+    appConfig.runResubmitCcToTrade = true;
+    const mockMapCcResponse = { documentNumber: 'GBR-2024-SD-A7FE281B8', status: 'COMPLETE' };
+
+    const getSDDocument = {
+      ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
+        exporterDetails: {}, products: [{
+          species: 'Inshore squids nei (SQZ)',
+        }]
+      }
+    };
+    const newCert: sharedRefData.IDocument = {
+      "__t": "storageDocument",
+      "createdAt": moment.utc("2025-01-27T11:41:06.855Z"),
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "createdByEmail": "foo@foo.com",
+      "documentNumber": "GBR-2024-SD-A7FE281B8",
+      "documentUri": "StorageDocument-GBR-2024-SD-A7FE281B8.pdf",
+      "status": "COMPLETE",
+      "exportData": {
+        "catches": [
+          {
+            "scientificName": "Loligo spp",            
+            "product": "Common squids nei (SQC)",
+            "speciesCode": "SQC",
+            "commodityCode": "1",
+            "productWeight": "1",
+            "dateOfUnloading": '27/11/2024',
+            "placeOfUnloading": "Dover",
+            "transportUnloadedFrom": "flight",
+            "certificateNumber": "GBR-2024-CC-08F28C758",
+            "weightOnCC": "1",
+            "weightOnDoc": 1,
+            "weightOnAllDocs": 1,
+            "id": "1"
+          }
+        ],
+        "storageFacilities": [
+          {
+            "facilityName": "FACILITY",
+            "facilityAddressOne": "Bruntingthorpe Industrial Estate Unit 6 Upper Bruntingthorpe",
+            "facilityTownCity": "Lutterworth",
+            "facilityPostcode": "LE17 5QZ",
+            "storedAs": "chilled"
+          }
+        ],
+        "exporterDetails": {
+          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "capgemini",
+          "_dynamicsAddress": {
+            "defra_uprn": "10091818796",
+            "defra_buildingname": "LANCASTER HOUSE",
+            "defra_subbuildingname": "NATURAL ENGLAND",
+            "defra_premises": null,
+            "defra_street": "HAMPSHIRE COURT",
+            "defra_locality": "NEWCASTLE BUSINESS PARK",
+            "defra_dependentlocality": null,
+            "defra_towntext": "NEWCASTLE UPON TYNE",
+            "defra_county": null,
+            "defra_postcode": null,
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "defra_internationalpostalcode": null,
+            "defra_fromcompanieshouse": false,
+            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+          },
+          "_dynamicsUser": {
+            "firstName": "Automation",
+            "lastName": "Tester"
+          }
+        },
+        "transportation": {
+          "vehicle": "truck"
+        }
+      },
+      "audit": [],
+    }
+
+    await DocumentModel.insertOne(newCert);
+    
+    mockGetCertificate.mockResolvedValue(getSDDocument);
+
+    await SUT.resubmitSdToTrade();
+    const updatedCC = await DocumentModel.find({ documentNumber: 'GBR-2024-SD-A7FE281B8' });
+    
+    expect(updatedCC).toHaveLength(1);
+    
+    expect(loggerInfoMock).toHaveBeenCalledWith(
+      `[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][GBR-2024-SD-A7FE281B8]`
+    );
+  });
+
+  it('should call processReports when errors occurs', async () => {
+    const error: Error = new Error('error');
+    appConfig.runResubmitCcToTrade = true;
+    const newCert:sharedRefData.IDocument = {
+      "__t": "storageDocument",
+      "createdAt": moment.utc("2025-01-27T11:41:06.855Z"),
+      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+      "createdByEmail": "foo@foo.com",
+      "documentNumber": "GBR-2024-SD-A7FE281B8",
+      "documentUri": "StorageDocument-GBR-2024-SD-A7FE281B8.pdf",
+      "status": "COMPLETE",
+      "exportData": {
+        "catches": [
+          {
+            "scientificName": "Loligo spp",            
+            "product": "Common squids nei (SQC)",
+            "speciesCode": "SQC",
+            "commodityCode": "1",
+            "productWeight": "1",
+            "dateOfUnloading": '27/11/2024',
+            "placeOfUnloading": "Dover",
+            "transportUnloadedFrom": "flight",
+            "certificateNumber": "GBR-2024-CC-08F28C758",
+            "weightOnCC": "1",
+            "weightOnDoc": 1,
+            "weightOnAllDocs": 1,
+            "id": "1"
+          }
+        ],
+        "storageFacilities": [
+          {
+            "facilityName": "FACILITY",
+            "facilityAddressOne": "Bruntingthorpe Industrial Estate Unit 6 Upper Bruntingthorpe",
+            "facilityTownCity": "Lutterworth",
+            "facilityPostcode": "LE17 5QZ",
+            "storedAs": "chilled"
+          }
+        ],
+        "exporterDetails": {
+          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "buildingNumber": null,
+          "subBuildingName": "NATURAL ENGLAND",
+          "buildingName": "LANCASTER HOUSE",
+          "streetName": "HAMPSHIRE COURT",
+          "county": null,
+          "country": "United Kingdom of Great Britain and Northern Ireland",
+          "postcode": "NE4 7YH",
+          "townCity": "NEWCASTLE UPON TYNE",
+          "exporterCompanyName": "capgemini",
+          "_dynamicsAddress": {
+            "defra_uprn": "10091818796",
+            "defra_buildingname": "LANCASTER HOUSE",
+            "defra_subbuildingname": "NATURAL ENGLAND",
+            "defra_premises": null,
+            "defra_street": "HAMPSHIRE COURT",
+            "defra_locality": "NEWCASTLE BUSINESS PARK",
+            "defra_dependentlocality": null,
+            "defra_towntext": "NEWCASTLE UPON TYNE",
+            "defra_county": null,
+            "defra_postcode": null,
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "defra_internationalpostalcode": null,
+            "defra_fromcompanieshouse": false,
+            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+          },
+          "_dynamicsUser": {
+            "firstName": "Automation",
+            "lastName": "Tester"
+          }
+        },
+        "transportation": {
+          "vehicle": "truck"
+        }
+      },
+      "audit": [],
+    }
+    
+    await DocumentModel.insertOne(newCert);
+    
+
+    
+    mockResendSdToTrade.mockRejectedValue(error);
+    await SUT.resubmitSdToTrade();
+
+    expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-RESUBMIT-SD-TRADE-DOCUMENT][ERROR][Error: error]');
+  }
+  );
+  
+})
