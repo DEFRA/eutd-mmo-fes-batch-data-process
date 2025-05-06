@@ -2892,6 +2892,9 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
   });
 
   it('branch covering with no export data', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-04-29'))
+    
     const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd({ ...exampleSd, exportData: undefined }, exampleSdDynamicsCase, exampleSdQueryResult);
     expect(result).toStrictEqual({
       "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
@@ -2977,6 +2980,8 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
     })
   })
   it('branch covering with no document', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-04-29'))
 
     const expected =
     {
