@@ -389,6 +389,7 @@ export const resendSdToTrade = async (
     throw e;
   }
 };
+
 export const sendSdToTrade = async (sdpsValidationData: ISdPsQueryResult[]): Promise<void> => {
   if (sdpsValidationData.length > 0) {
     const certificateId = sdpsValidationData[0].documentNumber;
@@ -406,6 +407,7 @@ export const sendSdToTrade = async (sdpsValidationData: ISdPsQueryResult[]): Pro
     }
   }
 };
+
 export const reportSdToTrade = async (storageDocument: IDocument, caselabel: MessageLabel, storageDocumentCase: IDynamicsStorageDocumentCase, sdQueryResults: ISdPsQueryResult[] | null): Promise<void> => {
   delete storageDocumentCase.clonedFrom;
   delete storageDocumentCase.parentDocumentVoid;

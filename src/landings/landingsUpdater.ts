@@ -166,6 +166,7 @@ export const processResubmitSdToTrade = async (certsToUpdate: IDocument[]): Prom
     logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
+
 export const resubmitSdToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
