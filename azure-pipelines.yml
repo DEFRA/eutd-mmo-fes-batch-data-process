@@ -5,6 +5,10 @@ parameters:
     displayName: "Deploy from Feature Branch"
     type: boolean
     default: false
+  - name: deployToSecondaryRegion
+    displayName: "Deploy to Secondary Region for DR"
+    type: boolean
+    default: false
 
 trigger:
   branches:
@@ -26,3 +30,4 @@ extends:
   parameters:
     appName: 'mmo-fes-batch-data-process'
     deployFromFeature: ${{ parameters.deployFromFeature }}
+    deployToSecondaryRegion: ${{ parameters.deployToSecondaryRegion }}
