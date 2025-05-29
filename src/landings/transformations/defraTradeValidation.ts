@@ -1,4 +1,4 @@
-import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus } from "mmo-shared-reference-data";
+import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus, CatchCertificateTransport, toTransportations } from "mmo-shared-reference-data";
 import { CertificateAuthority, CertificateStorageFacility, CertificateTransport } from "../../types/defraValidation";
 import { IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
 import { toLanding } from "./dynamicsValidation";
@@ -94,6 +94,10 @@ export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCa
     Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
   }
 
+  const transportations: CatchCertificateTransport[] = Array.isArray(document.exportData?.transportations) && document.exportData.transportations.length > 0
+    ? document.exportData.transportations.map((transportation) => toTransportations(transportation))
+    : undefined;
+
   let status: CertificateStatus;
   if (!Array.isArray(ccQueryResults)) {
     status = CertificateStatus.VOID
@@ -107,6 +111,7 @@ export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCa
     landings: Array.isArray(ccQueryResults) ? ccQueryResults.map((_: ICcQueryResult) => toDefraTradeLanding(_)) : null,
     exportedTo: document.exportData?.transportation?.exportedTo,
     transportation,
+    transportations,
     multiVesselSchedule: isMultiVessel(document.exportData?.products)
   }
 };
