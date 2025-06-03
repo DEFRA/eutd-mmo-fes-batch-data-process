@@ -109,7 +109,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -126,7 +126,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -142,7 +142,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -160,7 +160,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -177,7 +177,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": []
+          "transportDocuments": []
         }
       ],
       "conservation": {
@@ -3508,7 +3508,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -3525,7 +3525,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -3541,7 +3541,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -3559,7 +3559,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": [{
+          "transportDocuments": [{
             "name": "Invoice",
             "reference": "INV001"
           }]
@@ -3576,7 +3576,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
             "isoCodeAlpha3": "NGA",
             "isoNumericCode": "566"
           },
-          "documents": []
+          "transportDocuments": []
         }
       ],
     },
