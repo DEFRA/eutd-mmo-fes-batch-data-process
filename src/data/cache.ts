@@ -285,17 +285,21 @@ export const updateCache = (
 };
 
 export const updateVesselsOfInterestCache = (vesselsOfInterest: IVesselOfInterest[]) => {
-  if (Array.isArray(vesselsOfInterest))
+  if (Array.isArray(vesselsOfInterest)) {
     VESSELS_OF_INTEREST = vesselsOfInterest;
+  }
 };
 
 export const updateSpeciesToggleCache = (speciesToggle: ISpeciesRiskToggle): void => {
-  SPECIES_TOGGLE = speciesToggle.enabled;
+  if (speciesToggle) {
+    SPECIES_TOGGLE = speciesToggle.enabled;
+  }
 };
 
 export const updateWeightingCache = (weighting: IWeighting) => {
-  if (weighting)
-  WEIGHTING = weighting;
+  if (weighting) {
+    WEIGHTING = weighting;
+  }
 };
 
 export const refreshRiskingData = async () => {
