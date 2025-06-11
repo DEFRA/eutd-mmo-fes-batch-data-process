@@ -228,6 +228,30 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
+    it('will invoke the Resubmit CC to Trade', async () => {
+      await SUT.runLandingsAndReportingJob();
+
+      expect(mockResubmitCCToTrade).toHaveBeenCalled();
+      expect(mockRunJob).toHaveBeenCalled();
+      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
+      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
+      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
+    });
+
+    it('will catch errors from Resubmit CC to Trade', async () => {
+      const error = new Error('testing 123');
+
+      mockResubmitCCToTrade.mockRejectedValue(error);
+
+      await expect(SUT.runLandingsAndReportingJob()).resolves.toBe(undefined);
+
+      expect(mockRunJob).toHaveBeenCalled();
+      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
+      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
+      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][Error: testing 123]')
+      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
+    });
+
   });
 
 });

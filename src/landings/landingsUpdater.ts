@@ -28,6 +28,8 @@ import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
 import { ISdPsQueryResult } from '../types/query';
 import { sdpsQuery } from '../query/sdpsQuery';
+import { ICommodityCodeExtended } from '../types/species';
+import { commoditySearch } from '../data/species';
 
 export const getMissingLandingsArray = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
   const landingStatuses: LandingStatus[] = [LandingStatus.Pending];
@@ -126,6 +128,20 @@ export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Prom
     await resendCcToTrade(results);
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
 
+    const { exportData } = certToUpdate;
+    exportData.products.map((product: Product) => {
+      if (product.commodityCodeDescription === undefined) {
+        const commodityCode: ICommodityCodeExtended[] = commoditySearch(product.speciesCode, product.state.code, product.presentation.code);
+        const description: string | undefined = commodityCode.find((c: ICommodityCodeExtended) => c.code === product.commodityCode)?.description;
+        if (description) {
+          product.commodityCodeDescription = description;
+          logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][DESCRIPTION-UPDATED][${product.speciesId}][WITH][${description}]`);
+        }
+      }
+    });
+
+    await upsertCertificate(certToUpdate.documentNumber, { exportData });
+
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
@@ -133,13 +149,12 @@ export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Prom
 export const resubmitCCToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
-    logger.info('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][START]');
 
     const query: FilterQuery<IDocumentModel> = {
       __t: 'catchCert',
-      'exportData.exporterDetails._dynamicsAddress': { $exists: true },
-      'exportData.exporterDetails._dynamicsAddress.defra_postcode': null,
-      'status': DocumentStatuses.Complete,
+      'exportData.products': { $exists: true },
+      'exportData.products.commodityCodeDescription': { $exists: false },
+      'status': DocumentStatuses.Complete
     }
 
     const certsToUpdate: IDocument[]  = await DocumentModel

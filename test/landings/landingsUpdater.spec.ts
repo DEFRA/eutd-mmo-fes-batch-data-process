@@ -1,4 +1,5 @@
 const moment = require('moment');
+import axios from 'axios'
 const mongoose = require('mongoose');
 import _ from 'lodash';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -20,8 +21,11 @@ import * as file from '../../src/data/local-file';
 import logger from '../../src/logger';
 import appConfig from '../../src/config';
 import fs from 'fs';
+import * as species from '../../src/data/species';
+
 
 jest.mock('axios')
+const mockedAxios = axios as jest.Mocked<typeof axios>
 
 const vessels = [
   {
@@ -1804,7 +1808,8 @@ describe('resubmitCCToTrade', () => {
   let loggerErrorMock;
   let dataMock;
   let loggerInfoMock;
-  let mockGetLandings
+  let mockGetLandings;
+  let mockCommodityCodeSearch;
 
   const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
 
@@ -1826,6 +1831,14 @@ describe('resubmitCCToTrade', () => {
     dataMock.mockReturnValue(vesselsIdx);
     loggerInfoMock = jest.spyOn(logger, 'info');
     mockGetLandings = jest.spyOn(sharedRefData, 'getLandingsFromCatchCertificate');
+    mockCommodityCodeSearch = jest.spyOn(species, 'commoditySearch');
+    mockCommodityCodeSearch.mockReturnValue([{
+      code: "03074220",
+      description: "Squid \"Loligo spp.\", live, fresh or chilled",
+      faoName: "Inshore squids nei",
+      stateLabel: "fresh",
+      presentationLabel: "whole"
+    }])
   });
 
   afterEach(async () => {
@@ -1845,6 +1858,265 @@ describe('resubmitCCToTrade', () => {
     appConfig.runResubmitCcToTrade = false;
     const result = await SUT.resubmitCCToTrade();
     expect(result).toBeUndefined();
+  });
+
+  it('should updated document with no commodity code', async () => {
+    mockCommodityCodeSearch.mockReturnValue([{
+      code: "03074221",
+      description: "Squid \"Loligo spp.\", live, fresh or chilled",
+      faoName: "Inshore squids nei",
+      stateLabel: "fresh",
+      presentationLabel: "whole"
+    }])
+
+    const expected: ICcQueryResult[] = [
+      {
+        documentNumber: 'GBR-2024-CC-08F28C758',
+        documentType: 'catchCertificate',
+        createdAt: '2020-09-26T08:26:06.939Z',
+        status: 'COMPLETE',
+        extended: {
+          exporterContactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+          exporterAccountId: undefined,
+          exporterName: 'Automation Tester',
+          exporterCompanyName: 'capgemini',
+          exporterPostCode: undefined,
+          vessel: 'WIRON 5',
+          landingId: 'GBR-2024-CC-08F28C758-1022495422',
+          landingStatus: 'HAS_LANDING_DATA',
+          pln: 'WA1',
+          fao: 'FAO27',
+          flag: undefined,
+          cfr: 'NLD200202641',
+          presentation: 'WHL',
+          presentationName: 'Whole',
+          presentationAdmin: undefined,
+          species: 'Inshore squids nei (SQZ)',
+          speciesAdmin: undefined,
+          scientificName: 'Loliginidae',
+          state: 'FRE',
+          stateName: 'Fresh',
+          stateAdmin: undefined,
+          commodityCode: '03074220',
+          commodityCodeAdmin: undefined,
+          commodityCodeDescription: undefined,
+          url: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf',
+          investigation: undefined,
+          voidedBy: undefined,
+          preApprovedBy: undefined,
+          transportationVehicle: 'directLanding',
+          numberOfSubmissions: 1,
+          vesselOverriddenByAdmin: undefined,
+          speciesOverriddenByAdmin: false,
+          licenceHolder: undefined,
+          dataEverExpected: true,
+          landingDataExpectedDate: '2010-06-29',
+          landingDataEndDate: '2010-06-29',
+          isLegallyDue: true,
+          homePort: undefined,
+          imoNumber: undefined,
+          licenceNumber: undefined,
+          licenceValidTo: '2020-12-20'
+        },
+        rssNumber: 'rssWA1',
+        da: 'Guernsey',
+        dateLanded: '2020-06-27',
+        species: 'SQZ',
+        weightFactor: 1,
+        weightOnCert: 100,
+        rawWeightOnCert: 100,
+        weightOnAllCerts: 100,
+        weightOnAllCertsBefore: 0,
+        weightOnAllCertsAfter: 100,
+        isLandingExists: false,
+        isExceeding14DayLimit: false,
+        speciesAlias: 'N',
+        durationSinceCertCreation: 'P0D',
+        weightOnLandingAllSpecies: 0,
+        isSpeciesExists: false,
+        weightOnLanding: 0,
+        numberOfLandingsOnDay: 0,
+        durationBetweenCertCreationAndFirstLandingRetrieved: null,
+        durationBetweenCertCreationAndLastLandingRetrieved: null,
+        isOverusedAllCerts: false,
+        isOverusedThisCert: false,
+        overUsedInfo: []
+      }
+    ]
+
+    const catchCert = new DocumentModel({
+      documentNumber: 'GBR-2024-CC-08F28C758',
+      status: 'COMPLETE',
+      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
+      createdByEmail: 'foo@foo.com',
+      requestByAdmin: false,
+      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
+      __t: 'catchCert',
+      audit: [],
+      __v: 0,
+      exportData: {
+        landingsEntryOption: 'directLanding',
+        transportation: {
+          vehicle: 'directLanding',
+          exportedFrom: 'United Kingdom',
+          exportedTo: {
+            officialCountryName: 'France',
+            isoCodeAlpha2: 'FR',
+            isoCodeAlpha3: 'FRA',
+            isoNumericCode: '250'
+          }
+        },
+        exporterDetails: {
+          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
+          buildingNumber: null,
+          subBuildingName: 'NATURAL ENGLAND',
+          buildingName: 'LANCASTER HOUSE',
+          streetName: 'HAMPSHIRE COURT',
+          county: null,
+          country: 'United Kingdom of Great Britain and Northern Ireland',
+          postcode: 'NE4 7YH',
+          townCity: 'NEWCASTLE UPON TYNE',
+          exporterCompanyName: 'capgemini',
+          exporterFullName: 'Automation Tester',
+          _dynamicsAddress: {
+            defra_uprn: '10091818796',
+            defra_buildingname: 'LANCASTER HOUSE',
+            defra_subbuildingname: 'NATURAL ENGLAND',
+            defra_premises: null,
+            defra_street: 'HAMPSHIRE COURT',
+            defra_locality: 'NEWCASTLE BUSINESS PARK',
+            defra_dependentlocality: null,
+            defra_towntext: 'NEWCASTLE UPON TYNE',
+            defra_county: null,
+            defra_postcode: 'NE4 7YH',
+            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
+            defra_internationalpostalcode: null,
+            defra_fromcompanieshouse: false,
+            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
+            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
+            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
+            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
+            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
+          },
+          _dynamicsUser: {
+            firstName: 'Automation',
+            lastName: 'Tester'
+          }
+        },
+        products: [
+          {
+            speciesId: 'GBR-2024-CC-08F28C758-a87d55ef-942c-4dfc-8ad7-290a4f4f0b4a',
+            species: 'Inshore squids nei (SQZ)',
+            speciesCode: 'SQZ',
+            commodityCode: '03074220',
+            scientificName: 'Loliginidae',
+            state: {
+              code: 'FRE',
+              name: 'Fresh'
+            },
+            presentation: {
+              code: 'WHL',
+              name: 'Whole'
+            },
+            caughtBy: [
+              {
+                vessel: 'WIRON 5',
+                pln: 'WA1',
+                homePort: 'PLYMOUTH',
+                flag: 'GBR',
+                cfr: 'NLD200202641',
+                imoNumber: 9249556,
+                licenceNumber: '12480',
+                licenceValidTo: '2030-12-31',
+                licenceHolder: 'INTERFISH WIRONS LIMITED',
+                id: 'GBR-2024-CC-08F28C758-1022495422',
+                date: '2020-06-27',
+                faoArea: 'FAO27',
+                weight: 100,
+                numberOfSubmissions: 1,
+                isLegallyDue: true,
+                dataEverExpected: true,
+                landingDataExpectedDate: '2010-06-29',
+                landingDataEndDate: '2010-06-29',
+                _status: 'HAS_LANDING_DATA'
+              }
+            ],
+            factor: 1
+          }
+        ],
+        conservation: {
+          conservationReference: 'UK Fisheries Policy'
+        }
+      },
+      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
+    });
+    await catchCert.save();
+
+    mockedAxios.create.mockImplementation(() => mockedAxios);
+    mockedAxios.post.mockResolvedValueOnce(undefined);
+
+    const plnToRssVal = [
+      {
+        rssNumber: "rssWA1",
+        dateLanded: '2020-07-04',
+        dataEverExpected: true,
+        landingDataExpectedDate: '2010-07-04',
+        landingDataEndDate: '2010-08-01',
+        createdAt: "2024-07-04T08:26:06.939Z",
+        isLegallyDue: true
+      }
+    ]
+
+    const getMultLand = [
+      {
+        rssNumber: "rssWA1",
+        dateTimeLanded: "2020-07-04T08:26:06.939Z",
+        dateTimeRetrieved: "2020-07-04T08:26:06.939Z",
+        items: [{
+          species: "LIN",
+          weight: 102,
+          factor: 2,
+          state: "PQR",
+          presentation: "WHL"
+        }]
+      },
+      {
+        rssNumber: "rssWA1",
+        dateTimeLanded: "2020-07-04T08:26:06.939Z",
+        dateTimeRetrieved: "2020-07-04T08:26:06.939Z",
+        items: [{
+          species: "LBE",
+          weight: 100,
+          factor: 1,
+          state: "FRE",
+          presentation: "WHL"
+        },
+        {
+          species: "SQC",
+          weight: 10,
+          factor: 3,
+          state: "FRE",
+          presentation: "WHL"
+        },]
+      },
+    ]
+
+    mockMapPlnLandingsToRssLandings.mockReturnValue(plnToRssVal);
+    mockGetLandingsMultiple.mockResolvedValue(getMultLand)
+
+    await SUT.resubmitCCToTrade()
+
+    expect(mockMapPlnLandingsToRssLandings).toHaveBeenCalled();
+    expect(mockGetLandingsMultiple).toHaveBeenCalled();
+    expect(mockGetLandingsMultiple).toHaveBeenCalledWith(plnToRssVal);
+
+    expect(mockResendCcToTrade).toHaveBeenCalledWith(expected);
+
+    const updatedCC = await DocumentModel.find({ documentNumber: 'GBR-2024-CC-08F28C758' });
+    expect(updatedCC).toHaveLength(1);
+    expect(updatedCC[0].exportData.products[0].commodityCodeDescription).toBeUndefined();
   });
 
   it('resubmitCCToTrade should execute as expected.', async () => {
