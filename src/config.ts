@@ -90,7 +90,7 @@ export class ApplicationConfig {
     ApplicationConfig.prototype.runResubmitCcToTrade = env.RUN_RESUBMIT_CC_TO_TRADE === 'true';
 
     //Resubmit CC to trade startDate
-    ApplicationConfig.prototype.runResubmitCcToTradeStartDate = env.RUN_RESUBMIT_CC_TO_TRADE_START_DATE || '2024-06-27T00:00:00.000Z';
+    ApplicationConfig.prototype.runResubmitCcToTradeStartDate = env.RUN_RESUBMIT_CC_TO_TRADE_START_DATE || '2025-01-01T00:00:00.000Z';
     
   }
 

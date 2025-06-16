@@ -150,11 +150,15 @@ export const resubmitCCToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
 
+    const startDate = new Date(appConfig.runResubmitCcToTradeStartDate)
     const query: FilterQuery<IDocumentModel> = {
       __t: 'catchCert',
       'exportData.products': { $exists: true },
       'exportData.products.commodityCodeDescription': { $exists: false },
-      'status': DocumentStatuses.Complete
+      'status': DocumentStatuses.Complete,
+      'createdAt': {
+        '$gt': startDate
+      }
     }
 
     const certsToUpdate: IDocument[]  = await DocumentModel

@@ -1821,6 +1821,7 @@ describe('resubmitCCToTrade', () => {
 
   beforeEach(async () => {
     appConfig.runResubmitCcToTrade = true;
+    appConfig.runResubmitCcToTradeStartDate = '2015-01-01T00:00:00';
     mockMapPlnLandingsToRssLandings = jest.spyOn(PlnToRss, 'mapPlnLandingsToRssLandings');
     mockGetLandingsMultiple = jest.spyOn(Landing, 'getLandingsMultiple');
     mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
@@ -2120,6 +2121,7 @@ describe('resubmitCCToTrade', () => {
   });
 
   it('resubmitCCToTrade should execute as expected.', async () => {
+    appConfig.runResubmitCcToTradeStartDate = '2025-01-01T00:00:00';
     const mockMapCcResponse = { documentNumber: 'GBR-2024-CC-08F28C710', status: 'COMPLETE' };
 
     const getCatchCertificate = {
