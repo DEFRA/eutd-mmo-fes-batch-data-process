@@ -152,12 +152,13 @@ export const resubmitCCToTrade = async (): Promise<void> => {
 
     const startDate = new Date(appConfig.runResubmitCcToTradeStartDate)
     const query: FilterQuery<IDocumentModel> = {
-      __t: 'catchCert',
-      'exportData.products': { $exists: true },
-      'exportData.products.commodityCodeDescription': { $exists: false },
-      'status': DocumentStatuses.Complete,
-      'createdAt': {
-        '$gt': startDate
+      __t: "catchCert",
+      "status":  DocumentStatuses.Complete,  
+      "createdAt": { "$gt": startDate },
+      "exportData.products": {
+        "$elemMatch": {
+          "commodityCodeDescription": { "$exists": false }
+        }
       }
     }
 
