@@ -1,4 +1,4 @@
-import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus, CatchCertificateTransport, toTransportations } from "mmo-shared-reference-data";
+import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus } from "mmo-shared-reference-data";
 import { CertificateAuthority, CertificateStorageFacility, CertificateTransport } from "../../types/defraValidation";
 import { IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
 import { toLanding } from "./dynamicsValidation";
@@ -88,15 +88,13 @@ export const toDefraTradeLanding = (landing: ICcQueryResult): IDefraTradeLanding
 };
 
 export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCatchCertificateCase, ccQueryResults: ICcQueryResult[] | null): IDefraTradeCatchCertificate => {
-  const transportation: CertificateTransport = toTransportation(document.exportData?.transportation);
+  const transportation: CertificateTransport = document.exportData?.transportation
+    ? toTransportation(document.exportData.transportation)
+    : toTransportation(document.exportData?.transportations?.find((t) => t.departurePlace));
   
   if (transportation) {
     Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
   }
-
-  const transportations: CatchCertificateTransport[] = Array.isArray(document.exportData?.transportations) && document.exportData.transportations.length > 0
-    ? document.exportData.transportations.map((transportation) => toTransportations(transportation))
-    : undefined;
 
   let status: CertificateStatus;
   if (!Array.isArray(ccQueryResults)) {
@@ -109,9 +107,8 @@ export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCa
     ...certificateCase,
     certStatus: status,
     landings: Array.isArray(ccQueryResults) ? ccQueryResults.map((_: ICcQueryResult) => toDefraTradeLanding(_)) : null,
-    exportedTo: document.exportData?.transportation?.exportedTo,
+    exportedTo: document.exportData?.transportation?.exportedTo ?? document.exportData?.exportedTo,
     transportation,
-    transportations,
     multiVesselSchedule: isMultiVessel(document.exportData?.products)
   }
 };

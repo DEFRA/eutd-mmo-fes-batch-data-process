@@ -141,52 +141,7 @@
         "flag": "consequat cupidatat labore esse anim",
         "containerId": "velit quis commodo aliqua sint",
         "exportLocation": "DOVER"
-      },
-      "transportations": [{
-          "id": "0",
-          "freightBillNumber": "0",
-          "modeofTransport": "truck",
-          "exportLocation": "Hull",
-          "nationality": "",
-          "registration": "",
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": "0",
-          "freightBillNumber": "0",
-          "modeofTransport": "plane",
-          "exportLocation": "Hull",
-          "flightNumber": "",
-          "containerId": "",
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": "0",
-          "freightBillNumber": "0",
-          "modeofTransport": "train",
-          "exportLocation": "Hull",
-          "billNumber": "",
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": "0",
-          "freightBillNumber": "0",
-          "modeofTransport": "vessel",
-          "exportLocation": "Hull",
-          "name": "",
-          "flag": "",
-          "containerId": "",
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }]
+      }
     },
     {
       "version": 2,
@@ -864,78 +819,6 @@
         "name": { "type": "string" },
         "reference": { "type": "string" }
       }
-    },
-    "catch_transportation": {
-      "type": "object",
-      "required": [
-        "id",
-        "modeofTransport",
-        "freightBillNumber",
-        "exportLocation",
-        "transportDocuments"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "modeofTransport": {
-          "enum": [
-            "truck",
-            "train",
-            "plane",
-            "vessel"
-          ]
-        },
-        "id": { "type": "number" },
-        "freightBillNumber": { "type": "string" },
-        "nationality": { "type": "string" },
-        "registration": { "type": "string" },
-        "exportLocation": { "type": "string" },
-        "billNumber": { "type": "string" },
-        "flightNumber": { "type": "string" },
-        "containerId": { "type": "string" },
-        "name": { "type": "string" },
-        "flag": { "type": "string" },
-        "transportDocuments": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/transportDocument" }
-        }
-      },
-      "anyOf": [{
-          "properties": {
-            "modeofTransport": { "const": "truck" }
-          },
-          "required": [
-            "nationality",
-            "registration"
-          ]
-        },
-        {
-          "properties": {
-            "modeOfTransport": { "const": "train" }
-          },
-          "required": [
-            "billNumber"
-          ]
-        },
-        {
-          "properties": {
-            "modeOfTransport": { "const": "plane" }
-          },
-          "required": [
-            "flightNumber",
-            "containerId"
-          ]
-        },
-        {
-          "properties": {
-            "modeOfTransport": { "const": "vessel" }
-          },
-          "required": [
-            "name",
-            "flag",
-            "containerId"
-          ]
-        }
-      ]
     }
   },
   "properties": {
@@ -1058,10 +941,6 @@
     },
     "transportation": {
       "$ref": "#/definitions/transportation"
-    },
-    "transportations": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/catch_transportation" }
     },
     "_correlationId": {
       "description": "Unique ID to improve the end to end traceability of an event",

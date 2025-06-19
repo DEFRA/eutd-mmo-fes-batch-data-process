@@ -4,8 +4,8 @@ import * as vessel from "../../../src/data/vessel";
 import { ICcQueryResult, IDocument, InvestigationStatus, LandingRetrospectiveOutcomeType, LandingSources, DefraCcLandingStatusType, LevelOfRiskType, IDefraTradeCatchCertificate, LandingStatusType, CatchArea, CertificateStatus } from "mmo-shared-reference-data";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../../src/types/dynamicsValidation";
 import { ISdPsQueryResult } from "../../../src/types/query";
-import {  IDynamicsStorageDocumentCase, SdPsCaseTwoType, SdPsStatus } from "../../../src/types/dynamicsValidationSdPs";
-import {  IDefraTradeSdPsStatus, IDefraTradeStorageDocument } from "../../../src/types/defraTradeSdPsCase";
+import { IDynamicsStorageDocumentCase, SdPsCaseTwoType, SdPsStatus } from "../../../src/types/dynamicsValidationSdPs";
+import { IDefraTradeSdPsStatus, IDefraTradeStorageDocument } from "../../../src/types/defraTradeSdPsCase";
 
 describe('when transforming Catch Certificate data from IDocument, ICcQuery to IDefraTradeCatchCertificate', () => {
 
@@ -97,88 +97,58 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         "cmr": true
       },
       "transportations": [{
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "truck",
-          "departurePlace": "Hull",
-          "nationalityOfVehicle": "",
-          "registrationNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "plane",
-          "departurePlace": "Hull",
-          "flightNumber": "",
-          "containerNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "train",
-          "departurePlace": "Hull",
-          "railwayBillNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "containerVessel",
-          "departurePlace": "Hull",
-          "vesselName": "",
-          "flagState": "",
-          "containerNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "unknown",
-          "departurePlace": "Hull",
-          "nationalityOfVehicle": "",
-          "registrationNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": []
-        }
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "truck",
+        "departurePlace": "Hull",
+        "nationalityOfVehicle": "",
+        "registrationNumber": "",
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "plane",
+        "departurePlace": "Hull",
+        "flightNumber": "",
+        "containerNumber": "",
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "train",
+        "departurePlace": "Hull",
+        "railwayBillNumber": "",
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "containerVessel",
+        "departurePlace": "Hull",
+        "vesselName": "",
+        "flagState": "",
+        "containerNumber": "",
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "unknown",
+        "departurePlace": "Hull",
+        "nationalityOfVehicle": "",
+        "registrationNumber": "",
+        "transportDocuments": []
+      }
       ],
       "conservation": {
         "conservationReference": "UK Fisheries Policy"
@@ -655,75 +625,26 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         modeofTransport: "truck",
         hasRoadTransportDocument: true,
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   });
 
   it('will return a IDefraTradeCatchCertificate payload with direct landing', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: {
-      exportedFrom: "United Kingdom",
-      exportedTo: {
-        officialCountryName: "France",
-        isoCodeAlpha2: "FR",
-        isoCodeAlpha3: "FRA",
-        isoNumericCode: "250"
-      },
-      vehicle: "directLanding"
-    },} }, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: {
+          exportedFrom: "United Kingdom",
+          exportedTo: {
+            officialCountryName: "France",
+            isoCodeAlpha2: "FR",
+            isoCodeAlpha3: "FRA",
+            isoNumericCode: "250"
+          },
+          vehicle: "directLanding"
+        },
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
 
     const expected: IDefraTradeCatchCertificate = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
@@ -852,60 +773,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       multiVesselSchedule: false,
       transportation: {
         modeofTransport: 'directLanding'
-      },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
+      }
     };
 
     expect(result).toStrictEqual(expected);
@@ -1270,7 +1138,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
                 _status: "PENDING_LANDING_DATA"
               }
             ]
-          },          {
+          }, {
             speciesId: "GBR-2023-CC-C58DF9A73-35f724fd-b026-4ba7-80cf-4f458a780486",
             species: "Black scabbardfish (BSF)",
             speciesCode: "BSF",
@@ -1423,60 +1291,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       transportation: {
         modeofTransport: "truck",
         hasRoadTransportDocument: true,
-      },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
+      }
     };
 
     expect(result).toStrictEqual(expected);
@@ -1549,66 +1364,13 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         modeofTransport: "truck",
         hasRoadTransportDocument: true,
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   });
 
   it('will return a IDefraTradeCatchCertificate payload with no products', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, products: []}}, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, products: [] } }, dynamicsCatchCertificateCase, ccQueryResults);
     const expected: IDefraTradeCatchCertificate = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -1738,73 +1500,26 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         modeofTransport: "truck",
         hasRoadTransportDocument: true,
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   })
 
   it('will return a IDefraTradeCatchCertificate payload with train', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: {      exportedFrom: "United Kingdom",
-      exportedTo: {
-        officialCountryName: "Åland Islands",
-        isoCodeAlpha2: "AX",
-        isoCodeAlpha3: "ALA",
-        isoNumericCode: "248"
-      },
-      vehicle: "train"}}}, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: {
+          exportedFrom: "United Kingdom",
+          exportedTo: {
+            officialCountryName: "Åland Islands",
+            isoCodeAlpha2: "AX",
+            isoCodeAlpha3: "ALA",
+            isoNumericCode: "248"
+          },
+          vehicle: "train"
+        }
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
     const expected: IDefraTradeCatchCertificate = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -1933,73 +1648,26 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       transportation: {
         modeofTransport: "train",
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   })
 
   it('will return a IDefraTradeCatchCertificate payload with plane', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: {      exportedFrom: "United Kingdom",
-      exportedTo: {
-        officialCountryName: "Åland Islands",
-        isoCodeAlpha2: "AX",
-        isoCodeAlpha3: "ALA",
-        isoNumericCode: "248"
-      },
-      vehicle: "plane"}}}, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: {
+          exportedFrom: "United Kingdom",
+          exportedTo: {
+            officialCountryName: "Åland Islands",
+            isoCodeAlpha2: "AX",
+            isoCodeAlpha3: "ALA",
+            isoNumericCode: "248"
+          },
+          vehicle: "plane"
+        }
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
     const expected: IDefraTradeCatchCertificate = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -2128,73 +1796,26 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       transportation: {
         modeofTransport: "plane",
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   })
 
   it('will return a IDefraTradeCatchCertificate payload with container vessel', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: {      exportedFrom: "United Kingdom",
-      exportedTo: {
-        officialCountryName: "Åland Islands",
-        isoCodeAlpha2: "AX",
-        isoCodeAlpha3: "ALA",
-        isoNumericCode: "248"
-      },
-      vehicle: "containerVessel"}}}, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: {
+          exportedFrom: "United Kingdom",
+          exportedTo: {
+            officialCountryName: "Åland Islands",
+            isoCodeAlpha2: "AX",
+            isoCodeAlpha3: "ALA",
+            isoNumericCode: "248"
+          },
+          vehicle: "containerVessel"
+        }
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
     const expected: IDefraTradeCatchCertificate = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -2323,66 +1944,13 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       transportation: {
         modeofTransport: "vessel",
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     };
 
     expect(result).toStrictEqual(expected);
   })
 
   it('will return a IDefraTradeCatchCertificate payload with no transport', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: undefined }}, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: undefined, transportations: undefined} }, dynamicsCatchCertificateCase, ccQueryResults);
     expect(result).toStrictEqual({
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -2504,59 +2072,162 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       failureIrrespectiveOfRisk: true,
       multiVesselSchedule: false,
       transportation: undefined,
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
+    });
+  })
+
+  it('will return a IDefraTradeCatchCertificate payload with exportTo', () => {
+    const transportations = [{
+      "id": '0',
+      "freightBillNumber": '0',
+      "vehicle": "truck",
+      "departurePlace": "Hull",
+      "nationalityOfVehicle": "",
+      "registrationNumber": "",
+      "transportDocuments": [{
+        "name": "Invoice",
+        "reference": "INV001"
+      }]
+    }]
+
+    const exportedFrom = "United Kingdom";
+    const exportedTo = {
+      "officialCountryName": "Åland Islands",
+      "isoCodeAlpha2": "AX",
+      "isoCodeAlpha3": "ALA",
+      "isoNumericCode": "248"
+    }
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: undefined, transportations, exportedFrom, exportedTo } }, dynamicsCatchCertificateCase, ccQueryResults);
+    expect(result).toStrictEqual({
+      documentNumber: "GBR-2023-CC-C58DF9A73",
+      certStatus: CertificateStatus.COMPLETE,
+      caseType1: CaseOneType.CatchCertificate,
+      caseType2: CaseTwoType.PendingLandingData,
+      numberOfFailedSubmissions: 0,
+      isDirectLanding: false,
+      documentUrl: "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      exportedTo: {
+        officialCountryName: "Åland Islands",
+        isoCodeAlpha2: "AX",
+        isoCodeAlpha3: "ALA",
+        isoNumericCode: "248"
+      },
+      documentDate: "2023-08-31T18:27:00.000Z",
+      exporter: {
+        fullName: "Automation Tester",
+        companyName: "Automation Testing Ltd",
+        contactId: "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        accountId: "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        address: {
+          building_number: null,
+          sub_building_name: "NATURAL ENGLAND",
+          building_name: "LANCASTER HOUSE",
+          street_name: "HAMPSHIRE COURT",
+          county: null,
+          country: "United Kingdom of Great Britain and Northern Ireland",
+          line1: "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          city: "NEWCASTLE UPON TYNE",
+          postCode: "NE4 7YH"
+        },
+        dynamicsAddress: {
+          defra_uprn: "10091818796",
+          defra_buildingname: "LANCASTER HOUSE",
+          defra_subbuildingname: "NATURAL ENGLAND",
+          defra_premises: null,
+          defra_street: "HAMPSHIRE COURT",
+          defra_locality: "NEWCASTLE BUSINESS PARK",
+          defra_dependentlocality: null,
+          defra_towntext: "NEWCASTLE UPON TYNE",
+          defra_county: null,
+          defra_postcode: "NE4 7YH",
+          _defra_country_value: "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          defra_internationalpostalcode: null,
+          defra_fromcompanieshouse: false,
+          defra_addressid: "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          _defra_country_value_OData_Community_Display_V1_FormattedValue: "United Kingdom of Great Britain and Northern Ireland",
+          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: "defra_Country",
+          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: "defra_country",
+          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: "No"
+        }
+      },
+      landings: [
+        {
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
+          id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
+          landingDate: "2023-08-31",
+          species: "Lobster",
+          cnCode: "03028990",
+          commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+          scientificName: "Aphanopus carbo",
+          is14DayLimitReached: true,
+          state: "FRE",
+          presentation: "GUT",
+          vesselName: "AGAN BORLOWEN",
+          vesselPln: "SS229",
+          vesselLength: 6.88,
+          vesselAdministration: "Scotland",
+          licenceHolder: "MR S CLARY-BROM ",
+          speciesAlias: "N",
+          speciesAnomaly: undefined,
+          weight: 122,
+          numberOfTotalSubmissions: 1,
+          vesselOverriddenByAdmin: false,
+          speciesOverriddenByAdmin: false,
+          dataEverExpected: true,
+          dateDataReceived: undefined,
+          isLate: undefined,
+          landingDataEndDate: undefined,
+          landingDataExpectedAtSubmission: true,
+          landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
+          catchArea: CatchArea.FAO27,
+          fishingLicenceNumber: "25072",
+          fishingLicenceValidTo: "2030-12-31",
+          flag: "GBR",
+          homePort: "NEWLYN",
+          source: "CATCH_RECORDING",
+          imo: null,
+          validation: {
+            isLegallyDue: true,
+            landedWeightExceededBy: 143.9,
+            liveExportWeight: 121,
+            rawLandingsUrl: "undefined/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=C20415",
+            salesNoteUrl: "undefined/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=C20415",
+            totalEstimatedForExportSpecies: 30,
+            totalEstimatedWithTolerance: 56.1,
+            totalLiveForExportSpecies: undefined,
+            totalRecordedAgainstLanding: 200,
+            totalWeightForSpecies: undefined,
+          },
+          risking: {
+            vessel: "0",
+            speciesRisk: "0",
+            exporterRiskScore: "0",
+            landingRiskScore: "0",
+            highOrLowRisk: LevelOfRiskType.Low,
+            isSpeciesRiskEnabled: false,
+            overuseInfo: undefined,
+          },
+          adminCommodityCode: undefined,
+          adminPresentation: undefined,
+          adminSpecies: undefined,
+          adminState: undefined,
+        }
+      ],
+      _correlationId: "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      requestedByAdmin: false,
+      isUnblocked: false,
+      da: "England",
+      vesselOverriddenByAdmin: false,
+      speciesOverriddenByAdmin: false,
+      failureIrrespectiveOfRisk: true,
+      multiVesselSchedule: false,
+      transportation: {
         exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
+        modeofTransport: "truck",
+        nationality: "",
+        registration: "",
+      },
     });
   })
 
@@ -2683,21 +2354,24 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       failureIrrespectiveOfRisk: true,
       multiVesselSchedule: false,
       transportation: undefined,
-      transportations: undefined,
     });
   })
 
   it('will return a IDefraTradeCatchCertificate payload with NI export data', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: {
-      exportedFrom: "United Kingdom",
-      exportedTo: {
-        officialCountryName: "Northen Ireland",
-        isoCodeAlpha2: "AX1",
-        isoCodeAlpha3: null,
-        isoNumericCode: null
-      },
-      vehicle: "directLanding"
-    },} }, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: {
+          exportedFrom: "United Kingdom",
+          exportedTo: {
+            officialCountryName: "Northen Ireland",
+            isoCodeAlpha2: "AX1",
+            isoCodeAlpha3: null,
+            isoNumericCode: null
+          },
+          vehicle: "directLanding"
+        },
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
     expect(result).toStrictEqual({
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -2826,59 +2500,6 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       transportation: {
         modeofTransport: "directLanding"
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     });
   })
 
@@ -2949,59 +2570,6 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         hasRoadTransportDocument: true,
         modeofTransport: "truck",
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     });
   })
 
@@ -3093,11 +2661,11 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       isDirectLanding: false,
       documentUrl: "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
       exportedTo: {
-       isoCodeAlpha2: "AX",
-       isoCodeAlpha3: "ALA",
-       isoNumericCode: "248",
-       officialCountryName: "Åland Islands",
-     },
+        isoCodeAlpha2: "AX",
+        isoCodeAlpha3: "ALA",
+        isoNumericCode: "248",
+        officialCountryName: "Åland Islands",
+      },
       documentDate: "2023-08-31T18:27:00.000Z",
       exporter: {
         fullName: "Automation Tester",
@@ -3213,59 +2781,6 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         hasRoadTransportDocument: true,
         modeofTransport: "truck",
       },
-      transportations: [{
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'truck',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'plane',
-        exportLocation: "Hull",
-        flightNumber: '',
-        containerId: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'train',
-        exportLocation: "Hull",
-        billNumber: '',
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'vessel',
-        exportLocation: "Hull",
-        name: '',
-        flag: '',
-        containerId: "",
-        transportDocuments: [{
-          name: "Invoice",
-          reference: "INV001"
-        }]
-      }, {
-        id: '0',
-        freightBillNumber: '0',
-        modeofTransport: 'unknown',
-        exportLocation: "Hull",
-        nationality: '',
-        registration: '',
-        transportDocuments: []
-      }],
     });
   })
 
@@ -3392,7 +2907,6 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       failureIrrespectiveOfRisk: true,
       multiVesselSchedule: false,
       transportation: undefined,
-      transportations: undefined,
     });
   })
 });
@@ -3496,88 +3010,88 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
         "exportDate": "05/09/2023"
       },
       "transportations": [{
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "truck",
-          "departurePlace": "Hull",
-          "nationalityOfVehicle": "",
-          "registrationNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "plane",
-          "departurePlace": "Hull",
-          "flightNumber": "",
-          "containerNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "train",
-          "departurePlace": "Hull",
-          "railwayBillNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "containerVessel",
-          "departurePlace": "Hull",
-          "vesselName": "",
-          "flagState": "",
-          "containerNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": [{
-            "name": "Invoice",
-            "reference": "INV001"
-          }]
-        }, {
-          "id": '0',
-          "freightBillNumber": '0',
-          "vehicle": "unknown",
-          "departurePlace": "Hull",
-          "nationalityOfVehicle": "",
-          "registrationNumber": "",
-          "exportedTo": {
-            "officialCountryName": "Nigeria",
-            "isoCodeAlpha2": "NG",
-            "isoCodeAlpha3": "NGA",
-            "isoNumericCode": "566"
-          },
-          "transportDocuments": []
-        }
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "truck",
+        "departurePlace": "Hull",
+        "nationalityOfVehicle": "",
+        "registrationNumber": "",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGA",
+          "isoNumericCode": "566"
+        },
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "plane",
+        "departurePlace": "Hull",
+        "flightNumber": "",
+        "containerNumber": "",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGA",
+          "isoNumericCode": "566"
+        },
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "train",
+        "departurePlace": "Hull",
+        "railwayBillNumber": "",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGA",
+          "isoNumericCode": "566"
+        },
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "containerVessel",
+        "departurePlace": "Hull",
+        "vesselName": "",
+        "flagState": "",
+        "containerNumber": "",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGA",
+          "isoNumericCode": "566"
+        },
+        "transportDocuments": [{
+          "name": "Invoice",
+          "reference": "INV001"
+        }]
+      }, {
+        "id": '0',
+        "freightBillNumber": '0',
+        "vehicle": "unknown",
+        "departurePlace": "Hull",
+        "nationalityOfVehicle": "",
+        "registrationNumber": "",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGA",
+          "isoNumericCode": "566"
+        },
+        "transportDocuments": []
+      }
       ],
     },
     "userReference": "some-reference",
@@ -3700,7 +3214,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
   it('branch covering with no export data', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-04-29'))
-    
+
     const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd({ ...exampleSd, exportData: undefined }, exampleSdDynamicsCase, exampleSdQueryResult);
     expect(result).toStrictEqual({
       "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
@@ -3873,7 +3387,7 @@ describe('when tranforming Storage Document data from IDocument to IDefraTradeSt
       "transportation": undefined,
 
     }
-    
+
     const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(undefined, exampleSdDynamicsCase, exampleSdQueryResult);
     expect(result).toStrictEqual(expected)
   })
