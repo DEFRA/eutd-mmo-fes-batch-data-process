@@ -1653,6 +1653,164 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
     expect(result).toStrictEqual(expected);
   })
 
+  it('will return a IDefraTradeCatchCertificate payload with truck without cmr', () => {
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
+      ...exampleCc, exportData: {
+        ...exampleCc.exportData, transportation: undefined, transportations: [{
+          id: 4914860403,
+          vehicle: "truck",
+          departurePlace: "qsd",
+          nationalityOfVehicle: "a",
+          registrationNumber: "123",
+          freightBillNumber: "12ws",
+          transportDocuments: []
+        }],
+        exportedFrom: "United Kingdom",
+        exportedTo: {
+          officialCountryName: "Åland Islands",
+          isoCodeAlpha2: "AX",
+          isoCodeAlpha3: "ALA",
+          isoNumericCode: "248"
+        },
+      }
+    }, dynamicsCatchCertificateCase, ccQueryResults);
+    const expected: IDefraTradeCatchCertificate = {
+      documentNumber: "GBR-2023-CC-C58DF9A73",
+      certStatus: CertificateStatus.COMPLETE,
+      caseType1: CaseOneType.CatchCertificate,
+      caseType2: CaseTwoType.PendingLandingData,
+      numberOfFailedSubmissions: 0,
+      isDirectLanding: false,
+      documentUrl: "http://localhost:3001/qr/export-certificates/_e1708f0c-93d5-48ca-b227-45e1c815b549.pdf",
+      documentDate: "2023-08-31T18:27:00.000Z",
+      exporter: {
+        fullName: "Automation Tester",
+        companyName: "Automation Testing Ltd",
+        contactId: "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+        accountId: "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+        address: {
+          building_number: null,
+          sub_building_name: "NATURAL ENGLAND",
+          building_name: "LANCASTER HOUSE",
+          street_name: "HAMPSHIRE COURT",
+          county: null,
+          country: "United Kingdom of Great Britain and Northern Ireland",
+          line1: "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+          city: "NEWCASTLE UPON TYNE",
+          postCode: "NE4 7YH"
+        },
+        dynamicsAddress: {
+          defra_uprn: "10091818796",
+          defra_buildingname: "LANCASTER HOUSE",
+          defra_subbuildingname: "NATURAL ENGLAND",
+          defra_premises: null,
+          defra_street: "HAMPSHIRE COURT",
+          defra_locality: "NEWCASTLE BUSINESS PARK",
+          defra_dependentlocality: null,
+          defra_towntext: "NEWCASTLE UPON TYNE",
+          defra_county: null,
+          defra_postcode: "NE4 7YH",
+          _defra_country_value: "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          defra_internationalpostalcode: null,
+          defra_fromcompanieshouse: false,
+          defra_addressid: "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+          _defra_country_value_OData_Community_Display_V1_FormattedValue: "United Kingdom of Great Britain and Northern Ireland",
+          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: "defra_Country",
+          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: "defra_country",
+          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: "No"
+        }
+      },
+      landings: [
+        {
+          status: DefraCcLandingStatusType.ValidationFailure_Species,
+          id: "GBR-2023-CC-C58DF9A73-1777642314",
+          startDate: "2023-08-31",
+          landingDate: "2023-08-31",
+          species: "Lobster",
+          cnCode: "03028990",
+          commodityCodeDescription: "Fresh or chilled fish, n.e.s.",
+          scientificName: "Aphanopus carbo",
+          is14DayLimitReached: true,
+          state: "FRE",
+          presentation: "GUT",
+          vesselName: "AGAN BORLOWEN",
+          vesselPln: "SS229",
+          vesselLength: 6.88,
+          vesselAdministration: "Scotland",
+          licenceHolder: "MR S CLARY-BROM ",
+          speciesAlias: "N",
+          speciesAnomaly: undefined,
+          weight: 122,
+          numberOfTotalSubmissions: 1,
+          vesselOverriddenByAdmin: false,
+          speciesOverriddenByAdmin: false,
+          dataEverExpected: true,
+          dateDataReceived: undefined,
+          isLate: undefined,
+          landingDataEndDate: undefined,
+          landingDataExpectedAtSubmission: true,
+          landingDataExpectedDate: undefined,
+          landingOutcomeAtRetrospectiveCheck: LandingRetrospectiveOutcomeType.Failure,
+          catchArea: CatchArea.FAO27,
+          fishingLicenceNumber: "25072",
+          fishingLicenceValidTo: "2030-12-31",
+          flag: "GBR",
+          homePort: "NEWLYN",
+          source: "CATCH_RECORDING",
+          imo: null,
+          validation: {
+            isLegallyDue: true,
+            landedWeightExceededBy: 143.9,
+            liveExportWeight: 121,
+            rawLandingsUrl: "undefined/reference/api/v1/extendedData/rawLandings?dateLanded=2023-08-31&rssNumber=C20415",
+            salesNoteUrl: "undefined/reference/api/v1/extendedData/salesNotes?dateLanded=2023-08-31&rssNumber=C20415",
+            totalEstimatedForExportSpecies: 30,
+            totalEstimatedWithTolerance: 56.1,
+            totalLiveForExportSpecies: undefined,
+            totalRecordedAgainstLanding: 200,
+            totalWeightForSpecies: undefined,
+          },
+          risking: {
+            vessel: "0",
+            speciesRisk: "0",
+            exporterRiskScore: "0",
+            landingRiskScore: "0",
+            highOrLowRisk: LevelOfRiskType.Low,
+            isSpeciesRiskEnabled: false,
+            overuseInfo: undefined,
+          },
+          adminCommodityCode: undefined,
+          adminPresentation: undefined,
+          adminSpecies: undefined,
+          adminState: undefined,
+        }
+      ],
+      _correlationId: "f59339d6-e1d2-4a46-93d5-7eb9bb139e1b",
+      requestedByAdmin: false,
+      isUnblocked: false,
+      da: "England",
+      vesselOverriddenByAdmin: false,
+      speciesOverriddenByAdmin: false,
+      failureIrrespectiveOfRisk: true,
+      exportedTo: {
+        officialCountryName: "Åland Islands",
+        isoCodeAlpha2: "AX",
+        isoCodeAlpha3: "ALA",
+        isoNumericCode: "248",
+      },
+      multiVesselSchedule: false,
+      transportation: {
+        modeofTransport: "truck",
+        exportLocation: "qsd",
+        nationality: "a",
+        registration: "123",
+        hasRoadTransportDocument: false
+      },
+    };
+
+    expect(result).toStrictEqual(expected);
+  })
+
   it('will return a IDefraTradeCatchCertificate payload with plane', () => {
     const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({
       ...exampleCc, exportData: {
@@ -2227,6 +2385,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         modeofTransport: "truck",
         nationality: "",
         registration: "",
+        hasRoadTransportDocument: false,
       },
     });
   })
