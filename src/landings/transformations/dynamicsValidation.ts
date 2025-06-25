@@ -145,6 +145,7 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     speciesAlias: validatedLanding.speciesAlias,
     speciesAnomaly: validatedLanding.speciesAnomaly,
     weight: validatedLanding.rawWeightOnCert,
+    gearType: validatedLanding.gearType,
     numberOfTotalSubmissions: validatedLanding.extended.numberOfSubmissions,
     vesselOverriddenByAdmin: validatedLanding.extended.vesselOverriddenByAdmin === true,
     speciesOverriddenByAdmin: validatedLanding.extended.speciesOverriddenByAdmin === true,
