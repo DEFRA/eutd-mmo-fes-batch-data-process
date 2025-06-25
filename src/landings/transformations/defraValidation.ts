@@ -67,6 +67,7 @@ export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
          },
          exportWeight: rawValidatedLanding.weightOnCert,
          exportWeightFactor: rawValidatedLanding.weightFactor,
+         gearType: rawValidatedLanding.gearType,
          isLandingDataAvailable: rawValidatedLanding.numberOfLandingsOnDay > 0,
          isDirectLanding: ccBatchReportForLanding.directLanding === 'Y',
          isValidationFailed: ccBatchReportForLanding.FI0_136_numberOfFailedValidations > 0,
