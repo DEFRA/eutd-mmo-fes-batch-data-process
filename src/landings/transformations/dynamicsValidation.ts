@@ -34,13 +34,15 @@ import {
   isHighRisk,
   isRiskEnabled
 } from "../../data/risking";
+
 import { getVesselLength } from "../../data/vessel";
 import { ApplicationConfig } from "../../config";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
 import { isEmpty } from "lodash";
 import { CertificateAudit, CertificateCompany, IAuditEvent } from "../../types/defraValidation";
 import { ISdPsQueryResult } from "../../types/query";
-import {  IDynamicsStorageDocumentCase, IDynamicsStorageDocumentProduct, SdPsCaseTwoType, SdPsStatus } from "../../types/dynamicsValidationSdPs";
+import { SdPsCaseTwoType, SdPsStatus,IDynamicsProcessingStatementCatch} from "../../types/dynamicsValidationSdPs";
+import { IDynamicsProcessingStatementCase } from "../../types/dynamicsSdPsCase";
 
 export const isSpeciesFailure = (func: (riskScore: number, threshold?: number) => boolean) => (
   enabled: boolean,
@@ -366,61 +368,85 @@ export function toSpeciesCode(speciesWithCode: string | undefined): string | und
     }
   }
 }
-export function toExportedToSd(psSdCertificate: IDocument): ICountry {
+
+export function toDynamicsPs(
+  validatedPsCatches: ISdPsQueryResult[] | null,
+  processingStatement: IDocument,
+  correlationId: string,
+  caseTypeTwo?: SdPsCaseTwoType
+): IDynamicsProcessingStatementCase {
+  const daLookUp = postCodeDaLookup(postCodeToDa);
+  const useProductsDescritpion = Array.isArray(processingStatement.exportData.products) && processingStatement.exportData.products.length > 0;
+  const productDescription = useProductsDescritpion
+    ? processingStatement.exportData.products.reduce((accumulator, currentValue, currentIndex) => {
+      if (currentIndex === processingStatement.exportData.products.length - 1) {
+        return (
+          accumulator +
+          `${currentValue.commodityCode} ${currentValue.description}`
+        );
+      }
+      return (
+        accumulator +
+        `${currentValue.commodityCode} ${currentValue.description}, `
+      );
+    }, "")
+    : null;
+
+  return {
+    exporter: toExporterPsSd(processingStatement),
+    documentUrl: `${ApplicationConfig.prototype.externalAppUrl}/qr/export-certificates/${processingStatement.documentUri}`,
+    documentDate: moment.utc(processingStatement.createdAt).toISOString(),
+    caseType1: CaseOneType.ProcessingStatement,
+    caseType2: caseTypeTwo || toSdPsCaseTwoType(validatedPsCatches),
+    numberOfFailedSubmissions: processingStatement.numberOfFailedAttempts ? processingStatement.numberOfFailedAttempts : 0,
+    documentNumber: processingStatement.documentNumber,
+    plantName: processingStatement.exportData.plantName,
+    personResponsible: processingStatement.exportData.personResponsibleForConsignment,
+    processedFisheryProducts: useProductsDescritpion ? productDescription : processingStatement.exportData.consignmentDescription,
+    catches: validatedPsCatches ? validatedPsCatches.map(_ => toPsCatch(_)) : undefined,
+    da: daLookUp(processingStatement.exportData.exporterDetails.postcode),
+    _correlationId: correlationId,
+    requestedByAdmin: processingStatement.requestByAdmin,
+    exportedTo: toExportedToPsSd(processingStatement),
+    clonedFrom: processingStatement.clonedFrom,
+    parentDocumentVoid: processingStatement.parentDocumentVoid
+  };
+}
+export function toExportedToPsSd(psSdCertificate: IDocument): ICountry {
   return {
     officialCountryName: psSdCertificate.exportData?.exportedTo?.officialCountryName,
     isoCodeAlpha2: psSdCertificate.exportData?.exportedTo?.isoCodeAlpha2,
     isoCodeAlpha3: psSdCertificate.exportData?.exportedTo?.isoCodeAlpha3
   }
 }
-export function toDynamicsSd(
-  validatedSdProducts: ISdPsQueryResult[] | null,
-  storageDocument: IDocument,
-  correlationId: string,
-  caseTypeTwo?: SdPsCaseTwoType
-): IDynamicsStorageDocumentCase {
-  const daLookUp = postCodeDaLookup(postCodeToDa);
-  return {
-    exporter: toExporterPsSd(storageDocument),
-    documentUrl: `${ApplicationConfig.prototype.externalAppUrl}/qr/export-certificates/${storageDocument.documentUri}`,
-    documentDate: moment.utc(storageDocument.createdAt).toISOString(),
-    caseType1: CaseOneType.StorageDocument,
-    caseType2: caseTypeTwo || toSdPsCaseTwoType(validatedSdProducts),
-    numberOfFailedSubmissions: storageDocument.numberOfFailedAttempts,
-    documentNumber: storageDocument.documentNumber,
-    clonedFrom: storageDocument.clonedFrom,
-    parentDocumentVoid: storageDocument.parentDocumentVoid,
-    companyName: storageDocument.exportData.exporterDetails.exporterCompanyName,
-    products: validatedSdProducts ? validatedSdProducts.map(_ => toSdProduct(_)) : undefined,
-    da: daLookUp(storageDocument.exportData.exporterDetails.postcode),
-    _correlationId: correlationId,
-    requestedByAdmin: storageDocument.requestByAdmin,
-    exportedTo: toExportedToSd(storageDocument)
-  };
-}
-export function toSdProduct(validatedSdProducts: ISdPsQueryResult): IDynamicsStorageDocumentProduct {
+export function toPsCatch(validatedPsCatches: ISdPsQueryResult): IDynamicsProcessingStatementCatch {
+
   let status = SdPsStatus.Success;
-  if (validatedSdProducts.isMismatch) {
+
+  if (validatedPsCatches.isMismatch) {
     status = SdPsStatus.Weight
   }
-  if (validatedSdProducts.isOverAllocated) {
+
+  if (validatedPsCatches.isOverAllocated) {
     status = SdPsStatus.Overuse
   }
+
   return {
-    foreignCatchCertificateNumber: validatedSdProducts.catchCertificateNumber,
-    isDocumentIssuedInUK: validatedSdProducts.catchCertificateType === 'uk',
-    species: toSpeciesCode(validatedSdProducts.species),
-    id: validatedSdProducts.extended.id,
-    cnCode: validatedSdProducts.commodityCode,
-    scientificName: validatedSdProducts.scientificName,
-    importedWeight: validatedSdProducts.weightOnFCC,
-    exportedWeight: validatedSdProducts.weightOnDoc,
+    foreignCatchCertificateNumber: validatedPsCatches.catchCertificateNumber,
+    isDocumentIssuedInUK: validatedPsCatches.catchCertificateType === 'uk',
+    species: toSpeciesCode(validatedPsCatches.species),
+    id: validatedPsCatches.extended.id,
+    cnCode: validatedPsCatches.commodityCode,
+    scientificName: validatedPsCatches.scientificName,
+    importedWeight: validatedPsCatches.weightOnFCC,
+    usedWeightAgainstCertificate: validatedPsCatches.weightOnDoc,
+    processedWeight: validatedPsCatches.weightAfterProcessing,
     validation: {
-      totalWeightExported: validatedSdProducts.weightOnAllDocs,
       status: status,
-      weightExceededAmount: validatedSdProducts.overAllocatedByWeight,
-      overuseInfo: validatedSdProducts.overUsedInfo.some(_ => _ !== validatedSdProducts.documentNumber)
-        ? validatedSdProducts.overUsedInfo.filter(_ => _ !== validatedSdProducts.documentNumber) : undefined
+      totalUsedWeightAgainstCertificate: validatedPsCatches.weightOnAllDocs,
+      weightExceededAmount: validatedPsCatches.overAllocatedByWeight,
+      overuseInfo: validatedPsCatches.overUsedInfo.some(_ => _ !== validatedPsCatches.documentNumber)
+        ? validatedPsCatches.overUsedInfo.filter(_ => _ !== validatedPsCatches.documentNumber) : undefined
     }
   }
 }

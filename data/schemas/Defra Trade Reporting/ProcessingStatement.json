@@ -1,0 +1,618 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "title": "Processing Statement Defra Trade",
+  "description": "Schema for Processing Statement data transfer to Defra Trade (CHIP).",
+  "examples": [
+    {
+      "version": 2,
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
+      },
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": "Real Time Validation - Overuse Failure",
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Fish Food LTD.",
+      "plantAddress": {
+        "building_number": "123",
+        "sub_building_name": "Unit 1",
+        "building_name": "CJC Fish Ltd",
+        "street_name": "17  Old Edinburgh Road",
+        "county": "West Midlands",
+        "country": "England",
+        "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+        "city": "Baureport",
+        "postCode": "NE40 3AJ"
+      },
+      "plantApprovalNumber": "32423940234234",
+      "plantDateOfAcceptance": "2019-01-01",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR",
+        "isoNumericCode": "3166"
+      },
+      "catches": [
+        {
+          "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "HER",
+          "cnCode": "324234324432234",
+          "scientificName": "scientific name",
+          "importedWeight": 500,
+          "usedWeightAgainstCertificate": 700,
+          "processedWeight": 800,
+          "validation": {
+            "status": "Validation Failure - Overuse",
+            "totalUsedWeightAgainstCertificate": 700,
+            "weightExceededAmount": 300,
+            "overuseInfo": [
+              "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+            ]
+          }
+        },
+        {
+          "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "SAL",
+          "cnCode": "523842358",
+          "scientificName": "scientific name",
+          "importedWeight": 200,
+          "usedWeightAgainstCertificate": 100,
+          "processedWeight": 150,
+          "validation": {
+            "status": "Validation Success",
+            "totalUsedWeightAgainstCertificate": 200
+          }
+        }
+      ],
+      "healthCertificateNumber": "20/2/123456",
+      "healthCertificateDate": "2023-08-25",
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
+      "authority": {
+        "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
+        "companyName": "Marine Management Organisation",
+        "address": {
+          "line1": "Lancaster House, Hampshire Court",
+          "sub_building_name": "Unit 1",
+          "building_number": "123",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "Lancaster House, Hampshire Court",
+          "county": "Newcastle upon Tyne",
+          "country": "United Kingdom",
+          "city": " Newcastle upon Tyne",
+          "postCode": "NE4 7YJ"
+        },
+        "tel": "0300 123 1032",
+        "email": "ukiuuslo@marinemanagement.org.uk",
+        "dateIssued": "2023-09-01"
+      }
+    },
+    {
+      "version": 2,
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
+      },
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": "Void by an Exporter",
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Fish Food LTD.",
+      "plantAddress": {
+        "building_number": "123",
+        "sub_building_name": "Unit 1",
+        "building_name": "CJC Fish Ltd",
+        "street_name": "17  Old Edinburgh Road",
+        "county": "West Midlands",
+        "country": "England",
+        "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+        "city": "Baureport",
+        "postCode": "NE40 3AJ"
+      },
+      "plantApprovalNumber": "32423940234234",
+      "plantDateOfAcceptance": "2019-01-01",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR",
+        "isoNumericCode": "3166"
+      },
+      "catches": null,
+      "healthCertificateNumber": "20/2/123456",
+      "healthCertificateDate": "2023-08-25",
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
+      "authority": {
+        "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
+        "companyName": "Marine Management Organisation",
+        "address": {
+          "line1": "Lancaster House, Hampshire Court",
+          "sub_building_name": "Unit 1",
+          "building_number": "123",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "Lancaster House, Hampshire Court",
+          "county": "Newcastle upon Tyne",
+          "country": "United Kingdom",
+          "city": " Newcastle upon Tyne",
+          "postCode": "NE4 7YJ"
+        },
+        "tel": "0300 123 1032",
+        "email": "ukiuuslo@marinemanagement.org.uk",
+        "dateIssued": "2023-09-01"
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "line1": {
+          "type": "string"
+        },
+        "sub_building_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "building_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "building_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "street_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "county": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "country": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "city": {
+          "type": "string"
+        },
+        "postCode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "line1",
+        "city",
+        "postCode"
+      ]
+    },
+    "dynamicsAddress": {
+      "type": "object",
+      "properties": {
+        "defra_addressid": {
+          "type": "string"
+        },
+        "defra_buildingname": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_county": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_dependentlocality": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_fromcompanieshouse": {
+          "type": "boolean"
+        },
+        "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": {
+          "type": "string"
+        },
+        "defra_internationalpostalcode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_locality": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_postcode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_premises": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_street": {
+          "type": "string"
+        },
+        "defra_subbuildingname": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_towntext": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defra_uprn": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "_defra_country_value": {
+          "type": "string"
+        },
+        "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": {
+          "type": "string"
+        },
+        "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": {
+          "type": "string"
+        },
+        "_defra_country_value_OData_Community_Display_V1_FormattedValue": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "defra_addressid",
+        "defra_buildingname",
+        "defra_premises",
+        "defra_street",
+        "defra_towntext"
+      ]
+    },
+    "catchValidation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "Validation Success",
+            "Validation Failure - Overuse",
+            "Validation Failure - Weight"
+          ]
+        },
+        "totalUsedWeightAgainstCertificate": {
+          "type": "number",
+          "description": "The total amount used against the certificate"
+        },
+        "weightExceededAmount": {
+          "type": "number"
+        },
+        "overuseInfo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "totalUsedWeightAgainstCertificate"
+      ]
+    },
+    "catch": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "foreignCatchCertificateNumber": {
+          "type": "string"
+        },
+        "species": {
+          "type": "string"
+        },
+        "cnCode": {
+          "type": "string"
+        },
+        "scientificName": {
+          "type": "string"
+        },
+        "importedWeight": {
+          "type": "number"
+        },
+        "usedWeightAgainstCertificate": {
+          "type": "number",
+          "description": "the total amound of the imported weight used before processing"
+        },
+        "processedWeight": {
+          "type": "number",
+          "description": "used weight after processing"
+        },
+        "validation": {
+          "type": "object",
+          "items": {
+            "$ref": "#/definitions/catchValidation"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "foreignCatchCertificateNumber",
+        "species",
+        "cnCode",
+        "importedWeight",
+        "usedWeightAgainstCertificate",
+        "processedWeight",
+        "validation"
+      ],
+      "additionalProperties": false
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "name",
+        "companyName",
+        "address",
+        "tel",
+        "email",
+        "dateIssued"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "companyName": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/address"
+        },
+        "tel": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "dateIssued": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "version" : {
+      "type":"string", "const":"2"
+    },
+    "exporter": {
+      "type": "object",
+      "required": [
+        "companyName",
+        "address"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contactId": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "companyName": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/address"
+        },
+        "dynamicsAddress": {
+          "$ref": "#/definitions/dynamicsAddress"
+        }
+      }
+    },
+    "caseType1": {
+      "type": "string",
+      "enum": [
+        "CC",
+        "PS",
+        "SD"
+      ]
+    },
+    "caseType2": {
+      "type": "string",
+      "enum": [
+        "Real Time Validation - Successful",
+        "Real Time Validation - Overuse Failure",
+        "Real Time Validation - Weight Failure",
+        "Void by an Exporter",
+        "Void by SMO/PMO"
+      ]
+    },
+    "numberOfFailedSubmissions": {
+      "type": "number",
+      "description": "The total number of failed submission attempts executed by the user"
+    },
+    "documentNumber": {
+      "type": "string"
+    },
+    "documentUrl": {
+      "type": "string"
+    },
+    "documentDate": {
+      "type": "string"
+    },
+    "plantName": {
+      "type": "string"
+    },
+    "plantAddress": {
+      "$ref": "#/definitions/address"
+    },
+    "plantApprovalNumber": {
+      "type": "string"
+    },
+    "personResponsible": {
+      "type": "string"
+    },
+    "plantDateOfAcceptance": {
+      "type": "string"
+    },
+    "exportedTo": {
+      "type": "object",
+      "required": [
+        "officialCountryName"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "officialCountryName": {
+          "type": "string"
+        },
+        "isoCodeAlpha2": {
+          "type": "string"
+        },
+        "isoCodeAlpha3": {
+          "type": ["string", "null"]
+        },
+        "isoNumericCode": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "processedFisheryProducts": {
+      "type": "string",
+      "definition": "description and commodity code"
+    },
+    "catches": {
+      "type": ["array", "null"],
+      "items": {
+        "$ref": "#/definitions/catch"
+      }
+    },
+    "da": {
+      "type": "string"
+    },
+    "_correlationId": {
+      "type": "string"
+    },
+    "requestedByAdmin": {
+      "type": "boolean"
+    },
+    "healthCertificateNumber": {
+      "type": "string"
+    },
+    "healthCertificateDate": {
+      "type": "string"
+    },
+    "authority": {
+      "$ref": "#/definitions/authority"
+    }
+  },
+  "required": [
+    "exporter",
+    "caseType1",
+    "caseType2",
+    "numberOfFailedSubmissions",
+    "documentNumber",
+    "plantName",
+    "plantAddress",
+    "plantApprovalNumber",
+    "plantDateOfAcceptance",
+    "personResponsible",
+    "authority",
+    "da",
+    "_correlationId",
+    "requestedByAdmin",
+    "healthCertificateNumber",
+    "healthCertificateDate"
+  ]
+}

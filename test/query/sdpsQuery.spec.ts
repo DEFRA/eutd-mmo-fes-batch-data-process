@@ -23,25 +23,27 @@ const identity = (_) => _
 
 describe('low level transformations', () => {
 
-  it('will unwind and map catches for a storage document', () => {
+  it('will unwind and map catches for a processing statement', () => {
 
     const document = createDocument('12345',
-      'storageDocument',
+      'processingStatement',
       [
-        { certificateNumber: 'FCC051', certificateType: 'uk', product: 'cats', scientificName: "some scientific name 1", weightOnCC: 500.51, productWeight: 500.51, dateOfUnloading: "15/06/2020", placeOfUnloading: "Dover", transportUnloadedFrom: "BA078", exportWeightAfterProcessing: 90.11  },
-        { certificateNumber: 'FCC051', certificateType: 'non_uk', product: 'dogs', scientificName: "some scientific name 2", weightOnCC: 500.51, productWeight: 200.29, dateOfUnloading: "15/06/2020", placeOfUnloading: "Hull", transportUnloadedFrom: "EF078" }
+        { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: "some scientific name 1", totalWeightLanded: 500.11, exportWeightBeforeProcessing: 100.11, exportWeightAfterProcessing: 90.11  },
+        { catchCertificateNumber: 'FCC051', catchCertificateType: 'non_uk', species: 'cats', scientificName: "some scientific name 1", totalWeightLanded: 400.11, exportWeightBeforeProcessing: 200.11, exportWeightAfterProcessing: 190.11 },
+        { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: "some scientific name 1", totalWeightLanded: 300.11, exportWeightBeforeProcessing: 300.11, exportWeightAfterProcessing: 290.11 }
       ]
     )
 
     const expected = [
-      { documentNumber: '12345', status: 'COMPLETE', documentType: 'storageDocument',
+      { documentNumber: '12345', status: 'COMPLETE', documentType: 'processingStatement',
         extended: { url: 'http://www.bob.com' },
-        certificateNumber: 'FCC051', certificateType: 'uk', da: 'England', species: 'cats', scientificName: "some scientific name 1", weight: 500.51, weightOnCC: 500.51,
-        dateOfUnloading: "15/06/2020", placeOfUnloading: "Dover", transportUnloadedFrom: "BA078" },
-      { documentNumber: '12345', status: 'COMPLETE', documentType: 'storageDocument',
+        certificateNumber: 'FCC051', certificateType: 'uk', da: 'England', species: 'cats', scientificName: "some scientific name 1", commodityCode: 'N/A', weight: 100.11, weightOnCC: 500.11, weightAfterProcessing: 90.11 },
+      { documentNumber: '12345', status: 'COMPLETE', documentType: 'processingStatement',
         extended: { url: 'http://www.bob.com' },
-        certificateNumber: 'FCC051', certificateType: 'non_uk', da: 'England', species: 'dogs', scientificName: "some scientific name 2", weight: 200.29, weightOnCC: 500.51,
-        dateOfUnloading: "15/06/2020", placeOfUnloading: "Hull", transportUnloadedFrom: "EF078" }
+        certificateNumber: 'FCC051', certificateType: 'non_uk', da: 'England', species: 'cats', scientificName: "some scientific name 1", commodityCode: 'N/A', weight: 200.11, weightOnCC: 400.11, weightAfterProcessing: 190.11 },
+      { documentNumber: '12345', status: 'COMPLETE', documentType: 'processingStatement',
+        extended: { url: 'http://www.bob.com' },
+        certificateNumber: 'FCC051', certificateType: 'uk', da: 'England', species: 'cats', scientificName: "some scientific name 1", commodityCode: 'N/A', weight: 300.11, weightOnCC: 300.11, weightAfterProcessing: 290.11 },
     ]
 
     const res = Query.unwindAndMapCatches(document, identity)
@@ -63,37 +65,21 @@ describe('tests at the query level', () => {
 
     const documents = [
       createDocument('12345',
-        'storageDocument',
+        'processingStatement',
         [
-          { certificateNumber: 'FCC051', certificateType: 'uk', product: 'cats', scientificName: "some scientific name 1", weightOnCC: 500.51, productWeight: 500.51, dateOfUnloading: "15/06/2020", placeOfUnloading: "Dover", transportUnloadedFrom: "BA078" },
-          // { certificateNumber: 'FCC051', certificateType: 'non_uk', product: 'dogs', scientificName: "some scientific name 2", weightOnCC: 500.51, productWeight: 200.29, dateOfUnloading: "15/06/2020", placeOfUnloading: "Hull", transportUnloadedFrom: "EF078" }
+          { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: 'some scientific name', totalWeightLanded: 500, exportWeightBeforeProcessing: 100 },
         ],
         moments.utc('2019-01-01T00:00:00Z')
       )]
 
     const expected = [
-      {
-           "catchCertificateNumber": "FCC051",
-           "catchCertificateType": "uk",
-           "commodityCode": undefined,
-           "createdAt": "2019-01-01T00:00:00.000Z",
-           "da": "England",
-           "dateOfUnloading": "15/06/2020",
-           "documentNumber": "12345",
-           "documentType": "storageDocument",
-           "isMismatch": false,
-           "isOverAllocated": false,
-           "overAllocatedByWeight": 0,
-           "overUsedInfo":  [],
-           "placeOfUnloading": "Dover",
-           "scientificName": "some scientific name 1",
-           "species": "cats",
-           "status": "COMPLETE",
-           "transportUnloadedFrom": "BA078",
-           "weightOnAllDocs": 500.51,
-           "weightOnDoc": 500.51,
-           "weightOnFCC": 500.51,
-         }
+      { catchCertificateNumber: "FCC051", catchCertificateType: 'uk', documentNumber: '12345', status: 'COMPLETE', documentType: 'processingStatement', da: 'England', createdAt: '2019-01-01T00:00:00.000Z',
+        species: 'cats', scientificName: 'some scientific name', commodityCode: 'N/A',
+        weightOnDoc: 100, weightOnAllDocs: 100, weightOnFCC: 500,
+        isOverAllocated: false, overAllocatedByWeight: 0,
+        overUsedInfo: [],
+        isMismatch: false
+      }
     ]
 
     const res = Query.sdpsQuery(documents, postCodeToDa)
@@ -112,69 +98,66 @@ describe('When setting isOverAllocated', () => {
 
   let documents;
 
-  describe('in storage documents', () => {
+  describe('for processing statement', () => {
 
-    const weightOnCC = 100
+    const totalWeightLandedWeight = 100
 
-    beforeEach(()=> {
+    beforeEach(()=>{
       documents = [
-         createDocument('12345',
-         'storageDocument',
-         [
-           {
-             certificateNumber: 'FCC051',
-             product: 'cats',
-             scientificName: 'some scientific name',
-             weightOnCC: weightOnCC,
-             productWeight: 0,
-             dateOfUnloading: "15/06/2020",
-             placeOfUnloading: "Dover",
-             transportUnloadedFrom: "BA078"
-           }
-         ]
-        )
-      ]
+        createDocument('12345',
+           'processingStatement',
+           [
+             {
+               catchCertificateNumber: 'FCC051',
+               species: 'cats',
+               scientificName: 'some scientific name',
+               totalWeightLanded: totalWeightLandedWeight,
+               exportWeightBeforeProcessing: 0
+             }
+           ],
+           moments.utc('2019-01-01T00:00:00Z')
+        )]
     });
 
-    it('should be set as false if weightOnCC less than productWeight',  () => {
+    it('should be set as false if exportWeightBeforeProcessing is less than totalWeightLanded', () => {
 
-      documents[0].exportData.catches[0].productWeight = weightOnCC - 1 ;
+      documents[0].exportData.catches[0].exportWeightBeforeProcessing = totalWeightLandedWeight - 1;
 
       const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
       expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeFalsy();
 
     });
 
-    it('should be set as false if weightOnCC equal to productWeight',  () => {
+    it('should be set as false if exportWeightBeforeProcessing is equal to totalWeightLanded', () => {
 
-      documents[0].exportData.catches[0].productWeight = weightOnCC ;
-
-      const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
-      expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeFalsy();
-
-    });
-
-    it(`should be set as false if weightOnCC less than productWeight + ${Query.TOLERANCE_IN_KG}`,  () => {
-
-      documents[0].exportData.catches[0].productWeight = weightOnCC + Query.TOLERANCE_IN_KG -1;
+      documents[0].exportData.catches[0].exportWeightBeforeProcessing = totalWeightLandedWeight ;
 
       const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
       expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeFalsy();
 
     });
 
-    it(`should be set as false if weightOnCC equal to productWeight + ${Query.TOLERANCE_IN_KG}`,  () => {
+    it(`should be set as false if exportWeightBeforeProcessing is less than totalWeightLanded + ${Query.TOLERANCE_IN_KG}` , () => {
 
-      documents[0].exportData.catches[0].productWeight = weightOnCC + Query.TOLERANCE_IN_KG ;
+      documents[0].exportData.catches[0].exportWeightBeforeProcessing = totalWeightLandedWeight + Query.TOLERANCE_IN_KG -1  ;
 
       const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
       expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeFalsy();
 
     });
 
-    it(`should be set as true if weightOnCC more than productWeight + ${Query.TOLERANCE_IN_KG}`,  () => {
+    it(`should be set as false if exportWeightBeforeProcessing is equal is totalWeightLanded + ${Query.TOLERANCE_IN_KG}` , () => {
 
-      documents[0].exportData.catches[0].productWeight = weightOnCC + Query.TOLERANCE_IN_KG + 1;
+      documents[0].exportData.catches[0].exportWeightBeforeProcessing = totalWeightLandedWeight + Query.TOLERANCE_IN_KG  ;
+
+      const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
+      expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeFalsy();
+
+    });
+
+    it(`should be set as true if exportWeightBeforeProcessing is more than totalWeightLanded + ${Query.TOLERANCE_IN_KG}` , () => {
+
+      documents[0].exportData.catches[0].exportWeightBeforeProcessing = totalWeightLandedWeight + Query.TOLERANCE_IN_KG + 1 ;
 
       const result = Array.from(Query.sdpsQuery(documents, postCodeToDa));
       expect((result[0] as ISdPsQueryResult).isOverAllocated).toBeTruthy();
@@ -189,54 +172,47 @@ describe('species not found on fcc', () => {
   afterEach(()=>{
     jest.restoreAllMocks();
   })
-
   it('test 1', () => {
-    const documents:any = [
-      createDocument('12345',
-        'storageDocument',
+    const documents :any = [
+      createDocument('12345', 'processingStatement',
         [
-          { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: 'some scientific name', totalWeightLanded: 500, exportWeightBeforeProcessing: 100, exportWeightAfterProcessing: 5.22 },
-        ],
-        moments.utc('2019-01-01T00:00:00Z')
-      )]
-
-      documents[0].status = undefined
+          { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', totalWeightLanded: 500, exportWeightBeforeProcessing: 100 },
+        ],moments.utc('2019-01-01T00:00:00Z'))]
       documents[0].audit = [{
         eventType: 'PREAPPROVED',
         triggeredBy: 'test',
         data: []
       }]
-
-      const expected = [
-        {
-          catchCertificateNumber: undefined,
-          catchCertificateType: undefined,
-          commodityCode: undefined,
-          createdAt: '2019-01-01T00:00:00.000Z',
-          da: 'England',
-          documentNumber: '12345',
-          documentType: 'storageDocument',
-          isMismatch: false,
-          isOverAllocated: false,
-          overAllocatedByWeight: 0,
-          overUsedInfo: [],
-          scientificName: 'some scientific name',
-          species: undefined,
-          status: 'COMPLETE',
-          weightOnAllDocs: NaN,
-          weightOnDoc: NaN,
-          weightOnFCC: 0,
-        }
-      ]
+    const expected =   [
+      {
+        documentNumber: '12345',
+        status: 'COMPLETE',
+        documentType: 'processingStatement',
+        da: 'England',
+        species: 'cats',
+        scientificName: undefined,
+        catchCertificateNumber: 'FCC051',
+        catchCertificateType: 'uk',
+        commodityCode: 'N/A',
+        weightOnDoc: 100,
+        weightOnAllDocs: 100,
+        weightOnFCC: 500,
+        isOverAllocated: false,
+        overAllocatedByWeight: 0,
+        overUsedInfo: [],
+        isMismatch: false
+      }
+    ]
 
       const unwoundCatches = [
         {
           documentNumber: '12345',
-          createdAt: '2019-01-01T00:00:00.000Z',
           da: 'England',
           documentType: 'processingStatement',
           certificateNumber: 'FCC051',
           certificateType: 'uk',
+          createdAt: '2025-06-30T14:33:41.655Z',
+
           species: "abc",
           scientificName: 'some scientific name',
           commodityCode: 'N/A',
@@ -259,6 +235,7 @@ describe('species not found on fcc', () => {
 
     const actual = Array.from(res)
     .map((item: any) => {
+      delete item.createdAt;
       delete item.extended;
       return item
     })
@@ -267,14 +244,15 @@ describe('species not found on fcc', () => {
     foreignCatchCerts.next().value
 
     Query.unwindForeignCatchCerts(Array.from(foreignCatchCerts));
+    console.log(actual,"actual")
     expect(actual).toEqual(expected)
   });
   it('test 2', () => {
     const documents:any = [
       createDocument('12345',
-        'storageDocument',
+        'processingStatement',
         [
-          { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: 'some scientific name', totalWeightLanded: 500, exportWeightBeforeProcessing: 100, exportWeightAfterProcessing: 5.22 },
+          { catchCertificateNumber: 'FCC051', catchCertificateType: 'uk', species: 'cats', scientificName: undefined, totalWeightLanded: 500, exportWeightBeforeProcessing: 100, exportWeightAfterProcessing: undefined },
         ],
         moments.utc('2019-01-01T00:00:00Z')
       )]
@@ -286,27 +264,26 @@ describe('species not found on fcc', () => {
         data: []
       }]
 
-      const expected = [
-        {
-          catchCertificateNumber: undefined,
-          catchCertificateType: undefined,
-          commodityCode: undefined,
-          createdAt: '2019-01-01T00:00:00.000Z',
-          da: 'England',
-          documentNumber: '12345',
-          documentType: 'storageDocument',
-          isMismatch: false,
-          isOverAllocated: false,
-          overAllocatedByWeight: 0,
-          overUsedInfo: [],
-          scientificName: 'some scientific name',
-          species: undefined,
-          status: 'COMPLETE',
-          weightOnAllDocs: NaN,
-          weightOnDoc: NaN,
-          weightOnFCC: 0,
-        }
-      ]
+      const expected =   [
+      {
+        documentNumber: '12345',
+        status: 'COMPLETE',
+        documentType: 'processingStatement',
+        da: 'England',
+        species: 'cats',
+        scientificName: undefined,
+        catchCertificateNumber: 'FCC051',
+        catchCertificateType: 'uk',
+        commodityCode: 'N/A',
+        weightOnDoc: 100,
+        weightOnAllDocs: 100,
+        weightOnFCC: 500,
+        isOverAllocated: false,
+        overAllocatedByWeight: 0,
+        overUsedInfo: [],
+        isMismatch: false
+      }
+    ]
 
       const unwoundCatches = [
         {
@@ -339,6 +316,7 @@ describe('species not found on fcc', () => {
     const actual = Array.from(res)
     .map((item: any) => {
       delete item.extended;
+      delete item.createdAt;
       return item
     })
           
@@ -351,13 +329,9 @@ describe('species not found on fcc', () => {
   it('test 4', () => {
 
     const documents = [
-      createDocument('12345',
-        'storageDocument',
-        [
-          { certificateNumber: 'FCC051', certificateType: 'uk', product: 'cats', scientificName: "some scientific name 1", weightOnCC: 500.51, productWeight: 500.51, dateOfUnloading: "15/06/2020", placeOfUnloading: "Dover", transportUnloadedFrom: "BA078" },
-        ],
-        moments.utc('2019-01-01T00:00:00Z')
-      )]
+       createDocument('52345', 'processingStatement', [
+        { catchCertificateNumber: 'FCC061', catchCertificateType: 'uk', species: 'cats', totalWeightLanded: 500, exportWeightBeforeProcessing: 100}
+      ])]
 
     const fccIdx = {
       FCC051ats: {
@@ -384,7 +358,7 @@ describe('species not found on fcc', () => {
         return item
       })
 
-    expect(loggerErrorMock).toHaveBeenCalledWith(`[FOREIGN-CATCH-CERTS][ERROR]Unable to find [FCC051cats] in fccIdx`);
+    expect(loggerErrorMock).toHaveBeenCalledWith(`[FOREIGN-CATCH-CERTS][ERROR]Unable to find [FCC061cats] in fccIdx`);
   })
 });
 
@@ -450,3 +424,74 @@ describe('getLastAuditEvent', () => {
   });
 
 });
+describe('getWeightAfterProcess', () => {
+
+
+it('will unwind and map catches for a PS', () => {
+
+    const document = createDocument('12345',
+      'processingStatement',
+      [
+        { certificateNumber: 'FCC051', certificateType: 'uk', product: 'cats', scientificName: "some scientific name 1", weightOnCC: 500.51, productWeight: 500.51, dateOfUnloading: "15/06/2020", placeOfUnloading: "Dover", transportUnloadedFrom: "BA078", exportWeightAfterProcessing: 90.11  },
+        { certificateNumber: 'FCC051', certificateType: 'non_uk', product: 'dogs', scientificName: "some scientific name 2", weightOnCC: 500.51, productWeight: 200.29, dateOfUnloading: "15/06/2020", placeOfUnloading: "Hull", transportUnloadedFrom: "EF078" }
+      ]
+    )
+
+    const expected = [
+      {
+        documentNumber: '12345',
+        status: 'COMPLETE',
+        da: 'England',
+        documentType: 'processingStatement',
+        certificateNumber: undefined,
+        certificateType: undefined,
+        species: undefined,
+        scientificName: 'some scientific name 1',
+        commodityCode: 'N/A',
+        weight: NaN,
+        weightOnCC: NaN,
+        weightAfterProcessing: 90.11,
+        extended: {
+          url: 'http://www.bob.com',
+          exporterCompanyName: undefined,
+          investigation: undefined,
+          voidedBy: undefined,
+          preApprovedBy: undefined,
+          id: undefined
+        }
+      },
+      {
+        documentNumber: '12345',
+        status: 'COMPLETE',
+        da: 'England',
+        documentType: 'processingStatement',
+        certificateNumber: undefined,
+        certificateType: undefined,
+        species: undefined,
+        scientificName: 'some scientific name 2',
+        commodityCode: 'N/A',
+        weight: NaN,
+        weightOnCC: NaN,
+        weightAfterProcessing: undefined,
+        extended: {
+          url: 'http://www.bob.com',
+          exporterCompanyName: undefined,
+          investigation: undefined,
+          voidedBy: undefined,
+          preApprovedBy: undefined,
+          id: undefined
+        }
+      }
+    ]
+
+    const res = Query.unwindAndMapCatches(document, identity)
+    .map((item: any) => {
+      delete item.createdAt;
+      return item
+    })
+    expect(res).toEqual(expected)
+
+  })
+
+});
+

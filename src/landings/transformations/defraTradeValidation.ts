@@ -1,13 +1,12 @@
 import { ICcQueryResult, IDocument, IDynamicsLanding, Product, toDefraCcLandingStatus, IDefraTradeLanding, IDefraTradeCatchCertificate, CertificateStatus } from "mmo-shared-reference-data";
-import { CertificateAuthority, CertificateStorageFacility, CertificateTransport } from "../../types/defraValidation";
+import { CertificateAuthority, CertificateTransport } from "../../types/defraValidation";
 import { IDynamicsCatchCertificateCase } from "../../types/dynamicsValidation";
 import { toLanding } from "./dynamicsValidation";
 import { Catch } from "../../types/document";
 import { ApplicationConfig } from "../../config";
 import { getTotalRiskScore, isHighRisk } from "../../data/risking";
-import {  IDynamicsStorageDocumentCase } from "../../types/dynamicsValidationSdPs";
 import { ISdPsQueryResult } from "../../types/query";
-import {  IDefraTradeSdPsStatus, IDefraTradeStorageDocument, IDefraTradeStorageDocumentProduct } from "../../types/defraTradeSdPsCase";
+import {  IDefraTradeSdPsStatus, IDynamicsProcessingStatementCase, IDefraTradeProcessingStatementCatch,IDefraTradeProcessingStatement} from "../../types/defraTradeSdPsCase";
 import moment from "moment";
 
 const TRANSPORT_VEHICLE_TRUCK  = 'truck';
@@ -159,67 +158,57 @@ export function toTransportation(transportation) : CertificateTransport {
         }
   }
 }
-
-export function toDefraTradeSdProduct(validatedSdProducts: ISdPsQueryResult): IDefraTradeStorageDocumentProduct {
+export function toDefraTradePsCatch(validatedPsCatches: ISdPsQueryResult): IDefraTradeProcessingStatementCatch {
   let status = IDefraTradeSdPsStatus.Success;
-  if (validatedSdProducts.isMismatch) {
+
+  if (validatedPsCatches.isMismatch) {
     status = IDefraTradeSdPsStatus.Weight
   }
-  if (validatedSdProducts.isOverAllocated) {
+
+  if (validatedPsCatches.isOverAllocated) {
     status = IDefraTradeSdPsStatus.Overuse
   }
+
   return {
-    foreignCatchCertificateNumber: validatedSdProducts.catchCertificateNumber,
-    species: validatedSdProducts.species,
-    id: validatedSdProducts.extended.id,
-    cnCode: validatedSdProducts.commodityCode,
-    scientificName: validatedSdProducts.scientificName,
-    importedWeight: validatedSdProducts.weightOnFCC,
-    exportedWeight: validatedSdProducts.weightOnDoc,
+    foreignCatchCertificateNumber: validatedPsCatches.catchCertificateNumber,
+    species: validatedPsCatches.species,
+    id: validatedPsCatches.extended.id,
+    cnCode: validatedPsCatches.commodityCode,
+    scientificName: validatedPsCatches.scientificName,
+    importedWeight: validatedPsCatches.weightOnFCC,
+    usedWeightAgainstCertificate: validatedPsCatches.weightOnDoc,
+    processedWeight: validatedPsCatches.weightAfterProcessing,
     validation: {
-      totalWeightExported: validatedSdProducts.weightOnAllDocs,
       status: status,
-      weightExceededAmount: validatedSdProducts.overAllocatedByWeight,
-      overuseInfo: validatedSdProducts.overUsedInfo.some(_ => _ !== validatedSdProducts.documentNumber)
-        ? validatedSdProducts.overUsedInfo.filter(_ => _ !== validatedSdProducts.documentNumber) : undefined
-    },
-    dateOfUnloading: moment(validatedSdProducts.dateOfUnloading, 'DD/MM/YYYY').format('YYYY-MM-DD'),
-    placeOfUnloading: validatedSdProducts.placeOfUnloading,
-    transportUnloadedFrom: validatedSdProducts.transportUnloadedFrom,
-  }
-}
-export const toDefraTradeProduct = (product: ISdPsQueryResult): IDefraTradeStorageDocumentProduct =>
-  toDefraTradeSdProduct(product);
-export function toDefraSdStorageFacility(sdStorageFacility): CertificateStorageFacility {
-  return sdStorageFacility ? {
-    name: sdStorageFacility.facilityName,
-    address: {
-      building_number: sdStorageFacility.facilityBuildingNumber,
-      sub_building_name: sdStorageFacility.facilitySubBuildingName,
-      building_name: sdStorageFacility.facilityBuildingName,
-      street_name: sdStorageFacility.facilityStreetName,
-      county: sdStorageFacility.facilityCounty,
-      country: sdStorageFacility.facilityCountry,
-      line1: sdStorageFacility.facilityAddressOne,
-      city: sdStorageFacility.facilityTownCity,
-      postCode: sdStorageFacility.facilityPostcode
+      totalUsedWeightAgainstCertificate: validatedPsCatches.weightOnAllDocs,
+      weightExceededAmount: validatedPsCatches.overAllocatedByWeight,
+      overuseInfo: validatedPsCatches.overUsedInfo.some(_ => _ !== validatedPsCatches.documentNumber)
+        ? validatedPsCatches.overUsedInfo.filter(_ => _ !== validatedPsCatches.documentNumber) : undefined
     }
-  } : undefined;
+  }
 }
 
-export const toDefraTradeSd = (document: IDocument, documentCase: IDynamicsStorageDocumentCase, sdQueryResults: ISdPsQueryResult[] | null): IDefraTradeStorageDocument => {
-  const transportation: CertificateTransport = toTransportation(document?.exportData?.transportation);
-  if (transportation) {
-    Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
-    transportation.exportDate = moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).isValid() ? moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).format('YYYY-MM-DD') : moment.utc().format('YYYY-MM-DD');
-  }
-  
-  return {
-    ...documentCase,
-    products: Array.isArray(sdQueryResults) ? sdQueryResults.map((_: ISdPsQueryResult) => toDefraTradeProduct(_)) : null,
-    storageFacilities: document?.exportData?.storageFacilities.map((_: CertificateStorageFacility) => toDefraSdStorageFacility(_)),
-    exportedTo: document?.exportData?.exportedTo,
-    transportation,
-    authority: toAuthority()
-  }
-};
+export const toDefraTradePs = (document: IDocument, processingStatementCase: IDynamicsProcessingStatementCase, psQueryResults: ISdPsQueryResult[] | null): IDefraTradeProcessingStatement => ({
+
+  ...processingStatementCase,
+  catches: Array.isArray(psQueryResults) ? psQueryResults.map((_: ISdPsQueryResult) =>
+    toDefraTradePsCatch(_)
+  ) : null,
+  exportedTo: document.exportData?.exportedTo,
+  plantAddress: {
+    line1: document.exportData?.plantAddressOne,
+    building_name: document.exportData?.plantBuildingName,
+    building_number: document.exportData?.plantBuildingNumber,
+    sub_building_name: document.exportData?.plantSubBuildingName,
+    street_name: document.exportData?.plantStreetName,
+    country: document.exportData?.plantCountry,
+    county: document.exportData?.plantCounty,
+    city: document.exportData?.plantTownCity,
+    postCode: document.exportData?.plantPostcode
+  },
+  plantApprovalNumber: document.exportData?.plantApprovalNumber,
+  plantDateOfAcceptance: moment(document.exportData?.dateOfAcceptance, 'DD/MM/YYYY').format('YYYY-MM-DD'),
+  healthCertificateNumber: document.exportData?.healthCertificateNumber,
+  healthCertificateDate: moment(document.exportData?.healthCertificateDate, ["DD/MM/YYYY", "DD/M/YYYY", "D/MM/YYYY", "D/M/YYYY"]).format('YYYY-MM-DD'),
+  authority: toAuthority()
+});

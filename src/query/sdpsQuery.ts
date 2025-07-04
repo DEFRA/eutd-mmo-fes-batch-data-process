@@ -77,9 +77,7 @@ export const getUnwoundForeignCatchCerts = (unwoundForeignCatchCerts: any[]) => 
 
 const getExtentedObject = (item) => {
   const newObj = <ISdPsQueryResult>{};
-  if (item.dateOfUnloading !== undefined) newObj.dateOfUnloading = item.dateOfUnloading;
-  if (item.placeOfUnloading !== undefined) newObj.placeOfUnloading = item.placeOfUnloading;
-  if (item.transportUnloadedFrom !== undefined) newObj.transportUnloadedFrom = item.transportUnloadedFrom;
+  if (item.weightAfterProcessing !== undefined) newObj.weightAfterProcessing = item.weightAfterProcessing;
   return newObj;
 }
 
@@ -109,20 +107,18 @@ export const unwindAndMapCatches = (doc: any, daLookup): IFlattenedCatch[] => {
 
     let specific
 
-    if (doc.__t === 'storageDocument'){            
+    if (doc.__t === 'processingStatement') {
       specific = {
-        documentType: 'storageDocument',
-        certificateNumber: cat.certificateNumber,
-        certificateType: cat.certificateType,
-        species: cat.product,
-        commodityCode: cat.commodityCode,
-        weight: parseFloat(cat.productWeight),
-        weightOnCC: getWeightOnCC(cat.weightOnCC),
-        dateOfUnloading: cat.dateOfUnloading,
-        placeOfUnloading: cat.placeOfUnloading,
-        transportUnloadedFrom: cat.transportUnloadedFrom,
-        scientificName: cat.scientificName
-      }      
+        documentType: 'processingStatement',
+        certificateNumber: cat.catchCertificateNumber,
+        certificateType: cat.catchCertificateType,
+        species: cat.species,
+        scientificName: cat.scientificName,
+        commodityCode: 'N/A',
+        weight: parseFloat(cat.exportWeightBeforeProcessing),
+        weightOnCC: parseFloat(cat.totalWeightLanded),
+        weightAfterProcessing: getWeightAfterProcess(cat.exportWeightAfterProcessing),
+      }
     }
 
     const extended = {
@@ -139,11 +135,11 @@ export const unwindAndMapCatches = (doc: any, daLookup): IFlattenedCatch[] => {
   })
 }
 
+const getWeightAfterProcess = (exportWeightAfterProcessing) => exportWeightAfterProcessing !== undefined ? parseFloat(exportWeightAfterProcessing) : undefined;
+
 const getDocStatus = (status) => !status ? 'COMPLETE' : status;
 
 const getDALookupDetails = (exporterDetails, daLookup) => exporterDetails ? daLookup(exporterDetails.postcode) : 'England';
-
-const getWeightOnCC = (weightOnCC) => weightOnCC ? parseFloat(weightOnCC) : 0;
 
 const getValidData = (value) => !value ? undefined : value;
 
