@@ -24,9 +24,17 @@ import logger from "../../src/logger";
 import { BlobServiceClient, BlockBlobClient, ContainerClient } from "@azure/storage-blob";
 import config from '../../src/config';
 import { ISdPsQueryResult } from "../../src/types/query";
-import { IDynamicsStorageDocumentCase, SdPsCaseTwoType, SdPsStatus } from "../../src/types/dynamicsValidationSdPs";
-import { IDefraTradeSdPsStatus, IDefraTradeStorageDocument } from "../../src/types/defraTradeSdPsCase";
+import { SdPsCaseTwoType, SdPsStatus } from "../../src/types/dynamicsValidationSdPs";
+import { IDefraTradeSdPsStatus ,IDefraTradeProcessingStatement} from "../../src/types/defraTradeSdPsCase";
+import {
+  type IDocument,
+} from "mmo-shared-reference-data";
+import { IDynamicsProcessingStatementCase } from "../../src/types/dynamicsSdPsCase";
 jest.mock("@azure/storage-blob");
+import appConfig from '../../src/config'
+import * as DefraMapper from "../../src/landings/transformations/defraTradeValidation";
+import * as Shared from "mmo-shared-reference-data";
+
 
 moment.suppressDeprecationWarnings = true;
 
@@ -2956,6 +2964,7 @@ describe("Report reSubmitted", () => {
   let mockToDynamicsCcCase;
 
   beforeEach(() => {
+    appConfig.runResubmitCcToTrade = true;
     mockGetCertificate = jest.spyOn(certificatePerstence, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
     mockToCCDefraTrade = jest.spyOn(report, 'reportCcToTrade');
     mockToDynamicsCcCase = jest.spyOn(dynamicsValidation, 'toDynamicsCcCase');
@@ -3123,7 +3132,7 @@ describe("Report reSubmitted", () => {
       mockLogError.mockRestore();
     });
 
-    it('all methods required by resendCcToTrade should be called with the correct data', async () => {
+    it('all methods required by resendCcToTradeDynamics should be called with the correct data', async () => {
       const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id', };
       const getCatchCertificate = {
         ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
@@ -3143,7 +3152,7 @@ describe("Report reSubmitted", () => {
       mockToCCDefraTrade.mockResolvedValue(undefined);
       mockGetCertificate.mockResolvedValue(getCatchCertificate);
 
-      await SUT.resendCcToTrade(data);
+      await SUT.resendCcToTradeDynamics(data);
 
       expect(data[0].extended.commodityCodeDescription).toBe('1234-description');
       expect(data[1].extended.commodityCodeDescription).toBe('blah blah');
@@ -3161,7 +3170,7 @@ describe("Report reSubmitted", () => {
         throw 'error';
       });
 
-      const caughtError = await SUT.resendCcToTrade(data).catch((err) => err)
+      const caughtError = await SUT.resendCcToTradeDynamics(data).catch((err) => err)
       expect(caughtError).toBe('error');
       expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][getCertificateByDocumentNumberWithNumberOfFailedAttempts][error]');
       expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][error]');
@@ -3184,13 +3193,46 @@ describe("Report reSubmitted", () => {
       mockToCCDefraTrade.mockResolvedValue(undefined);
       mockGetCertificate.mockResolvedValue(getCatchCertificate);
 
-      await SUT.resendCcToTrade(data);
+      await SUT.resendCcToTradeDynamics(data);
 
       expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][FAIL][X-CC-1][NO-EXPORTER-DETAILS]');
     });
+       it('should catch any errors thrown for PS', async () => {
+  const psQueryResultsnew: ISdPsQueryResult[] = [{
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: 'uk',
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 0,
+        da: 'England',
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      }];
+      mockGetCertificate.mockImplementation(() => {
+        throw 'error';
+      });
+
+      const caughtError = await SUT.resendPsToTradeDynamics(psQueryResultsnew).catch((err) => err)
+      expect(caughtError).toBe('error');
+      expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-PS-SUBMITTED][ERROR][error]');
+
+    });
   });
-  describe('when a SD is submitted', () => {
-    const certificateId = 'XXX-SD-XXX';
+   describe('when a PS is submitted', () => {
+    const certificateId = 'XXX-PS-XXX';
 
     let mockLogInfo;
     let mockLogError;
@@ -3200,7 +3242,7 @@ describe("Report reSubmitted", () => {
       mockLogInfo = jest.spyOn(logger, 'info');
       uuid.mockImplementation(() => 'some-uuid-correlation-id');
       mockLogError = jest.spyOn(logger, 'error');
-      mockDynamicsValidation = jest.spyOn(dynamicsValidation, 'toDynamicsSd');
+      mockDynamicsValidation = jest.spyOn(dynamicsValidation, 'toDynamicsPs');
     });
 
     it('will log if the referenced document can not be found', async () => {
@@ -3208,25 +3250,25 @@ describe("Report reSubmitted", () => {
 
       const input: any[] = [{ documentNumber: certificateId }];
 
-      await SUT.resendSdToTrade(input);
+      await SUT.resendPsToTradeDynamics(input);
 
       expect(mockLogInfo).toHaveBeenCalledTimes(3);
       expect(mockLogInfo).toHaveBeenNthCalledWith(
         2,
-        `[DATA-HUB][REPORT-SD-SUBMITTED][${certificateId}]`,
+        `[DATA-HUB][REPORT-PS-SUBMITTED][${certificateId}]`,
       );
       expect(mockLogInfo).toHaveBeenNthCalledWith(
         3,
-        `[DATA-HUB][REPORT-SD-SUBMITTED][${certificateId}][NOT-FOUND]`,
+        `[DATA-HUB][REPORT-PS-SUBMITTED][${certificateId}][NOT-FOUND]`,
       );
 
       expect(mockDynamicsValidation).not.toHaveBeenCalled();
     });
 
-    it('will call toDynamicsSd, and defraTrade if the document is found', async () => {
-      const exampleSd: shared.IDocument = {
+    it('will call toDynamicsPs, and defraTrade if the document is found', async () => {
+      const examplePs: shared.IDocument = {
         createdAt: new Date('2020-06-12T20:12:28.201Z'),
-        __t: 'storageDocument',
+        __t: 'processingStatement',
         createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
         createdByEmail: 'foo@foo.com',
         status: 'COMPLETE',
@@ -3301,7 +3343,7 @@ describe("Report reSubmitted", () => {
       };
 
       const input: ISdPsQueryResult = {
-        documentNumber: 'GBR-2020-SD-C90A88218',
+        documentNumber: 'GBR-2020-PS-C90A88218',
         catchCertificateNumber: 'SD2',
         documentType: 'SD',
         createdAt: '2020-01-01',
@@ -3318,7 +3360,7 @@ describe("Report reSubmitted", () => {
         overUsedInfo: [],
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         },
       };
 
@@ -3326,20 +3368,20 @@ describe("Report reSubmitted", () => {
         test: 'mapped',
         _correlationId: 'some-uuid-correlation-id',
       });
-      mockGetCertificate.mockResolvedValue(exampleSd);
-      await SUT.resendSdToTrade([input]);
+      mockGetCertificate.mockResolvedValue(examplePs);
+      await SUT.resendPsToTradeDynamics([input]);
 
       expect(mockLogInfo).toHaveBeenNthCalledWith(
         2,
-        `[DATA-HUB][REPORT-SD-SUBMITTED][GBR-2020-SD-C90A88218]`,
+        `[DATA-HUB][REPORT-PS-SUBMITTED][GBR-2020-PS-C90A88218]`,
       );
       expect(mockLogInfo).toHaveBeenNthCalledWith(
         3,
-        `[DATA-HUB][REPORT-SD-SUBMITTED][GBR-2020-SD-C90A88218][FOUND]`,
+        `[DATA-HUB][REPORT-PS-SUBMITTED][GBR-2020-PS-C90A88218][FOUND]`,
       );
       expect(mockDynamicsValidation).toHaveBeenCalledWith(
         [input],
-        exampleSd,
+        examplePs,
         'some-uuid-correlation-id',
       );
     });
@@ -3347,7 +3389,7 @@ describe("Report reSubmitted", () => {
     it('should catch any errors thrown', async () => {
       const error: Error = new Error('error');
       const input: ISdPsQueryResult = {
-        documentNumber: 'GBR-2020-SD-BA8A6BE06',
+        documentNumber: 'GBR-2020-PS-BA8A6BE06',
         catchCertificateNumber: 'PS2',
         documentType: 'PS',
         createdAt: '2020-01-01',
@@ -3373,16 +3415,19 @@ describe("Report reSubmitted", () => {
         throw error;
       });
 
-      const caughtError = await SUT.resendSdToTrade([input]).catch(
+      const caughtError = await SUT.resendPsToTradeDynamics([input]).catch(
         (err) => err,
       );
       expect(caughtError).toBe(error);
       expect(mockLogError).toHaveBeenNthCalledWith(
         1,
-        `[REREPORT-SD-SUBMITTED][ERROR][${error}]`,
+        `[REREPORT-PS-SUBMITTED][ERROR][${error}]`,
       );
     });
   });
+
+  
+
 });
 
 describe('azureTradeQueueEnabled Feature flag turned on', () => {
@@ -3395,7 +3440,6 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
   let mockGetVesselService;
   let mockPersistence;
   let mockLogError;
-  let mockLogInfo;
   
   beforeEach(() => {
     mockLogError = jest.spyOn(logger, 'error');
@@ -3403,7 +3447,6 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
     mockPersistence.mockResolvedValue(null);
     mockGetRssNumber = jest.spyOn(vessel, 'getRssNumber');
     mockGetRssNumber.mockReturnValue("C20415");
-    mockLogInfo = jest.spyOn(logger, 'info');
     mockGetVesselService = jest.spyOn(vessel, 'getVesselDetails');
     mockGetVesselService.mockReturnValue({
       fishingVesselName: "AGAN BORLOWEN",
@@ -4981,734 +5024,1163 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
     expect(dynamicsCatchCertificateCase).not.toHaveProperty('parentDocumentVoid');
   });
 
-  it('will add SD payload to the report queue with exportedTo NI', async () => {
-    const sd: shared.IDocument = {
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      status: 'COMPLETE',
-      createdAt: new Date('2020-06-24T10:39:32.000Z'),
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'storageDocument',
-      audit: [],
-      exportData: {
-        catches: [
-          {
-            product: 'Atlantic cod (COD)',
-            id: 'GBR-2023-SD-74EA9D198-1693931464',
-            commodityCode: '03089090',
-            certificateNumber: 'GBR-2023-CC-0123456789',
-            productWeight: '100',
-            dateOfUnloading: '05/09/2023',
-            placeOfUnloading: 'Dover',
-            transportUnloadedFrom: 'BA078',
-            weightOnCC: '100',
-            scientificName: 'Gadus morhua',
-            certificateType: 'non_uk',
-            _id: {
-              $oid: '64f757c8080a8629e4e64941',
-            },
-          },
-        ],
-        storageFacilities: [
-          {
-            facilityName: 'name',
-            facilityAddressOne: 'MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT',
-            facilityTownCity: 'NEWCASTLE UPON TYNE',
-            facilityPostcode: 'NE4 7YH',
-            facilitySubBuildingName: 'MMO SUB',
-            facilityBuildingNumber: '',
-            facilityBuildingName: 'LANCASTER HOUSE',
-            facilityStreetName: 'HAMPSHIRE COURT',
-            facilityCounty: 'TYNESIDE',
-            facilityCountry: 'ENGLAND',
-          },
-        ],
-        exporterDetails: {
-          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
-          accountId: '8504bf69-18f9-ec11-bb3d-000d3a2f806d',
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'Automation Testing Ltd',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: 'NE4 7YH',
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue:
-              'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-              'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-              'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-              'No',
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester',
-          },
-        },
-        exportedTo: {
-          officialCountryName: 'Northern Ireland',
-          isoCodeAlpha2: 'XI',
-          isoCodeAlpha3: null,
-          isoNumericCode: null,
-        },
-        transportation: {
-          exportedTo: {
-            officialCountryName: 'Northern Ireland',
-            isoCodeAlpha2: 'XI',
-            isoCodeAlpha3: null,
-            isoNumericCode: null,
-          },
-          vehicle: 'truck',
-          cmr: true,
-          exportDate: '05/09/2023',
-        },
-      },
-      userReference: 'some-reference',
-      documentUri: '_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf',
-    };
 
-    const sdCase: IDynamicsStorageDocumentCase = {
-      exporter: {
-        contactId: 'a contact id',
-        accountId: 'an account id',
-        dynamicsAddress: {
-          defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
-          defra_buildingname: 'Lancaster House',
-          defra_fromcompanieshouse: false,
-          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-            'No',
-          defra_postcode: 'NE4 7YJ',
-          defra_premises: '23',
-          defra_street: 'Newcastle upon Tyne',
-          defra_towntext: 'Newcastle upon Tyne',
-          _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-            'defra_Country',
-          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-            'defra_country',
-          _defra_country_value_OData_Community_Display_V1_FormattedValue:
-            'United Kingdom of Great Britain and Northern Ireland',
-        },
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
-        },
-      },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Northern Ireland',
-        isoCodeAlpha2: 'XI',
-      },
-      products: [
-        {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          isDocumentIssuedInUK: true,
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
-          validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
+    it('will not add PS payload when it contains a validation error', async () => {
+      const ps: any = { test: 'proccessing statement', documentNumber: 'document1' };
+      const mapped: any = { _correlationId: 'some-uuid-correlation-id' };
+      const psCase: IDynamicsProcessingStatementCase = {
+        "exporter": {
+          "contactId": "a contact id",
+          "accountId": "an account id",
+          "dynamicsAddress": {
+            "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+            "defra_buildingname": "Lancaster House",
+            "defra_fromcompanieshouse": false,
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+            "defra_postcode": "NE4 7YJ",
+            "defra_premises": "23",
+            "defra_street": "Newcastle upon Tyne",
+            "defra_towntext": "Newcastle upon Tyne",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
           },
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
         },
-      ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
-    };
-
-    const results: ISdPsQueryResult[] = [
-      {
-        documentNumber: 'GBR-2023-SD-74EA9D198',
-        status: 'COMPLETE',
-        documentType: 'storageDocument',
-        createdAt: '2023-09-05T16:31:16.000Z',
-        da: 'England',
-        species: 'Atlantic cod (COD)',
-        scientificName: 'Gadus morhua',
-        catchCertificateNumber: 'GBR-2023-CC-0123456789',
-        commodityCode: '03089090',
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-PS-234234-234-234",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGR"
+        },
+        "catches": [
+          {
+            "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+            "isDocumentIssuedInUK": true,
+            "id": "GBR-PS-234234-234-234-1234567890",
+            "species": "HER",
+            "cnCode": "324234324432234",
+            "scientificName": "scientific name",
+            "importedWeight": 500,
+            "usedWeightAgainstCertificate": 700,
+            "processedWeight": 800,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 700,
+              "weightExceededAmount": 300,
+              "overuseInfo": [
+                "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+              ]
+            }
+          },
+          {
+            "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-PS-234234-234-234-1234567890",
+            "species": "SAL",
+            "cnCode": "523842358",
+            "scientificName": "scientific name",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 150,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 200
+            }
+          }
+        ],
+        "da": "Northern Ireland",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "clonedFrom": "GBR-PS-234234-234-234",
+        "parentDocumentVoid": false
+      };
+  
+      const psQueryResults: ISdPsQueryResult[] = [{
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: 'uk',
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
         weightOnDoc: 100,
-        extended: {
-          url: '_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf',
-          exporterCompanyName: 'Automation Testing Ltd',
-          investigation: undefined,
-          voidedBy: undefined,
-          preApprovedBy: undefined,
-          id: 'GBR-2023-SD-74EA9D198-1693931464',
-        },
-        weightOnAllDocs: 400,
-        weightOnFCC: 100,
-        isOverAllocated: true,
-        overAllocatedByWeight: 300,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
         overUsedInfo: [],
         isMismatch: false,
-        dateOfUnloading: '05/09/2023',
-        placeOfUnloading: 'Dover',
-        transportUnloadedFrom: 'BA078',
-      },
-    ];
-
-    const sdBlockedResults: ISdPsQueryResult[] = [
-      {
-        documentNumber: 'GBR-2023-SD-74EA9D198',
-        status: 'BLOCKED',
-        documentType: 'storageDocument',
-        createdAt: '2023-09-05T16:31:16.000Z',
+        overAllocatedByWeight: 0,
         da: 'England',
-        species: 'Atlantic cod (COD)',
-        scientificName: 'Gadus morhua',
-        catchCertificateNumber: 'GBR-2023-CC-0123456789',
-        commodityCode: '03089090',
-        weightOnDoc: 100,
         extended: {
-          url: '_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf',
-          exporterCompanyName: 'Automation Testing Ltd',
-          investigation: undefined,
-          voidedBy: undefined,
-          preApprovedBy: undefined,
-          id: 'GBR-2023-SD-74EA9D198-1693931464',
+          id: 'PS2-1610018839',
+        }
+      }];
+  
+      const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradePs');
+      mockMapper.mockReturnValue(mapped);
+  
+      await SUT.reportPsToTrade(ps, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
+  
+      expect(mockPersistence).not.toHaveBeenCalled();
+      expect(mockLogError).toHaveBeenCalled();
+    });
+  
+    it('will add PS payload to the report queue', async () => {
+      const ps: IDocument = {
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "status": "COMPLETE",
+        "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+        "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+        "createdByEmail": "foo@foo.com",
+        "requestByAdmin": false,
+        "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
+        "__t": "processingStatement",
+        "audit": [],
+        "exportData": {
+          "catches": [
+            {
+              "catchCertificateNumber": "GBR-2023-CC-1975CB0F9",
+              "catchCertificateType": "non_uk",
+              "species": "Northern shortfin squid (SQI)",
+              "speciesCode": "SQI",
+              "id": "GBR-2023-CC-1975CB0F9-1692962600",
+              "totalWeightLanded": "80",
+              "exportWeightBeforeProcessing": "80",
+              "exportWeightAfterProcessing": "80",
+              "scientificName": "Illex illecebrosus",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9278"
+              }
+            }
+          ],
+          "products": [
+            {
+              "id": "GBR-2023-PS-6D2C91A0A-1692962523",
+              "commodityCode": "03021180",
+              "description": "something",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9279"
+              }
+            }
+          ],
+          "consignmentDescription": null,
+          "healthCertificateNumber": "20/2/123456",
+          "healthCertificateDate": "25/08/2023",
+          "exporterDetails": {
+            "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+            "buildingNumber": null,
+            "subBuildingName": "NATURAL ENGLAND",
+            "buildingName": "LANCASTER HOUSE",
+            "streetName": "HAMPSHIRE COURT",
+            "county": null,
+            "country": "United Kingdom of Great Britain and Northern Ireland",
+            "postcode": "NE4 7YH",
+            "townCity": "NEWCASTLE UPON TYNE",
+            "exporterCompanyName": "Automation Testing Ltd",
+            "_dynamicsAddress": {
+              "defra_uprn": "10091818796",
+              "defra_buildingname": "LANCASTER HOUSE",
+              "defra_subbuildingname": "NATURAL ENGLAND",
+              "defra_premises": null,
+              "defra_street": "HAMPSHIRE COURT",
+              "defra_locality": "NEWCASTLE BUSINESS PARK",
+              "defra_dependentlocality": null,
+              "defra_towntext": "NEWCASTLE UPON TYNE",
+              "defra_county": null,
+              "defra_postcode": "NE4 7YH",
+              "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+              "defra_internationalpostalcode": null,
+              "defra_fromcompanieshouse": false,
+              "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+              "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+              "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+              "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+              "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
+            },
+            "_dynamicsUser": {
+              "firstName": "Automation",
+              "lastName": "Tester"
+            }
+          },
+          "personResponsibleForConsignment": "Isaac",
+          "plantApprovalNumber": "1234",
+          "plantName": "name",
+          "plantAddressOne": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "plantSubBuildingName": "MMO SUB",
+          "plantBuildingName": "LANCASTER HOUSE",
+          "plantStreetName": "HAMPSHIRE COURT",
+          "plantCounty": "TYNESIDE",
+          "plantCountry": "ENGLAND",
+          "plantTownCity": "NEWCASTLE UPON TYNE",
+          "plantPostcode": "NE4 7YH",
+          "dateOfAcceptance": "25/08/2023",
+          "exportedTo": {
+            "officialCountryName": "France",
+            "isoCodeAlpha2": "FR",
+            "isoCodeAlpha3": "FRA",
+            "isoNumericCode": "250"
+          }
         },
-        weightOnAllDocs: 400,
-        weightOnFCC: 100,
-        isOverAllocated: true,
-        overAllocatedByWeight: 300,
+        "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
+      };
+  
+      const psCase: IDynamicsProcessingStatementCase = {
+        "exporter": {
+          "contactId": "a contact id",
+          "accountId": "an account id",
+          "dynamicsAddress": {
+            "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+            "defra_buildingname": "Lancaster House",
+            "defra_fromcompanieshouse": false,
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+            "defra_postcode": "NE4 7YJ",
+            "defra_premises": "23",
+            "defra_street": "Newcastle upon Tyne",
+            "defra_towntext": "Newcastle upon Tyne",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+          },
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
+        },
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGR"
+        },
+        "catches": [
+          {
+            "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-2023-PS-6D2C91A0A-1234567890",
+            "species": "HER",
+            "cnCode": "324234324432234",
+            "scientificName": "scientific name",
+            "importedWeight": 500,
+            "usedWeightAgainstCertificate": 700,
+            "processedWeight": 800,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 700,
+              "weightExceededAmount": 300,
+              "overuseInfo": [
+                "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+              ]
+            }
+          },
+          {
+            "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-PS-234234-234-234-1234567890",
+            "species": "SAL",
+            "cnCode": "523842358",
+            "scientificName": "scientific name",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 150,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 200
+            }
+          }
+        ],
+        "da": "Northern Ireland",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "clonedFrom": "GBR-PS-234234-234-234",
+        "parentDocumentVoid": false
+      };
+  
+      const body: IDefraTradeProcessingStatement = {
+        "exporter": {
+          "contactId": "a contact id",
+          "accountId": "an account id",
+          "dynamicsAddress": {
+            "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+            "defra_buildingname": "Lancaster House",
+            "defra_fromcompanieshouse": false,
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+            "defra_postcode": "NE4 7YJ",
+            "defra_premises": "23",
+            "defra_street": "Newcastle upon Tyne",
+            "defra_towntext": "Newcastle upon Tyne",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+          },
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
+        },
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName": "France",
+          "isoCodeAlpha2": "FR",
+          "isoCodeAlpha3": "FRA",
+          "isoNumericCode": "250"
+        },
+        "catches": [
+          {
+            "foreignCatchCertificateNumber": "PS2",
+            "id": "PS2-1610018839",
+            "species": "Atlantic cod (COD)",
+            "cnCode": "FRESHCOD",
+            "scientificName": "Gadus morhua",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 80,
+            "validation": {
+              "status": IDefraTradeSdPsStatus.Success,
+              "totalUsedWeightAgainstCertificate": 150,
+              "weightExceededAmount": 0,
+              "overuseInfo": undefined,
+            }
+          }
+        ],
+        "da": "Northern Ireland",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "plantAddress": {
+          "line1": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "building_name": "LANCASTER HOUSE",
+          "sub_building_name": "MMO SUB",
+          "street_name": "HAMPSHIRE COURT",
+          "country": "ENGLAND",
+          "county": "TYNESIDE",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "plantApprovalNumber": "1234",
+        "plantDateOfAcceptance": "2023-08-25",
+        "healthCertificateNumber": "20/2/123456",
+        "healthCertificateDate": "2023-08-25",
+        "authority": {
+          "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
+          "companyName": "Marine Management Organisation",
+          "address": {
+            "line1": "Lancaster House, Hampshire Court",
+            "building_name": "Lancaster House",
+            "street_name": "Hampshire Court",
+            "city": "Newcastle upon Tyne",
+            "postCode": "NE4 7YJ",
+            "country": "United Kingdom"
+          },
+          "tel": "0300 123 1032",
+          "email": "ukiuuslo@marinemanagement.org.uk",
+          "dateIssued": moment().format('YYYY-MM-DD')
+        }
+      };
+  
+      const psQueryResults: ISdPsQueryResult[] = [{
+        documentNumber: "GBR-2023-PS-6D2C91A0A",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: "non_uk",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
         overUsedInfo: [],
         isMismatch: false,
-        dateOfUnloading: '05/09/2023',
-        placeOfUnloading: 'Dover',
-        transportUnloadedFrom: 'BA078',
-      },
-    ];
-
-    const body: IDefraTradeStorageDocument = {
-      exporter: {
-        contactId: 'a contact id',
-        accountId: 'an account id',
-        dynamicsAddress: {
-          defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
-          defra_buildingname: 'Lancaster House',
-          defra_fromcompanieshouse: false,
-          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-            'No',
-          defra_postcode: 'NE4 7YJ',
-          defra_premises: '23',
-          defra_street: 'Newcastle upon Tyne',
-          defra_towntext: 'Newcastle upon Tyne',
-          _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-            'defra_Country',
-          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-            'defra_country',
-          _defra_country_value_OData_Community_Display_V1_FormattedValue:
-            'United Kingdom of Great Britain and Northern Ireland',
+        overAllocatedByWeight: 0,
+        da: 'England',
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      }];
+  
+      const expected: ServiceBusMessage = {
+        body,
+        messageId: expect.any(String),
+        correlationId: psCase._correlationId,
+        contentType: 'application/json',
+        applicationProperties: {
+          EntityKey: psCase.documentNumber,
+          PublisherId: 'FES',
+          OrganisationId: psCase.exporter.accountId || null,
+          UserId: psCase.exporter.contactId || null,
+          SchemaVersion: 2,
+          Type: "Internal",
+          Status: "COMPLETE",
+          TimestampUtc: expect.any(String)
         },
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
+        subject: shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED + '-GBR-2023-PS-6D2C91A0A'
+      };
+  
+      const psQueryResultsBlocked: ISdPsQueryResult[] = [{
+        documentNumber: "GBR-2023-PS-6D2C91A0A",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: "non_uk",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "BLOCKED",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 0,
+        da: 'England',
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      }];
+  
+      const expectedResult: ServiceBusMessage = {
+        body,
+        messageId: expect.any(String),
+        correlationId: psCase._correlationId,
+        contentType: 'application/json',
+        applicationProperties: {
+          EntityKey: psCase.documentNumber,
+          PublisherId: 'FES',
+          OrganisationId: psCase.exporter.accountId || null,
+          UserId: psCase.exporter.contactId || null,
+          SchemaVersion: 2,
+          Type: "Internal",
+          Status: "BLOCKED",
+          TimestampUtc: expect.any(String)
         },
-      },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Northern Ireland',
-        isoCodeAlpha2: 'XI',
-        isoCodeAlpha3: null,
-        isoNumericCode: null,
-      },
-      products: [
-        {
-          foreignCatchCertificateNumber: 'GBR-2023-CC-0123456789',
-          species: 'Atlantic cod (COD)',
-          id: 'GBR-2023-SD-74EA9D198-1693931464',
-          cnCode: '03089090',
-          scientificName: 'Gadus morhua',
-          importedWeight: 100,
-          exportedWeight: 100,
-          validation: {
-            totalWeightExported: 400,
-            status: IDefraTradeSdPsStatus.Overuse,
-            weightExceededAmount: 300,            
-          },
-          dateOfUnloading: '2023-09-05',
-          placeOfUnloading: 'Dover',
-          transportUnloadedFrom: 'BA078',
-        },
-      ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
-      storageFacilities: [
-        {
-          name: 'name',
-          address: {
-            building_number: '',
-            sub_building_name: 'MMO SUB',
-            building_name: 'LANCASTER HOUSE',
-            street_name: 'HAMPSHIRE COURT',
-            county: 'TYNESIDE',
-            country: 'ENGLAND',
-            line1: 'MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT',
-            city: 'NEWCASTLE UPON TYNE',
-            postCode: 'NE4 7YH',
-          },
-        },
-      ],
-      transportation: {
-        modeofTransport: 'truck',
-        hasRoadTransportDocument: true,
-        exportDate: '2023-09-05',
-      },
-      authority: {
-        name: 'Illegal Unreported and Unregulated (IUU) Fishing Team',
-        companyName: 'Marine Management Organisation',
-        address: {
-          line1: 'Lancaster House, Hampshire Court',
-          building_name: 'Lancaster House',
-          street_name: 'Hampshire Court',
-          city: 'Newcastle upon Tyne',
-          postCode: 'NE4 7YJ',
-          country: 'United Kingdom',
-        },
-        tel: '0300 123 1032',
-        email: 'ukiuuslo@marinemanagement.org.uk',
-        dateIssued: moment().format('YYYY-MM-DD'),
-      },
-    };
-
-    const expected: ServiceBusMessage = {
-      body,
-      messageId: expect.any(String),
-      correlationId: sdCase._correlationId,
-      contentType: 'application/json',
-      applicationProperties: {
-        EntityKey: sdCase.documentNumber,
-        PublisherId: 'FES',
-        OrganisationId: sdCase.exporter.accountId || null,
-        UserId: sdCase.exporter.contactId || null,
-        SchemaVersion: 2,
-        Type: 'Internal',
-        Status: 'COMPLETE',
-        TimestampUtc: expect.any(String),
-      },
-      subject:
-        shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED +
-        '-GBR-2023-SD-74EA9D198',
-    };
-
-    const expectedResults: ServiceBusMessage = {
-      body,
-      messageId: expect.any(String),
-      correlationId: sdCase._correlationId,
-      contentType: 'application/json',
-      applicationProperties: {
-        EntityKey: sdCase.documentNumber,
-        PublisherId: 'FES',
-        OrganisationId: sdCase.exporter.accountId || null,
-        UserId: sdCase.exporter.contactId || null,
-        SchemaVersion: 2,
-        Type: 'Internal',
-        Status: 'BLOCKED',
-        TimestampUtc: expect.any(String),
-      },
-      subject:
-        shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED +
-        '-GBR-2023-SD-74EA9D198',
-    };
-
-    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeSd');
-
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED,
-      sdCase,
-      results,
-    );
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED,
-      sdCase,
-      sdBlockedResults,
-    );
-
-    expect(mockMapper).toHaveBeenCalledWith(sd, sdCase, results);
-    expect(mockMapper).toHaveBeenCalledWith(sd, sdCase, sdBlockedResults);
-    expect(mockPersistence).toHaveBeenCalledWith(
-      'GBR-2023-SD-74EA9D198',
-      expected,
-      'AZURE_QUEUE_TRADE_CONNECTION_STRING',
-      'REPORT_QUEUE_TRADE',
-      false,
-    );
-    expect(mockPersistence).toHaveBeenCalledWith(
-      'GBR-2023-SD-74EA9D198',
-      expectedResults,
-      'AZURE_QUEUE_TRADE_CONNECTION_STRING',
-      'REPORT_QUEUE_TRADE',
-      false,
-    );
-    expect(mockLogInfo).toHaveBeenCalledWith(
-      `[DEFRA-TRADE-SD][DOCUMENT-NUMBER][GBR-2023-SD-74EA9D198][PAYLOAD][${JSON.stringify(body)}]`,
-    );
-  });
-
-  it('will add SD voided payload to the the report queue', async () => {
-    const sd: shared.IDocument = {
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      status: 'VOID',
-      createdAt: new Date('2020-06-24T10:39:32.000Z'),
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'storageDocument',
-      audit: [],
-      exportData: {
-        catches: [
-          {
-            product: 'Atlantic cod (COD)',
-            id: 'GBR-2023-SD-74EA9D198-1693931464',
-            commodityCode: '03089090',
-            certificateNumber: 'GBR-2023-CC-0123456789',
-            productWeight: '100',
-            dateOfUnloading: '05/09/2023',
-            placeOfUnloading: 'Dover',
-            transportUnloadedFrom: 'BA078',
-            weightOnCC: '100',
-            scientificName: 'Gadus morhua',
-            certificateType: 'non_uk',
-            _id: {
-              $oid: '64f757c8080a8629e4e64941',
+        subject: shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED + '-GBR-2023-PS-6D2C91A0A'
+      };
+  
+      const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradePs');
+  
+      await SUT.reportPsToTrade(ps, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
+      await SUT.reportPsToTrade(ps, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResultsBlocked);
+  
+      expect(mockMapper).toHaveBeenCalledWith(ps, psCase, psQueryResults);
+      expect(mockMapper).toHaveBeenCalledWith(ps, psCase, psQueryResultsBlocked);
+  
+      expect(mockPersistence).toHaveBeenCalledWith('GBR-2023-PS-6D2C91A0A', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+      expect(mockPersistence).toHaveBeenCalledWith('GBR-2023-PS-6D2C91A0A', expectedResult, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    });
+  
+    it('will add PS payload to the report queue for exportedTo with NI', async () => {
+      const ps: IDocument = {
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "status": "COMPLETE",
+        "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+        "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+        "createdByEmail": "foo@foo.com",
+        "requestByAdmin": false,
+        "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
+        "__t": "processingStatement",
+        "audit": [],
+        "exportData": {
+          "catches": [
+            {
+              "catchCertificateNumber": "GBR-2023-CC-1975CB0F9",
+              "catchCertificateType": "non_uk",
+              "species": "Northern shortfin squid (SQI)",
+              "speciesCode": "SQI",
+              "id": "GBR-2023-CC-1975CB0F9-1692962600",
+              "totalWeightLanded": "80",
+              "exportWeightBeforeProcessing": "80",
+              "exportWeightAfterProcessing": "80",
+              "scientificName": "Illex illecebrosus",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9278"
+              }
+            }
+          ],
+          "products": [
+            {
+              "id": "GBR-2023-PS-6D2C91A0A-1692962523",
+              "commodityCode": "03021180",
+              "description": "something",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9279"
+              }
+            }
+          ],
+          "consignmentDescription": null,
+          "healthCertificateNumber": "20/2/123456",
+          "healthCertificateDate": "25/08/2023",
+          "exporterDetails": {
+            "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+            "buildingNumber": null,
+            "subBuildingName": "NATURAL ENGLAND",
+            "buildingName": "LANCASTER HOUSE",
+            "streetName": "HAMPSHIRE COURT",
+            "county": null,
+            "country": "United Kingdom of Great Britain and Northern Ireland",
+            "postcode": "NE4 7YH",
+            "townCity": "NEWCASTLE UPON TYNE",
+            "exporterCompanyName": "Automation Testing Ltd",
+            "_dynamicsAddress": {
+              "defra_uprn": "10091818796",
+              "defra_buildingname": "LANCASTER HOUSE",
+              "defra_subbuildingname": "NATURAL ENGLAND",
+              "defra_premises": null,
+              "defra_street": "HAMPSHIRE COURT",
+              "defra_locality": "NEWCASTLE BUSINESS PARK",
+              "defra_dependentlocality": null,
+              "defra_towntext": "NEWCASTLE UPON TYNE",
+              "defra_county": null,
+              "defra_postcode": "NE4 7YH",
+              "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+              "defra_internationalpostalcode": null,
+              "defra_fromcompanieshouse": false,
+              "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+              "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+              "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+              "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+              "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
             },
+            "_dynamicsUser": {
+              "firstName": "Automation",
+              "lastName": "Tester"
+            }
           },
-        ],
-        storageFacilities: [
-          {
-            facilityName: 'name',
-            facilityAddressOne: 'MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT',
-            facilityTownCity: 'NEWCASTLE UPON TYNE',
-            facilityPostcode: 'NE4 7YH',
-            facilitySubBuildingName: 'MMO SUB',
-            facilityBuildingNumber: '',
-            facilityBuildingName: 'LANCASTER HOUSE',
-            facilityStreetName: 'HAMPSHIRE COURT',
-            facilityCounty: 'TYNESIDE',
-            facilityCountry: 'ENGLAND',
-          },
-        ],
-        exporterDetails: {
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'Automation Testing Ltd',
+          "personResponsibleForConsignment": "Isaac",
+          "plantApprovalNumber": "1234",
+          "plantName": "name",
+          "plantAddressOne": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "plantSubBuildingName": "MMO SUB",
+          "plantBuildingName": "LANCASTER HOUSE",
+          "plantStreetName": "HAMPSHIRE COURT",
+          "plantCounty": "TYNESIDE",
+          "plantCountry": "ENGLAND",
+          "plantTownCity": "NEWCASTLE UPON TYNE",
+          "plantPostcode": "NE4 7YH",
+          "dateOfAcceptance": "25/08/2023",
+          "exportedTo": {
+            "officialCountryName" : "Northern Ireland",
+            "isoCodeAlpha2" : "XI",
+            "isoCodeAlpha3" : null,
+            "isoNumericCode" : null
+          }
         },
-        exportedTo: {
-          officialCountryName: 'Afghanistan',
-          isoCodeAlpha2: 'AF',
-          isoCodeAlpha3: 'AFG',
-          isoNumericCode: '004',
-        },
-        transportation: {
-          exportedTo: {
-            officialCountryName: 'Afghanistan',
-            isoCodeAlpha2: 'AF',
-            isoCodeAlpha3: 'AFG',
-            isoNumericCode: '004',
-          },
-          vehicle: 'truck',
-          cmr: true,
-          exportDate: '05/09/2023',
-        },
-      },
-      userReference: 'some-reference',
-      documentUri: '_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf',
-    };
-
-    const sdCase: IDynamicsStorageDocumentCase = {
-      exporter: {
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
-        },
-      },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Nigeria',
-        isoCodeAlpha2: 'NG',
-        isoCodeAlpha3: 'NGR',
-      },
-      products: [
-        {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          isDocumentIssuedInUK: true,
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
-          validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
-          },
-        },
-      ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
-    };
-
-    const expected: ServiceBusMessage = {
-      body: expect.any(Object),
-      messageId: expect.any(String),
-      correlationId: sdCase._correlationId,
-      contentType: 'application/json',
-      applicationProperties: {
-        EntityKey: sdCase.documentNumber,
-        PublisherId: 'FES',
-        OrganisationId: sdCase.exporter.accountId || null,
-        UserId: sdCase.exporter.contactId || null,
-        SchemaVersion: 2,
-        Type: 'Internal',
-        Status: shared.CertificateStatus.VOID,
-        TimestampUtc: expect.any(String),
-      },
-      subject:
-        shared.MessageLabel.STORAGE_DOCUMENT_VOIDED + '-GBR-2023-SD-74EA9D198',
-    };
-
-    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeSd');
-
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_VOIDED,
-      sdCase,
-      null,
-    );
-
-    expect(mockMapper).toHaveBeenCalledWith(sd, sdCase, null);
-    expect(mockPersistence).toHaveBeenCalledWith(
-      'GBR-2023-SD-74EA9D198',
-      expected,
-      'AZURE_QUEUE_TRADE_CONNECTION_STRING',
-      'REPORT_QUEUE_TRADE',
-      false,
-    );
-  });
-
-  it('will add SD voided payload to the the report queue and verify sdQueryResults', async () => {
-    const sd: shared.IDocument = {
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      status: 'VOID',
-      createdAt: new Date('2020-06-24T10:39:32.000Z'),
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'storageDocument',
-      audit: [],
-      exportData: {
-        catches: [
-          {
-            product: 'Atlantic cod (COD)',
-            id: 'GBR-2023-SD-74EA9D198-1693931464',
-            commodityCode: '03089090',
-            certificateNumber: 'GBR-2023-CC-0123456789',
-            productWeight: '100',
-            dateOfUnloading: '05/09/2023',
-            placeOfUnloading: 'Dover',
-            transportUnloadedFrom: 'BA078',
-            weightOnCC: '100',
-            scientificName: 'Gadus morhua',
-            certificateType: 'non_uk',
-            _id: {
-              $oid: '64f757c8080a8629e4e64941',
+        "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
+      };
+         const ps2: IDocument = {
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "status": "COMPLETE",
+        "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+        "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+        "createdByEmail": "foo@foo.com",
+        "requestByAdmin": false,
+        "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
+        "__t": "processingStatement",
+        "audit": [],
+        "exportData": {
+          "catches": [
+            {
+              "catchCertificateNumber": "GBR-2023-CC-1975CB0F9",
+              "catchCertificateType": "non_uk",
+              "species": "Northern shortfin squid (SQI)",
+              "speciesCode": "SQI",
+              "id": "GBR-2023-CC-1975CB0F9-1692962600",
+              "totalWeightLanded": "80",
+              "exportWeightBeforeProcessing": "80",
+              "exportWeightAfterProcessing": "80",
+              "scientificName": "Illex illecebrosus",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9278"
+              }
+            }
+          ],
+          "products": [
+            {
+              "id": "GBR-2023-PS-6D2C91A0A-1692962523",
+              "commodityCode": "03021180",
+              "description": "something",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9279"
+              }
+            }
+          ],
+          "consignmentDescription": null,
+          "healthCertificateNumber": "20/2/123456",
+          "healthCertificateDate": "25/08/2023",
+          "exporterDetails": {
+            "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
+            "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+            "buildingNumber": null,
+            "subBuildingName": "NATURAL ENGLAND",
+            "buildingName": "LANCASTER HOUSE",
+            "streetName": "HAMPSHIRE COURT",
+            "county": null,
+            "country": "United Kingdom of Great Britain and Northern Ireland",
+            "postcode": "NE4 7YH",
+            "townCity": "NEWCASTLE UPON TYNE",
+            "exporterCompanyName": "Automation Testing Ltd",
+            "_dynamicsAddress": {
+              "defra_uprn": "10091818796",
+              "defra_buildingname": "LANCASTER HOUSE",
+              "defra_subbuildingname": "NATURAL ENGLAND",
+              "defra_premises": null,
+              "defra_street": "HAMPSHIRE COURT",
+              "defra_locality": "NEWCASTLE BUSINESS PARK",
+              "defra_dependentlocality": null,
+              "defra_towntext": "NEWCASTLE UPON TYNE",
+              "defra_county": null,
+              "defra_postcode": "NE4 7YH",
+              "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+              "defra_internationalpostalcode": null,
+              "defra_fromcompanieshouse": false,
+              "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
+              "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
+              "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+              "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+              "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
             },
+            "_dynamicsUser": {
+              "firstName": "Automation",
+              "lastName": "Tester"
+            }
           },
-        ],
-        storageFacilities: [
+          "personResponsibleForConsignment": "Isaac",
+          "plantApprovalNumber": "1234",
+          "plantName": "name",
+          "plantAddressOne": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "plantSubBuildingName": "MMO SUB",
+          "plantBuildingName": "LANCASTER HOUSE",
+          "plantStreetName": "HAMPSHIRE COURT",
+          "plantCounty": "TYNESIDE",
+          "plantCountry": "ENGLAND",
+          "plantTownCity": "NEWCASTLE UPON TYNE",
+          "plantPostcode": "NE4 7YH",
+          "dateOfAcceptance": "25/08/2023",
+
+        },
+        "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
+      };
+  
+      const psCase: IDynamicsProcessingStatementCase = {
+        "exporter": {
+          "contactId": "a contact id",
+          "accountId": "an account id",
+          "dynamicsAddress": {
+            "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+            "defra_buildingname": "Lancaster House",
+            "defra_fromcompanieshouse": false,
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+            "defra_postcode": "NE4 7YJ",
+            "defra_premises": "23",
+            "defra_street": "Newcastle upon Tyne",
+            "defra_towntext": "Newcastle upon Tyne",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+          },
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
+        },
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName" : "Northern Ireland",
+          "isoCodeAlpha2" : "XI",
+        },
+        "catches": [
           {
-            facilityName: 'name',
-            facilityAddressOne: 'MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT',
-            facilityTownCity: 'NEWCASTLE UPON TYNE',
-            facilityPostcode: 'NE4 7YH',
-            facilitySubBuildingName: 'MMO SUB',
-            facilityBuildingNumber: '',
-            facilityBuildingName: 'LANCASTER HOUSE',
-            facilityStreetName: 'HAMPSHIRE COURT',
-            facilityCounty: 'TYNESIDE',
-            facilityCountry: 'ENGLAND',
+            "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-2023-PS-6D2C91A0A-1234567890",
+            "species": "HER",
+            "cnCode": "324234324432234",
+            "scientificName": "scientific name",
+            "importedWeight": 500,
+            "usedWeightAgainstCertificate": 700,
+            "processedWeight": 800,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 700,
+              "weightExceededAmount": 300,
+              "overuseInfo": [
+                "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+              ]
+            }
           },
+          {
+            "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-PS-234234-234-234-1234567890",
+            "species": "SAL",
+            "cnCode": "523842358",
+            "scientificName": "scientific name",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 150,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 200
+            }
+          }
         ],
-        exporterDetails: {
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'Automation Testing Ltd',
-        },
-        exportedTo: {
-          officialCountryName: 'Afghanistan',
-          isoCodeAlpha2: 'AF',
-          isoCodeAlpha3: 'AFG',
-          isoNumericCode: '004',
-        },
-        transportation: {
-          exportedTo: {
-            officialCountryName: 'Afghanistan',
-            isoCodeAlpha2: 'AF',
-            isoCodeAlpha3: 'AFG',
-            isoNumericCode: '004',
+        "da": "Northern Ireland",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "clonedFrom": "GBR-PS-234234-234-234",
+        "parentDocumentVoid": false
+      };
+  
+      const body: IDefraTradeProcessingStatement = {
+        "exporter": {
+          "contactId": "a contact id",
+          "accountId": "an account id",
+          "dynamicsAddress": {
+            "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+            "defra_buildingname": "Lancaster House",
+            "defra_fromcompanieshouse": false,
+            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+            "defra_postcode": "NE4 7YJ",
+            "defra_premises": "23",
+            "defra_street": "Newcastle upon Tyne",
+            "defra_towntext": "Newcastle upon Tyne",
+            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
           },
-          vehicle: 'truck',
-          cmr: true,
-          exportDate: '05/09/2023',
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
         },
-      },
-      userReference: 'some-reference',
-      documentUri: '_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf',
-    };
-
-    const sdCase: IDynamicsStorageDocumentCase = {
-      exporter: {
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName" : "Northern Ireland",
+          "isoCodeAlpha2" : "XI",
+          "isoCodeAlpha3": null,
+          "isoNumericCode": null
         },
-      },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-2023-SD-74EA9D198',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Nigeria',
-        isoCodeAlpha2: 'NG',
-        isoCodeAlpha3: 'NGR',
-      },
-      products: [
-        {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          isDocumentIssuedInUK: true,
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
-          validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
+        "catches": [
+          {
+            "foreignCatchCertificateNumber": "PS2",
+            "id": "PS2-1610018839",
+            "species": "Atlantic cod (COD)",
+            "cnCode": "FRESHCOD",
+            "scientificName": "Gadus morhua",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 80,
+            "validation": {
+              "status": IDefraTradeSdPsStatus.Success,
+              "totalUsedWeightAgainstCertificate": 150,
+              "weightExceededAmount": 0,
+              "overuseInfo": undefined,
+            }
+          }
+        ],
+        "da": "Northern Ireland",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "plantAddress": {
+          "line1": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "building_name": "LANCASTER HOUSE",
+          "sub_building_name": "MMO SUB",
+          "street_name": "HAMPSHIRE COURT",
+          "country": "ENGLAND",
+          "county": "TYNESIDE",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH"
+        },
+        "plantApprovalNumber": "1234",
+        "plantDateOfAcceptance": "2023-08-25",
+        "healthCertificateNumber": "20/2/123456",
+        "healthCertificateDate": "2023-08-25",
+        "authority": {
+          "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
+          "companyName": "Marine Management Organisation",
+          "address": {
+            "line1": "Lancaster House, Hampshire Court",
+            "building_name": "Lancaster House",
+            "street_name": "Hampshire Court",
+            "city": "Newcastle upon Tyne",
+            "postCode": "NE4 7YJ",
+            "country": "United Kingdom"
           },
+          "tel": "0300 123 1032",
+          "email": "ukiuuslo@marinemanagement.org.uk",
+          "dateIssued": moment().format('YYYY-MM-DD')
+        }
+      };
+  
+      const psQueryResults: ISdPsQueryResult[] = [{
+        documentNumber: "GBR-2023-PS-6D2C91A0A",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: "non_uk",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 0,
+        da: 'England',
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      }];
+  
+      const expected: ServiceBusMessage = {
+        body,
+        messageId: expect.any(String),
+        correlationId: psCase._correlationId,
+        contentType: 'application/json',
+        applicationProperties: {
+          EntityKey: psCase.documentNumber,
+          PublisherId: 'FES',
+          OrganisationId: psCase.exporter.accountId || null,
+          UserId: psCase.exporter.contactId || null,
+          SchemaVersion: 2,
+          Type: "Internal",
+          Status: "COMPLETE",
+          TimestampUtc: expect.any(String)
         },
-      ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
-    };
+        subject: shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED + '-GBR-2023-PS-6D2C91A0A'
+      };
+  
+      const psQueryResultsBlocked: ISdPsQueryResult[] = [{
+        documentNumber: "GBR-2023-PS-6D2C91A0A",
+        catchCertificateNumber: "PS2",
+        catchCertificateType: "non_uk",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "BLOCKED",
+        species: "Atlantic cod (COD)",
+        scientificName: "Gadus morhua",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 150,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        overUsedInfo: [],
+        isMismatch: false,
+        overAllocatedByWeight: 0,
+        da: 'England',
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      }];
+  
+      const expectedResult: ServiceBusMessage = {
+        body,
+        messageId: expect.any(String),
+        correlationId: psCase._correlationId,
+        contentType: 'application/json',
+        applicationProperties: {
+          EntityKey: psCase.documentNumber,
+          PublisherId: 'FES',
+          OrganisationId: psCase.exporter.accountId || null,
+          UserId: psCase.exporter.contactId || null,
+          SchemaVersion: 2,
+          Type: "Internal",
+          Status: "BLOCKED",
+          TimestampUtc: expect.any(String)
+        },
+        subject: shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED + '-GBR-2023-PS-6D2C91A0A'
+      };
+  
+      const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradePs');
+  
+      await SUT.reportPsToTrade(ps, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
+      await SUT.reportPsToTrade(ps2, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
+      await SUT.reportPsToTrade(ps, shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResultsBlocked);
+  
+      expect(mockMapper).toHaveBeenCalledWith(ps, psCase, psQueryResults);
+      expect(mockMapper).toHaveBeenCalledWith(ps2, psCase, psQueryResults);
+      expect(mockMapper).toHaveBeenCalledWith(ps, psCase, psQueryResultsBlocked);
+  
+      expect(mockPersistence).toHaveBeenCalledWith('GBR-2023-PS-6D2C91A0A', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+      expect(mockPersistence).toHaveBeenCalledWith('GBR-2023-PS-6D2C91A0A', expectedResult, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    });
+  
+    it('will add PS voided payload to the the report queue', async () => {
+  
+      const psVoided: IDocument = {
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "status": "VOID",
+        "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+        "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+        "createdByEmail": "foo@foo.com",
+        "requestByAdmin": false,
+        "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
+        "__t": "processingStatement",
+        "audit": [],
+        "exportData": {
+          "catches": [
+            {
+              "foreignCatchCertificateNumber": "PS2",
+              "id": "PS2-1610018839",
+              "species": "Atlantic cod (COD)",
+              "cnCode": "FRESHCOD",
+              "scientificName": "Gadus morhua",
+              "importedWeight": 200,
+              "usedWeightAgainstCertificate": 100,
+              "processedWeight": 80,
+              "validation": {
+                "status": SdPsStatus.Success,
+                "totalUsedWeightAgainstCertificate": 150,
+                "weightExceededAmount": 0,
+                "overuseInfo": undefined,
+              }
+            }
+          ],
+          "products": [
+            {
+              "id": "GBR-2023-PS-6D2C91A0A-1692962523",
+              "commodityCode": "03021180",
+              "description": "something",
+              "_id": {
+                "$oid": "64e88f2814ee5ab32f4a9279"
+              }
+            }
+          ],
+          "consignmentDescription": null,
+          "healthCertificateNumber": "20/2/123456",
+          "healthCertificateDate": "25/08/2023",
+          "exporterDetails": {
+            "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
+            "buildingNumber": null,
+            "subBuildingName": "NATURAL ENGLAND",
+            "buildingName": "LANCASTER HOUSE",
+            "streetName": "HAMPSHIRE COURT",
+            "county": null,
+            "country": "United Kingdom of Great Britain and Northern Ireland",
+            "postcode": "NE4 7YH",
+            "townCity": "NEWCASTLE UPON TYNE",
+            "exporterCompanyName": "Automation Testing Ltd"
+          },
+          "personResponsibleForConsignment": "Isaac",
+          "plantApprovalNumber": "1234",
+          "plantName": "name",
+          "plantAddressOne": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
+          "plantSubBuildingName": "MMO SUB",
+          "plantBuildingName": "LANCASTER HOUSE",
+          "plantStreetName": "HAMPSHIRE COURT",
+          "plantCounty": "TYNESIDE",
+          "plantCountry": "ENGLAND",
+          "plantTownCity": "NEWCASTLE UPON TYNE",
+          "plantPostcode": "NE4 7YH",
+          "dateOfAcceptance": "25/08/2023",
+        },
+        "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
+      };
+  
+      const psCase: IDynamicsProcessingStatementCase = {
+        "exporter": {
+          "companyName": "FISH LTD",
+          "address": {
+            "building_number": "123",
+            "sub_building_name": "Unit 1",
+            "building_name": "CJC Fish Ltd",
+            "street_name": "17  Old Edinburgh Road",
+            "county": "West Midlands",
+            "country": "England",
+            "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+            "city": "ROWTR",
+            "postCode": "WN90 23A"
+          }
+        },
+        "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+        "documentDate": "2019-01-01 05:05:05",
+        "caseType1": "PS",
+        "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+        "numberOfFailedSubmissions": 4,
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "plantName": "Bob's Fisheries LTD",
+        "personResponsible": "Mr. Bob",
+        "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+        "exportedTo": {
+          "officialCountryName": "Nigeria",
+          "isoCodeAlpha2": "NG",
+          "isoCodeAlpha3": "NGR"
+        },
+        "catches": [
+          {
+            "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-2023-PS-6D2C91A0A-1234567890",
+            "species": "HER",
+            "cnCode": "324234324432234",
+            "scientificName": "scientific name",
+            "importedWeight": 500,
+            "usedWeightAgainstCertificate": 700,
+            "processedWeight": 800,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 700,
+              "weightExceededAmount": 300,
+              "overuseInfo": [
+                "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+              ]
+            }
+          },
+          {
+            "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+            "isDocumentIssuedInUK": false,
+            "id": "GBR-PS-234234-234-234-1234567890",
+            "species": "SAL",
+            "cnCode": "523842358",
+            "scientificName": "scientific name",
+            "importedWeight": 200,
+            "usedWeightAgainstCertificate": 100,
+            "processedWeight": 150,
+            "validation": {
+              "status": SdPsStatus.Overuse,
+              "totalUsedWeightAgainstCertificate": 200
+            }
+          }
+        ],
+        "da": "Northern Ireland",
+        "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+        "requestedByAdmin": true,
+        "clonedFrom": "GBR-PS-234234-234-234",
+        "parentDocumentVoid": false
+      };
+  
+      const expected: ServiceBusMessage = {
+        body: expect.any(Object),
+        messageId: expect.any(String),
+        correlationId: psCase._correlationId,
+        contentType: 'application/json',
+        applicationProperties: {
+          EntityKey: psCase.documentNumber,
+          PublisherId: 'FES',
+          OrganisationId: psCase.exporter.accountId || null,
+          UserId: psCase.exporter.contactId || null,
+          SchemaVersion: 2,
+          Type: "Internal",
+          Status: shared.CertificateStatus.VOID,
+          TimestampUtc: expect.any(String)
+        },
+        subject: shared.MessageLabel.PROCESSING_STATEMENT_VOIDED + '-GBR-2023-PS-6D2C91A0A'
+      };
+  
+      const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradePs');
+  
+      await SUT.reportPsToTrade(psVoided, shared.MessageLabel.PROCESSING_STATEMENT_VOIDED, psCase, null)
+      expect(mockMapper).toHaveBeenCalledWith(psVoided, psCase, null)
+      expect(mockPersistence).toHaveBeenCalledWith('GBR-2023-PS-6D2C91A0A', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    })
 
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_VOIDED,
-      sdCase,
-      undefined,
-    );
-
-    expect(mockPersistence).toHaveBeenCalledTimes(1)
-  });
+  
+  
 });
 
 describe('azureTradeQueueEnabled feature flag turned off', () => {
@@ -5843,206 +6315,345 @@ describe('azureTradeQueueEnabled feature flag turned off', () => {
     expect(mockMapper).not.toHaveBeenCalled();
   });
 
-  it('will add SD payload without CHIP to the the report queue, when configuration is false', async () => {
-    const sd: any = { test: 'storage document', documentNumber: 'document1' };
+  it('will add PS payload without CHIP to the the report queue, when configuration is false', async () => {
+    const ps: any = { test: 'processing statement', documentNumber: 'document1' };
 
-    const mockMapper = jest.spyOn(defraTradeValidation, 'toDefraTradeSd');
-
-    const sdCase: IDynamicsStorageDocumentCase = {
-      exporter: {
-        contactId: 'a contact id',
-        accountId: 'an account id',
-        dynamicsAddress: {
-          defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
-          defra_buildingname: 'Lancaster House',
-          defra_fromcompanieshouse: false,
-          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-            'No',
-          defra_postcode: 'NE4 7YJ',
-          defra_premises: '23',
-          defra_street: 'Newcastle upon Tyne',
-          defra_towntext: 'Newcastle upon Tyne',
-          _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-            'defra_Country',
-          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-            'defra_country',
-          _defra_country_value_OData_Community_Display_V1_FormattedValue:
-            'United Kingdom of Great Britain and Northern Ireland',
+    const mockMapper = jest.spyOn(DefraMapper, 'toDefraTradePs');
+    const psCase: IDynamicsProcessingStatementCase = {
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
         },
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
-        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
       },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-SD-234234-234-234',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Nigeria',
-        isoCodeAlpha2: 'NG',
-        isoCodeAlpha3: 'NGR',
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Bob's Fisheries LTD",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR"
       },
-      products: [
+      "catches": [
         {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          isDocumentIssuedInUK: true,
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
-          validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
-          },
+          "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+          "isDocumentIssuedInUK": true,
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "HER",
+          "cnCode": "324234324432234",
+          "scientificName": "scientific name",
+          "importedWeight": 500,
+          "usedWeightAgainstCertificate": 700,
+          "processedWeight": 800,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 700,
+            "weightExceededAmount": 300,
+            "overuseInfo": [
+              "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+            ]
+          }
         },
+        {
+          "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+          "isDocumentIssuedInUK": false,
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "SAL",
+          "cnCode": "523842358",
+          "scientificName": "scientific name",
+          "importedWeight": 200,
+          "usedWeightAgainstCertificate": 100,
+          "processedWeight": 150,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 200
+          }
+        }
       ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
+
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
     };
 
-    const sdCaseExpected: IDynamicsStorageDocumentCase = {
-      exporter: {
-        contactId: 'a contact id',
-        accountId: 'an account id',
-        dynamicsAddress: {
-          defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
-          defra_buildingname: 'Lancaster House',
-          defra_fromcompanieshouse: false,
-          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-            'No',
-          defra_postcode: 'NE4 7YJ',
-          defra_premises: '23',
-          defra_street: 'Newcastle upon Tyne',
-          defra_towntext: 'Newcastle upon Tyne',
-          _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-            'defra_Country',
-          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-            'defra_country',
-          _defra_country_value_OData_Community_Display_V1_FormattedValue:
-            'United Kingdom of Great Britain and Northern Ireland',
+    const psCaseExpected: IDynamicsProcessingStatementCase = {
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
         },
-        companyName: 'FISH LTD',
-        address: {
-          building_number: '123',
-          sub_building_name: 'Unit 1',
-          building_name: 'CJC Fish Ltd',
-          street_name: '17  Old Edinburgh Road',
-          county: 'West Midlands',
-          country: 'England',
-          line1: 'Vue Red',
-          city: 'ROWTR',
-          postCode: 'WN90 23A',
-        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
       },
-      documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
-      documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
-      numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-SD-234234-234-234',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Nigeria',
-        isoCodeAlpha2: 'NG',
-        isoCodeAlpha3: 'NGR',
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Bob's Fisheries LTD",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR"
       },
-      products: [
+      "catches": [
         {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
-          validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
-          },
+          "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "HER",
+          "cnCode": "324234324432234",
+          "scientificName": "scientific name",
+          "importedWeight": 500,
+          "usedWeightAgainstCertificate": 700,
+          "processedWeight": 800,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 700,
+            "weightExceededAmount": 300,
+            "overuseInfo": [
+              "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+            ]
+          }
         },
+        {
+          "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "SAL",
+          "cnCode": "523842358",
+          "scientificName": "scientific name",
+          "importedWeight": 200,
+          "usedWeightAgainstCertificate": 100,
+          "processedWeight": 150,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 200
+          }
+        }
       ],
-      da: 'Northern Ireland',
-      _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
+
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
     };
 
-    const sdQueryResults: ISdPsQueryResult[] = [
-      {
-        documentNumber: 'SD1',
-        catchCertificateNumber: 'SD2',
-        catchCertificateType: 'uk',
-        documentType: 'SD',
-        createdAt: '2020-01-01',
-        status: 'COMPLETE',
-        species: 'Atlantic cod (COD)',
-        scientificName: 'Gadus morhua',
-        commodityCode: 'FRESHCOD',
-        weightOnDoc: 100,
-        weightOnAllDocs: 150,
-        weightOnFCC: 200,
-        weightAfterProcessing: 80,
-        isOverAllocated: false,
-        overUsedInfo: [],
-        isMismatch: false,
-        overAllocatedByWeight: 0,
-        da: 'England',
-        extended: {
-          id: 'PS2-1610018839',
-        },
-      },
-    ];
+    const psQueryResults: ISdPsQueryResult[] = [{
+      documentNumber: "PS1",
+      catchCertificateNumber: "PS2",
+      catchCertificateType: "uk",
+      documentType: "PS",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      scientificName: "Gadus morhua",
+      commodityCode: "FRESHCOD",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      weightAfterProcessing: 80,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: 'England',
+      extended: {
+        id: 'PS2-1610018839',
+      }
+    }];
 
     const expected: ServiceBusMessage = {
-      body: sdCaseExpected,
-      subject: 'storage_document_submitted-document1',
-      sessionId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
+      body: psCaseExpected,
+      subject: 'processing_statement_submitted-document1',
+      sessionId: 'c03483ba-86ed-49be-ba9d-695ea27b3951'
     };
 
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED,
-      sdCase,
-      sdQueryResults,
-    );
+    await SUT.reportPsToTrade(ps, Shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
 
-    expect(mockLogInfo).toHaveBeenCalledWith(
-      `[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${sd.documentNumber}][CHIP-DISABLED]`,
-    );
-    expect(mockPersistence).toHaveBeenCalledWith(
-      'document1',
-      expected,
-      'AZURE_QUEUE_TRADE_CONNECTION_STRING',
-      'REPORT_QUEUE_TRADE',
-      false,
-    );
+    expect(mockLogInfo).toHaveBeenCalledWith(`[DEFRA-TRADE-PS][DOCUMENT-NUMBER][${ps.documentNumber}][CHIP-DISABLED]`);
+    expect(mockPersistence).toHaveBeenCalledWith('document1', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
     expect(mockMapper).not.toHaveBeenCalled();
   });
 
-  it('reportsdtotrade covering undefined', async () => {
-    const sd: any = { test: 'storage document', documentNumber: 'document1' };
+  it('Should covering reportsPs undefined', async () => {
+      const psVoided: IDocument = {
+        "documentNumber": "GBR-2023-PS-6D2C91A0A",
+        "status": "VOID",
+        "createdAt": new Date("2020-06-24T10:39:32.000Z"),
+        "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
+        "createdByEmail": "foo@foo.com",
+        "requestByAdmin": false,
+        "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
+        "__t": "processingStatement",
+        "audit": [],
+        "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
+      };
+  
+    const psCase: IDynamicsProcessingStatementCase = {
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
+      },
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Bob's Fisheries LTD",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR"
+      },
+      "catches": [
+        {
+          "foreignCatchCertificateNumber": "FR-PS-234234-23423-234234",
+          "isDocumentIssuedInUK": true,
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "HER",
+          "cnCode": "324234324432234",
+          "scientificName": "scientific name",
+          "importedWeight": 500,
+          "usedWeightAgainstCertificate": 700,
+          "processedWeight": 800,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 700,
+            "weightExceededAmount": 300,
+            "overuseInfo": [
+              "GBR-PS-123234-123-234”,”GBR-PS-123234-123-234"
+            ]
+          }
+        },
+        {
+          "foreignCatchCertificateNumber": "IRL-PS-4324-423423-234234",
+          "isDocumentIssuedInUK": false,
+          "id": "GBR-PS-234234-234-234-1234567890",
+          "species": "SAL",
+          "cnCode": "523842358",
+          "scientificName": "scientific name",
+          "importedWeight": 200,
+          "usedWeightAgainstCertificate": 100,
+          "processedWeight": 150,
+          "validation": {
+            "status": SdPsStatus.Overuse,
+            "totalUsedWeightAgainstCertificate": 200
+          }
+        }
+      ],
 
-    const sdCase: IDynamicsStorageDocumentCase = {
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
+    };
+
+
+    const psQueryResults: ISdPsQueryResult[] = [{
+      documentNumber: "PS1",
+      catchCertificateNumber: "PS2",
+      catchCertificateType: "uk",
+      documentType: "PS",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      scientificName: "Gadus morhua",
+      commodityCode: "FRESHCOD",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      weightAfterProcessing: 80,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: 'England',
+      extended: {
+        id: 'PS2-1610018839',
+      }
+    }];
+        const expected = {
       exporter: {
         contactId: 'a contact id',
         accountId: 'an account id',
@@ -6050,19 +6661,15 @@ describe('azureTradeQueueEnabled feature flag turned off', () => {
           defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
           defra_buildingname: 'Lancaster House',
           defra_fromcompanieshouse: false,
-          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue:
-            'No',
+          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No',
           defra_postcode: 'NE4 7YJ',
           defra_premises: '23',
           defra_street: 'Newcastle upon Tyne',
           defra_towntext: 'Newcastle upon Tyne',
           _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty:
-            'defra_Country',
-          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname:
-            'defra_country',
-          _defra_country_value_OData_Community_Display_V1_FormattedValue:
-            'United Kingdom of Great Britain and Northern Ireland',
+          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
+          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
+          _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland'
         },
         companyName: 'FISH LTD',
         address: {
@@ -6072,79 +6679,217 @@ describe('azureTradeQueueEnabled feature flag turned off', () => {
           street_name: '17  Old Edinburgh Road',
           county: 'West Midlands',
           country: 'England',
-          line1: 'Vue Red',
+          line1: '123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road',
           city: 'ROWTR',
-          postCode: 'WN90 23A',
-        },
+          postCode: 'WN90 23A'
+        }
       },
       documentUrl: 'http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf',
       documentDate: '2019-01-01 05:05:05',
-      caseType1: 'SD',
-      caseType2: SdPsCaseTwoType.RealTimeValidation_Overuse,
+      caseType1: 'PS',
+      caseType2: 'Real Time Validation - Overuse Failure',
       numberOfFailedSubmissions: 4,
-      documentNumber: 'GBR-SD-234234-234-234',
-      companyName: "Bob's Fisheries LTD",
-      exportedTo: {
-        officialCountryName: 'Nigeria',
-        isoCodeAlpha2: 'NG',
-        isoCodeAlpha3: 'NGR',
-      },
-      products: [
+      documentNumber: 'GBR-PS-234234-234-234',
+      plantName: "Bob's Fisheries LTD",
+      personResponsible: 'Mr. Bob',
+      processedFisheryProducts: 'Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),',
+      exportedTo: undefined,
+      catches: [
         {
-          id: 'some-product-id',
-          foreignCatchCertificateNumber: 'FR-SD-234234-23423-234234',
-          isDocumentIssuedInUK: true,
-          species: 'HER',
-          cnCode: '324234324432234',
-          scientificName: 'scientific name',
-          importedWeight: 500,
-          exportedWeight: 700,
+          foreignCatchCertificateNumber: 'PS2',
+          species: 'Atlantic cod (COD)',
+          id: 'PS2-1610018839',
+          cnCode: 'FRESHCOD',
+          scientificName: 'Gadus morhua',
+          importedWeight: 200,
+          usedWeightAgainstCertificate: 100,
+          processedWeight: 80,
           validation: {
-            status: SdPsStatus.Overuse,
-            totalWeightExported: 700,
-            weightExceededAmount: 200,
-            overuseInfo: ['GBR-SD-123234-123-234”,”GBR-SD-123234-123-234'],
-          },
-        },
+         "overuseInfo": undefined,
+         "status": "Validation Success",
+         "totalUsedWeightAgainstCertificate": 150,
+         "weightExceededAmount": 0,
+       },
+        }
       ],
       da: 'Northern Ireland',
       _correlationId: 'c03483ba-86ed-49be-ba9d-695ea27b3951',
-      requestedByAdmin: false,
+      requestedByAdmin: true,
+      plantAddress: {
+        line1: undefined,
+        building_name: undefined,
+        building_number: undefined,
+        sub_building_name: undefined,
+        street_name: undefined,
+        country: undefined,
+        county: undefined,
+        city: undefined,
+        postCode: undefined
+      },
+      plantApprovalNumber: undefined,
+      plantDateOfAcceptance: 'Invalid date',
+      healthCertificateNumber: undefined,
+      healthCertificateDate: 'Invalid date',
+      authority: {
+        name: 'Illegal Unreported and Unregulated (IUU) Fishing Team',
+        companyName: 'Marine Management Organisation',
+        address: {
+          line1: 'Lancaster House, Hampshire Court',
+          building_name: 'Lancaster House',
+          street_name: 'Hampshire Court',
+          city: 'Newcastle upon Tyne',
+          postCode: 'NE4 7YJ',
+          country: 'United Kingdom'
+        },
+        tel: '0300 123 1032',
+        email: 'ukiuuslo@marinemanagement.org.uk',
+        dateIssued: '2017-02-14'
+      }
+    }
+    const result = defraTradeValidation.toDefraTradePs(psVoided,psCase,psQueryResults)
+    expect(result).toEqual(expected)
+  });
+
+   it('Should have catches in Processing Certificate', async () => {
+    const ps: any = { test: 'processing statement', documentNumber: 'document1' };
+
+    const mockMapper = jest.spyOn(DefraMapper, 'toDefraTradePs');
+    const psCase: IDynamicsProcessingStatementCase = {
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
+        },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
+      },
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Bob's Fisheries LTD",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR"
+      },
+
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
     };
 
-    const sdQueryResults: ISdPsQueryResult[] = [
-      {
-        documentNumber: 'SD1',
-        catchCertificateNumber: 'SD2',
-        catchCertificateType: 'uk',
-        documentType: 'SD',
-        createdAt: '2020-01-01',
-        status: 'COMPLETE',
-        species: 'Atlantic cod (COD)',
-        scientificName: 'Gadus morhua',
-        commodityCode: 'FRESHCOD',
-        weightOnDoc: 100,
-        weightOnAllDocs: 150,
-        weightOnFCC: 200,
-        weightAfterProcessing: 80,
-        isOverAllocated: false,
-        overUsedInfo: [],
-        isMismatch: false,
-        overAllocatedByWeight: 0,
-        da: 'England',
-        extended: {
-          id: 'PS2-1610018839',
+    const psCaseExpected: IDynamicsProcessingStatementCase = {
+      "exporter": {
+        "contactId": "a contact id",
+        "accountId": "an account id",
+        "dynamicsAddress": {
+          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
+          "defra_buildingname": "Lancaster House",
+          "defra_fromcompanieshouse": false,
+          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
+          "defra_postcode": "NE4 7YJ",
+          "defra_premises": "23",
+          "defra_street": "Newcastle upon Tyne",
+          "defra_towntext": "Newcastle upon Tyne",
+          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
+          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
+          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
+          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
         },
+        "companyName": "FISH LTD",
+        "address": {
+          "building_number": "123",
+          "sub_building_name": "Unit 1",
+          "building_name": "CJC Fish Ltd",
+          "street_name": "17  Old Edinburgh Road",
+          "county": "West Midlands",
+          "country": "England",
+          "line1": "123 Unit 1 CJC Fish Ltd 17 Old Edinburgh Road",
+          "city": "ROWTR",
+          "postCode": "WN90 23A"
+        }
       },
-    ];
+      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
+      "documentDate": "2019-01-01 05:05:05",
+      "caseType1": "PS",
+      "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
+      "numberOfFailedSubmissions": 4,
+      "documentNumber": "GBR-PS-234234-234-234",
+      "plantName": "Bob's Fisheries LTD",
+      "personResponsible": "Mr. Bob",
+      "processedFisheryProducts": "Cooked Squid Rings (1605540090), Cooked Atlantic Cold Water Prawns (1605211096),",
+      "exportedTo": {
+        "officialCountryName": "Nigeria",
+        "isoCodeAlpha2": "NG",
+        "isoCodeAlpha3": "NGR"
+      },
 
-    await SUT.reportSdToTrade(
-      sd,
-      shared.MessageLabel.STORAGE_DOCUMENT_SUBMITTED,
-      {...sdCase, products: undefined},
-      sdQueryResults,
-    );
+      "da": "Northern Ireland",
+      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
+      "requestedByAdmin": true,
+    };
 
-    expect(mockPersistence).toHaveBeenCalled();
+    const psQueryResults: ISdPsQueryResult[] = [{
+      documentNumber: "PS1",
+      catchCertificateNumber: "PS2",
+      catchCertificateType: "uk",
+      documentType: "PS",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      scientificName: "Gadus morhua",
+      commodityCode: "FRESHCOD",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      weightAfterProcessing: 80,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: 'England',
+      extended: {
+        id: 'PS2-1610018839',
+      }
+    }];
+
+    const expected: ServiceBusMessage = {
+      body: psCaseExpected,
+      subject: 'processing_statement_submitted-document1',
+      sessionId: 'c03483ba-86ed-49be-ba9d-695ea27b3951'
+    };
+
+    await SUT.reportPsToTrade(ps, Shared.MessageLabel.PROCESSING_STATEMENT_SUBMITTED, psCase, psQueryResults);
+
+    expect(mockLogInfo).toHaveBeenCalledWith(`[DEFRA-TRADE-PS][DOCUMENT-NUMBER][${ps.documentNumber}][CHIP-DISABLED]`);
+    expect(mockPersistence).toHaveBeenCalledWith('document1', expected, 'AZURE_QUEUE_TRADE_CONNECTION_STRING', 'REPORT_QUEUE_TRADE', false);
+    expect(mockMapper).not.toHaveBeenCalled();
   });
 });

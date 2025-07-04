@@ -24,24 +24,24 @@ describe('scheduled jobs controller', () => {
     let mockRunExceeding14DayLandingsJob;
     let mockCurrentTime;
     let mockResetLandingStatusJob;
-    let mockResubmitCCToTrade;
-    let mockResubmitSDToTrade;
+    let mockResubmitCCPSToTradeDynamics;
+
 
     beforeEach(() => {
       mockRefreshRisking = jest.spyOn(cache, 'refreshRiskingData');
       mockRunJob = jest.spyOn(landingsUpdater, 'landingsAndReportingCron');
       mockRunExceeding14DayLandingsJob = jest.spyOn(landingsUpdater, 'exceeding14DayLandingsAndReportingCron');
       mockResetLandingStatusJob = jest.spyOn(landingsUpdater, 'resetLandingStatusJob');
-      mockResubmitCCToTrade = jest.spyOn(landingsUpdater, 'resubmitCCToTrade');
-      mockResubmitSDToTrade = jest.spyOn(landingsUpdater, 'resubmitSdToTrade');
+      mockResubmitCCPSToTradeDynamics = jest.spyOn(landingsUpdater, 'resubmitCCPSToTradeDynamics');
+
 
       mockRefreshRisking.mockResolvedValue(null);
       mockResetLandingStatusJob.mockResolvedValue(null);
       mockRunJob.mockResolvedValue(null);
       mockRunExceeding14DayLandingsJob.mockResolvedValue(null);
       mockResetLandingStatusJob.mockResolvedValue(null);
-      mockResubmitCCToTrade.mockResolvedValue(null);
-      mockResubmitSDToTrade.mockResolvedValue(null);
+      mockResubmitCCPSToTradeDynamics.mockResolvedValue(null);
+
 
       mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1693751375000); // Sunday, September 3, 2023 2:29:35 PM
     });
@@ -52,8 +52,7 @@ describe('scheduled jobs controller', () => {
       mockRunExceeding14DayLandingsJob.mockRestore();
       mockCurrentTime.mockRestore();
       mockResetLandingStatusJob.mockRestore();
-      mockResubmitCCToTrade.mockRestore();
-      mockResubmitSDToTrade.mockRestore();
+      mockResubmitCCPSToTradeDynamics.mockRestore();
     });
 
     it('will invoke the landings updater', async () => {
@@ -204,51 +203,27 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-    it('will invoke the Resubmit SD to Trade', async () => {
+        it('will invoke the Resubmit CCPS to Trade and Dynamics', async () => {
       await SUT.runLandingsAndReportingJob();
 
-      expect(mockResubmitSDToTrade).toHaveBeenCalled();
+      expect(mockResubmitCCPSToTradeDynamics).toHaveBeenCalled();
       expect(mockRunJob).toHaveBeenCalled();
       expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-    it('will catch errors from Resubmit SD to Trade', async () => {
+    it('will catch errors from Resubmit CCPS to Trade and Dynamics', async () => {
       const error = new Error('testing 123');
 
-      mockResubmitSDToTrade.mockRejectedValue(error);
+      mockResubmitCCPSToTradeDynamics.mockRejectedValue(error);
 
       await expect(SUT.runLandingsAndReportingJob()).resolves.toBe(undefined);
 
       expect(mockRunJob).toHaveBeenCalled();
       expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-SD-DEFRA-POSTCODE][ERROR][Error: testing 123]')
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will invoke the Resubmit CC to Trade', async () => {
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockResubmitCCToTrade).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will catch errors from Resubmit CC to Trade', async () => {
-      const error = new Error('testing 123');
-
-      mockResubmitCCToTrade.mockRejectedValue(error);
-
-      await expect(SUT.runLandingsAndReportingJob()).resolves.toBe(undefined);
-
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][Error: testing 123]')
+      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-PS-TO-TRADE-DYNAMICS][FAILED-TRADE-DYNAMICS-CC-PS][ERROR][Error: testing 123]')
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 

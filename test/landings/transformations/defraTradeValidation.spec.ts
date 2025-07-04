@@ -4,9 +4,8 @@ import * as vessel from "../../../src/data/vessel";
 import { ICcQueryResult, IDocument, InvestigationStatus, LandingRetrospectiveOutcomeType, LandingSources, DefraCcLandingStatusType, LevelOfRiskType, IDefraTradeCatchCertificate, LandingStatusType, CatchArea, CertificateStatus } from "mmo-shared-reference-data";
 import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../../src/types/dynamicsValidation";
 import { ISdPsQueryResult } from "../../../src/types/query";
-import { IDynamicsStorageDocumentCase, SdPsCaseTwoType, SdPsStatus } from "../../../src/types/dynamicsValidationSdPs";
-import { IDefraTradeSdPsStatus, IDefraTradeStorageDocument } from "../../../src/types/defraTradeSdPsCase";
-
+import {  SdPsStatus } from "../../../src/types/dynamicsValidationSdPs";
+import { IDefraTradeSdPsStatus } from "../../../src/types/defraTradeSdPsCase";
 describe('when transforming Catch Certificate data from IDocument, ICcQuery to IDefraTradeCatchCertificate', () => {
 
   const exampleCc: IDocument = {
@@ -3087,555 +3086,12 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
     });
   })
 });
-describe('when tranforming Storage Document data from IDocument to IDefraTradeStorageDocument', () => {
-
-  const exampleSd: IDocument = {
-    "createdAt": new Date("2020-06-24T10:39:32.000Z"),
-    "documentNumber": "GBR-2023-SD-74EA9D198",
-    "clonedFrom": "GBR-2023-SD-C3A82642B",
-    "parentDocumentVoid": false,
-    "status": "COMPLETE",
-    "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
-    "createdByEmail": "foo@foo.com",
-    "requestByAdmin": false,
-    "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
-    "__t": "storageDocument",
-    "audit": [],
-    "exportData": {
-      "catches": [
-        {
-          "product": "Atlantic cod (COD)",
-          "id": "GBR-2023-CC-0123456789-1693931464",
-          "commodityCode": "03089090",
-          "certificateNumber": "GBR-2023-CC-0123456789",
-          "productWeight": "100",
-          "dateOfUnloading": "05/09/2023",
-          "placeOfUnloading": "Dover",
-          "transportUnloadedFrom": "BA078",
-          "weightOnCC": "100",
-          "scientificName": "Gadus morhua",
-          "certificateType": "non_uk",
-        }
-      ],
-      "storageFacilities": [
-        {
-          "facilityName": "name",
-          "facilityAddressOne": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
-          "facilityTownCity": "NEWCASTLE UPON TYNE",
-          "facilityPostcode": "NE4 7YH",
-          "facilitySubBuildingName": "MMO SUB",
-          "facilityBuildingNumber": "",
-          "facilityBuildingName": "LANCASTER HOUSE",
-          "facilityStreetName": "HAMPSHIRE COURT",
-          "facilityCounty": "TYNESIDE",
-          "facilityCountry": "ENGLAND"
-        }
-      ],
-      "exporterDetails": {
-        "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
-        "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
-        "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
-        "buildingNumber": null,
-        "subBuildingName": "NATURAL ENGLAND",
-        "buildingName": "LANCASTER HOUSE",
-        "streetName": "HAMPSHIRE COURT",
-        "county": null,
-        "country": "United Kingdom of Great Britain and Northern Ireland",
-        "postcode": "NE4 7YH",
-        "townCity": "NEWCASTLE UPON TYNE",
-        "exporterCompanyName": "Automation Testing Ltd",
-        "_dynamicsAddress": {
-          "defra_uprn": "10091818796",
-          "defra_buildingname": "LANCASTER HOUSE",
-          "defra_subbuildingname": "NATURAL ENGLAND",
-          "defra_premises": null,
-          "defra_street": "HAMPSHIRE COURT",
-          "defra_locality": "NEWCASTLE BUSINESS PARK",
-          "defra_dependentlocality": null,
-          "defra_towntext": "NEWCASTLE UPON TYNE",
-          "defra_county": null,
-          "defra_postcode": "NE4 7YH",
-          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
-          "defra_internationalpostalcode": null,
-          "defra_fromcompanieshouse": false,
-          "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
-          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
-          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
-          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
-          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
-        },
-        "_dynamicsUser": {
-          "firstName": "Automation",
-          "lastName": "Tester"
-        }
-      },
-      "exportedTo": {
-        "officialCountryName": "Afghanistan",
-        "isoCodeAlpha2": "AF",
-        "isoCodeAlpha3": "AFG",
-        "isoNumericCode": "004"
-      },
-      "transportation": {
-        "exportedTo": {
-          "officialCountryName": "Afghanistan",
-          "isoCodeAlpha2": "AF",
-          "isoCodeAlpha3": "AFG",
-          "isoNumericCode": "004"
-        },
-        "vehicle": "truck",
-        "cmr": true,
-        "exportDate": "05/09/2023"
-      },
-      "transportations": [{
-        "id": '0',
-        "freightBillNumber": '0',
-        "vehicle": "truck",
-        "departurePlace": "Hull",
-        "nationalityOfVehicle": "",
-        "registrationNumber": "",
-        "exportedTo": {
-          "officialCountryName": "Nigeria",
-          "isoCodeAlpha2": "NG",
-          "isoCodeAlpha3": "NGA",
-          "isoNumericCode": "566"
-        },
-        "transportDocuments": [{
-          "name": "Invoice",
-          "reference": "INV001"
-        }]
-      }, {
-        "id": '0',
-        "freightBillNumber": '0',
-        "vehicle": "plane",
-        "departurePlace": "Hull",
-        "flightNumber": "",
-        "containerNumber": "",
-        "exportedTo": {
-          "officialCountryName": "Nigeria",
-          "isoCodeAlpha2": "NG",
-          "isoCodeAlpha3": "NGA",
-          "isoNumericCode": "566"
-        },
-        "transportDocuments": [{
-          "name": "Invoice",
-          "reference": "INV001"
-        }]
-      }, {
-        "id": '0',
-        "freightBillNumber": '0',
-        "vehicle": "train",
-        "departurePlace": "Hull",
-        "railwayBillNumber": "",
-        "exportedTo": {
-          "officialCountryName": "Nigeria",
-          "isoCodeAlpha2": "NG",
-          "isoCodeAlpha3": "NGA",
-          "isoNumericCode": "566"
-        },
-        "transportDocuments": [{
-          "name": "Invoice",
-          "reference": "INV001"
-        }]
-      }, {
-        "id": '0',
-        "freightBillNumber": '0',
-        "vehicle": "containerVessel",
-        "departurePlace": "Hull",
-        "vesselName": "",
-        "flagState": "",
-        "containerNumber": "",
-        "exportedTo": {
-          "officialCountryName": "Nigeria",
-          "isoCodeAlpha2": "NG",
-          "isoCodeAlpha3": "NGA",
-          "isoNumericCode": "566"
-        },
-        "transportDocuments": [{
-          "name": "Invoice",
-          "reference": "INV001"
-        }]
-      }, {
-        "id": '0',
-        "freightBillNumber": '0',
-        "vehicle": "unknown",
-        "departurePlace": "Hull",
-        "nationalityOfVehicle": "",
-        "registrationNumber": "",
-        "exportedTo": {
-          "officialCountryName": "Nigeria",
-          "isoCodeAlpha2": "NG",
-          "isoCodeAlpha3": "NGA",
-          "isoNumericCode": "566"
-        },
-        "transportDocuments": []
-      }
-      ],
-    },
-    "userReference": "some-reference",
-    "documentUri": "_ab830758-1c18-4dad-b756-e3dc10fe7efa.pdf"
-  };
-
-  const exampleSdQueryResult: ISdPsQueryResult[] = [{
-    documentNumber: '',
-    status: '',
-    documentType: '',
-    createdAt: '',
-    da: '',
-    species: 'Atlantic cod (COD)',
-    commodityCode: "03089090",
-    weightOnDoc: 100,
-    extended: {
-      id: 'GBR-2023-CC-0123456789-1693931464',
-    },
-    weightOnAllDocs: 100,
-    weightOnFCC: 100,
-    isOverAllocated: false,
-    overAllocatedByWeight: 100,
-    overUsedInfo: ["GBR-SD-123234-123-234”,”GBR-SD-123234-123-234"],
-    isMismatch: false,
-    dateOfUnloading: "25/08/2023",
-    placeOfUnloading: "Dover",
-    transportUnloadedFrom: "BA078",
-    catchCertificateNumber: 'GBR-2023-CC-0123456789',
-    scientificName: 'Gadus morhua'
-  }];
-
-  const exampleSdDynamicsCase: IDynamicsStorageDocumentCase = {
-    "exporter": {
-      "contactId": "a contact id",
-      "accountId": "an account id",
-      "dynamicsAddress": {
-        "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
-        "defra_buildingname": "Lancaster House",
-        "defra_fromcompanieshouse": false,
-        "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
-        "defra_postcode": "NE4 7YJ",
-        "defra_premises": "23",
-        "defra_street": "Newcastle upon Tyne",
-        "defra_towntext": "Newcastle upon Tyne",
-        "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
-        "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
-        "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
-        "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland"
-      },
-      "companyName": "FISH LTD",
-      "address": {
-        "building_number": "123",
-        "sub_building_name": "Unit 1",
-        "building_name": "CJC Fish Ltd",
-        "street_name": "17  Old Edinburgh Road",
-        "county": "West Midlands",
-        "country": "England",
-        "line1": "Vue Red",
-        "city": "ROWTR",
-        "postCode": "WN90 23A"
-      }
-    },
-    "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
-    "documentDate": "2019-01-01 05:05:05",
-    "caseType1": "SD",
-    "caseType2": SdPsCaseTwoType.RealTimeValidation_Overuse,
-    "numberOfFailedSubmissions": 4,
-    "documentNumber": "GBR-SD-234234-234-234",
-    "companyName": "Bob's Fisheries LTD",
-    "exportedTo": {
-      "officialCountryName": "Nigeria",
-      "isoCodeAlpha2": "NG",
-      "isoCodeAlpha3": "NGR"
-    },
-    "products": [
-      {
-        "id": "some-product-id",
-        "foreignCatchCertificateNumber": "FR-SD-234234-23423-234234",
-        "isDocumentIssuedInUK": false,
-        "species": "HER",
-        "cnCode": "324234324432234",
-        "scientificName": "scientific name",
-        "importedWeight": 500,
-        "exportedWeight": 700,
-        "validation": {
-          "status": SdPsStatus.Overuse,
-          "totalWeightExported": 700,
-          "weightExceededAmount": 200,
-          "overuseInfo": ["GBR-SD-123234-123-234”,”GBR-SD-123234-123-234"]
-
-        }
-      }
-    ],
-    "da": "Northern Ireland",
-    "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
-    "requestedByAdmin": false
-  };
-
-  it('will return an authority within the IDefraTradeStorageDocument payload', () => {
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(exampleSd, exampleSdDynamicsCase, exampleSdQueryResult);
-    const expected = {
-      name: "Illegal Unreported and Unregulated (IUU) Fishing Team",
-      companyName: "Marine Management Organisation",
-      address: {
-        line1: "Lancaster House, Hampshire Court",
-        building_name: "Lancaster House",
-        street_name: "Hampshire Court",
-        city: "Newcastle upon Tyne",
-        postCode: "NE4 7YJ",
-        country: "United Kingdom"
-      },
-      tel: "0300 123 1032",
-      email: "ukiuuslo@marinemanagement.org.uk",
-      dateIssued: moment().format('YYYY-MM-DD')
-    };
-
-    expect(result.authority).toStrictEqual(expected);
-  });
-
-  it('branch covering with no export data', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2025-04-29'))
-
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd({ ...exampleSd, exportData: undefined }, exampleSdDynamicsCase, exampleSdQueryResult);
-    expect(result).toStrictEqual({
-      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
-      "authority": {
-        "address": {
-          "building_name": "Lancaster House",
-          "city": "Newcastle upon Tyne",
-          "country": "United Kingdom",
-          "line1": "Lancaster House, Hampshire Court",
-          "postCode": "NE4 7YJ",
-          "street_name": "Hampshire Court",
-        },
-        "companyName": "Marine Management Organisation",
-        "dateIssued": "2025-04-29",
-        "email": "ukiuuslo@marinemanagement.org.uk",
-        "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
-        "tel": "0300 123 1032",
-      },
-      "caseType1": "SD",
-      "caseType2": "Real Time Validation - Overuse Failure",
-      "companyName": "Bob's Fisheries LTD",
-      "da": "Northern Ireland",
-      "documentDate": "2019-01-01 05:05:05",
-      "documentNumber": "GBR-SD-234234-234-234",
-      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
-      "exportedTo": undefined,
-      "exporter": {
-        "accountId": "an account id",
-        "address": {
-          "building_name": "CJC Fish Ltd",
-          "building_number": "123",
-          "city": "ROWTR",
-          "country": "England",
-          "county": "West Midlands",
-          "line1": "Vue Red",
-          "postCode": "WN90 23A",
-          "street_name": "17  Old Edinburgh Road",
-          "sub_building_name": "Unit 1",
-        },
-        "companyName": "FISH LTD",
-        "contactId": "a contact id",
-        "dynamicsAddress": {
-          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
-          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
-          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
-          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
-          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
-          "defra_buildingname": "Lancaster House",
-          "defra_fromcompanieshouse": false,
-          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
-          "defra_postcode": "NE4 7YJ",
-          "defra_premises": "23",
-          "defra_street": "Newcastle upon Tyne",
-          "defra_towntext": "Newcastle upon Tyne",
-        },
-      },
-      "numberOfFailedSubmissions": 4,
-      "products": [
-        {
-          "cnCode": "03089090",
-          "dateOfUnloading": "2023-08-25",
-          "exportedWeight": 100,
-          "foreignCatchCertificateNumber": "GBR-2023-CC-0123456789",
-          "id": "GBR-2023-CC-0123456789-1693931464",
-          "importedWeight": 100,
-          "placeOfUnloading": "Dover",
-          "scientificName": "Gadus morhua",
-          "species": "Atlantic cod (COD)",
-          "transportUnloadedFrom": "BA078",
-          "validation": {
-            "overuseInfo": [
-              "GBR-SD-123234-123-234”,”GBR-SD-123234-123-234",
-            ],
-            "status": "Validation Success",
-            "totalWeightExported": 100,
-            "weightExceededAmount": 100,
-          },
-        },
-      ],
-      "requestedByAdmin": false,
-      "storageFacilities": undefined,
-      "transportation": undefined,
-    })
-  })
-  it('branch covering with no document', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2025-04-29'))
-
-    const expected =
-    {
-      "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
-      "authority": {
-        "address": {
-          "building_name": "Lancaster House",
-          "city": "Newcastle upon Tyne",
-          "country": "United Kingdom",
-          "line1": "Lancaster House, Hampshire Court",
-          "postCode": "NE4 7YJ",
-          "street_name": "Hampshire Court",
-        },
-        "companyName": "Marine Management Organisation",
-        "dateIssued": "2025-04-29",
-        "email": "ukiuuslo@marinemanagement.org.uk",
-        "name": "Illegal Unreported and Unregulated (IUU) Fishing Team",
-        "tel": "0300 123 1032",
-      },
-      "caseType1": "SD",
-      "caseType2": "Real Time Validation - Overuse Failure",
-      "companyName": "Bob's Fisheries LTD",
-      "da": "Northern Ireland",
-      "documentDate": "2019-01-01 05:05:05",
-      "documentNumber": "GBR-SD-234234-234-234",
-      "documentUrl": "http://tst-gov.uk/asfd9asdfasdf0jsaf.pdf",
-      "exportedTo": undefined,
-      "exporter": {
-        "accountId": "an account id",
-        "address": {
-          "building_name": "CJC Fish Ltd",
-          "building_number": "123",
-          "city": "ROWTR",
-          "country": "England",
-          "county": "West Midlands",
-          "line1": "Vue Red",
-          "postCode": "WN90 23A",
-          "street_name": "17  Old Edinburgh Road",
-          "sub_building_name": "Unit 1",
-        },
-        "companyName": "FISH LTD",
-        "contactId": "a contact id",
-        "dynamicsAddress": {
-          "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
-          "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
-          "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
-          "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
-          "defra_addressid": "00185463-69c2-e911-a97a-000d3a2cbad9",
-          "defra_buildingname": "Lancaster House",
-          "defra_fromcompanieshouse": false,
-          "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No",
-          "defra_postcode": "NE4 7YJ",
-          "defra_premises": "23",
-          "defra_street": "Newcastle upon Tyne",
-          "defra_towntext": "Newcastle upon Tyne",
-        },
-      },
-      "numberOfFailedSubmissions": 4,
-      "products": [
-        {
-          "cnCode": "03089090",
-          "dateOfUnloading": "2023-08-25",
-          "exportedWeight": 100,
-          "foreignCatchCertificateNumber": "GBR-2023-CC-0123456789",
-          "id": "GBR-2023-CC-0123456789-1693931464",
-          "importedWeight": 100,
-          "placeOfUnloading": "Dover",
-          "scientificName": "Gadus morhua",
-          "species": "Atlantic cod (COD)",
-          "transportUnloadedFrom": "BA078",
-          "validation": {
-            "overuseInfo": [
-              "GBR-SD-123234-123-234”,”GBR-SD-123234-123-234",
-            ],
-            "status": "Validation Success",
-            "totalWeightExported": 100,
-            "weightExceededAmount": 100,
-          },
-        },
-      ],
-      "requestedByAdmin": false,
-      "storageFacilities": undefined,
-      "transportation": undefined,
-
-    }
-
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(undefined, exampleSdDynamicsCase, exampleSdQueryResult);
-    expect(result).toStrictEqual(expected)
-  })
-
-  it('will return a transport within the IDefraTradeStorageDocument payload', () => {
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(exampleSd, exampleSdDynamicsCase, exampleSdQueryResult);
-    const expected = {
-      modeofTransport: "truck",
-      hasRoadTransportDocument: true,
-      exportDate: '2023-09-05'
-    };
-
-    expect(result.transportation).toStrictEqual(expected);
-  });
-
-  it('will cover undefined part when sdStorageFacility is undefined', () => {
-    expect(SUT.toDefraSdStorageFacility(undefined)).toBeUndefined();
-  });
-  it('will return a storageFacilities within the IDefraTradeStorageDocument payload', () => {
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(exampleSd, exampleSdDynamicsCase, exampleSdQueryResult);
-    const expected = [
-      {
-        "name": "name",
-        "address": {
-          "line1": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
-          "sub_building_name": "MMO SUB",
-          "building_number": "",
-          "building_name": "LANCASTER HOUSE",
-          "street_name": "HAMPSHIRE COURT",
-          "city": "NEWCASTLE UPON TYNE",
-          "postCode": "NE4 7YH",
-          "county": "TYNESIDE",
-          "country": "ENGLAND"
-        }
-      }
-    ];
-
-    expect(result.storageFacilities).toStrictEqual(expected);
-  });
-
-  it('will return a products within the IDefraTradeStorageDocument payload', () => {
-    const result: IDefraTradeStorageDocument = SUT.toDefraTradeSd(exampleSd, exampleSdDynamicsCase, exampleSdQueryResult);
-    const expected = {
-      "id": "GBR-2023-CC-0123456789-1693931464",
-      "foreignCatchCertificateNumber": "GBR-2023-CC-0123456789",
-      "species": "Atlantic cod (COD)",
-      "cnCode": "03089090",
-      "scientificName": "Gadus morhua",
-      "importedWeight": 100,
-      "exportedWeight": 100,
-      "dateOfUnloading": "2023-08-25",
-      "placeOfUnloading": "Dover",
-      "transportUnloadedFrom": "BA078",
-      "validation": {
-        "status": SdPsStatus.Success,
-        "totalWeightExported": 100,
-        "weightExceededAmount": 100,
-        "overuseInfo": ["GBR-SD-123234-123-234”,”GBR-SD-123234-123-234"]
-      }
-    };
-
-    expect(result.products?.[0]).toStrictEqual(expected);
-  });
-
-});
-describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentProduct', () => {
+describe('When mapping from an ISdPsQueryResult to a IDefraTradeProcessingStatementCatch', () => {
   const input: ISdPsQueryResult = {
-    documentNumber: "SD1",
-    catchCertificateNumber: "SD2",
+    documentNumber: "PS1",
+    catchCertificateNumber: "PS2",
     catchCertificateType: "uk",
-    documentType: "SD",
+    documentType: "PS",
     createdAt: "2020-01-01",
     status: "COMPLETE",
     species: "Atlantic cod (COD)",
@@ -3651,58 +3107,92 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
     overAllocatedByWeight: 0,
     da: null,
     extended: {
-      id: 'SD2-1610018839',
+      id: 'PS2-1610018839',
     }
   };
 
   it('will map the foreignCatchCertificateNumber', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+    const result = SUT.toDefraTradePsCatch(input);
 
-    expect(result.foreignCatchCertificateNumber).toEqual("SD2");
+    expect(result.foreignCatchCertificateNumber).toEqual("PS2");
   });
 
   it('will map the species code', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+    const result = SUT.toDefraTradePsCatch(input);
 
     expect(result.species).toEqual("Atlantic cod (COD)");
   });
 
   it('will map the commodity code', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+    const result = SUT.toDefraTradePsCatch(input);
 
     expect(result.cnCode).toEqual("FRESHCOD");
   })
 
   it('will map the importedWeight', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+    const result = SUT.toDefraTradePsCatch(input);
 
     expect(result.importedWeight).toEqual(200);
   });
 
-  it('will map exportedWeight', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+  it('will map usedWeightAgainstCertificate', () => {
+    const result = SUT.toDefraTradePsCatch(input);
 
-    expect(result.exportedWeight).toEqual(100)
+    expect(result.usedWeightAgainstCertificate).toEqual(100)
+  });
+
+  it('will map processedWeight', () => {
+    const result = SUT.toDefraTradePsCatch(input);
+
+    expect(result.processedWeight).toEqual(80)
   });
 
   it('will map a scientific name', () => {
-    const result = SUT.toDefraTradeSdProduct(input);
+    const result = SUT.toDefraTradePsCatch(input);
 
     expect(result.scientificName).toBe("Gadus morhua");
   });
 
-  describe("The validation within IDynamicsStorageDocumentProduct", () => {
+  describe("The validation within IDynamicsProcessingStatementCatch", () => {
     it('will contain totalUsedWeightAgainstCertificate', () => {
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
-      expect(result.validation.totalWeightExported).toEqual(150)
+      expect(result.validation.totalUsedWeightAgainstCertificate).toEqual(150)
+    });
+
+    it('will highlight `Success` if there is no failure', () => {
+      const input: ISdPsQueryResult = {
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        documentType: "PS",
+        createdAt: "2020-01-01",
+        status: "COMPLETE",
+        species: "COD",
+        commodityCode: "FRESHCOD",
+        weightOnDoc: 100,
+        weightOnAllDocs: 100,
+        weightOnFCC: 200,
+        weightAfterProcessing: 80,
+        isOverAllocated: false,
+        isMismatch: false,
+        overAllocatedByWeight: 0,
+        overUsedInfo: [],
+        da: null,
+        extended: {
+          id: 'PS2-1610018839',
+        }
+      };
+
+      const result = SUT.toDefraTradePsCatch(input);
+
+      expect(result.validation.status).toEqual(SdPsStatus.Success)
     });
 
     it('will highlight when the failure reason is the weight', () => {
       const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
-        documentType: "SD",
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        documentType: "PS",
         createdAt: "2020-01-01",
         status: "COMPLETE",
         species: "COD",
@@ -3717,19 +3207,19 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
         overAllocatedByWeight: 0,
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         }
       };
 
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
-      expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Weight)
+      expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Weight);
     });
 
     it('will highlight when the failure reason is overuse', () => {
       const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
         documentType: "PS",
         createdAt: "2020-01-01",
         status: "COMPLETE",
@@ -3740,53 +3230,25 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
         weightOnFCC: 200,
         weightAfterProcessing: 80,
         isOverAllocated: true,
-        overUsedInfo: [],
         isMismatch: false,
         overAllocatedByWeight: 50,
+        overUsedInfo: [],
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         }
       };
 
-      const result = SUT.toDefraTradeSdProduct(input);
-
-      expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Overuse)
-    });
-
-    it('will highlight the weight exceeded amount when the failure reason is overuse', () => {
-      const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
-        documentType: "SD",
-        createdAt: "2020-01-01",
-        status: "COMPLETE",
-        species: "COD",
-        commodityCode: "FRESHCOD",
-        weightOnDoc: 100,
-        weightOnAllDocs: 150,
-        weightOnFCC: 200,
-        weightAfterProcessing: 80,
-        isOverAllocated: false,
-        overUsedInfo: [],
-        isMismatch: false,
-        overAllocatedByWeight: 50,
-        da: null,
-        extended: {
-          id: 'SD2-1610018839',
-        }
-      };
-
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
       expect(result.validation.weightExceededAmount).toEqual(50)
     });
 
-    it('will have over use array when the failure reason is overuse', () => {
+    it('will have the over use array when the failure reason is overuse', () => {
       const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
-        documentType: "SD",
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        documentType: "PS",
         createdAt: "2020-01-01",
         status: "COMPLETE",
         species: "COD",
@@ -3796,25 +3258,25 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
         weightOnFCC: 200,
         weightAfterProcessing: 80,
         isOverAllocated: false,
-        overUsedInfo: ["SD3"],
+        overUsedInfo: ["PS3"],
         isMismatch: false,
         overAllocatedByWeight: 50,
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         }
       };
 
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
-      expect(result.validation.overuseInfo).toEqual(["SD3"])
+      expect(result.validation.overuseInfo).toEqual(["PS3"])
     });
 
     it('will not have an overuse array when the failure overuse occurs on this document', () => {
       const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
-        documentType: "SD",
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        documentType: "PS",
         createdAt: "2020-01-01",
         status: "COMPLETE",
         species: "COD",
@@ -3824,25 +3286,25 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
         weightOnFCC: 200,
         weightAfterProcessing: 80,
         isOverAllocated: false,
-        overUsedInfo: ["SD1"],
+        overUsedInfo: ["PS1"],
         isMismatch: false,
         overAllocatedByWeight: 50,
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         }
       };
 
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
       expect(result.validation.overuseInfo).toBeUndefined();
     });
 
     it('will not include current document number in overuseInfo array when the failure overuse occurs on this document', () => {
       const input: ISdPsQueryResult = {
-        documentNumber: "SD1",
-        catchCertificateNumber: "SD2",
-        documentType: "SD",
+        documentNumber: "PS1",
+        catchCertificateNumber: "PS2",
+        documentType: "PS",
         createdAt: "2020-01-01",
         status: "COMPLETE",
         species: "COD",
@@ -3852,19 +3314,18 @@ describe('When mapping fron an ISdPsQueryResult to a IDefraTradeStorageDocumentP
         weightOnFCC: 200,
         weightAfterProcessing: 80,
         isOverAllocated: false,
-        overUsedInfo: ["SD1", "SD2"],
+        overUsedInfo: ["PS1", "PS2"],
         isMismatch: false,
         overAllocatedByWeight: 50,
         da: null,
         extended: {
-          id: 'SD2-1610018839',
+          id: 'PS2-1610018839',
         }
       };
 
-      const result = SUT.toDefraTradeSdProduct(input);
+      const result = SUT.toDefraTradePsCatch(input);
 
-      expect(result.validation.overuseInfo).toStrictEqual(["SD2"]);
+      expect(result.validation.overuseInfo).toStrictEqual(["PS2"]);
     });
   });
-
 });

@@ -1,7 +1,7 @@
 import moment from 'moment';
 import { missingLandingRefreshQuery, exceedingLimitLandingQuery } from "../query/ccQuery";
 import { getCatchCerts, getCertificateByDocumentNumber, upsertCertificate } from "../persistence/catchCerts";
-import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendCcToTrade, resendSdToTrade } from "../services/report.service";
+import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendCcToTradeDynamics, resendPsToTradeDynamics } from "../services/report.service";
 import { fetchRefereshLandings, updateConsolidateLandings } from '../services/landingConsolidate.service';
 import { fetchAndProcessNewLandings } from './landingsRefresh';
 import { getSpeciesAliases, getToLiveWeightFactor, getVesselsIdx, loadLandingReprocessData, updateLandingReprocessData } from "../data/cache";
@@ -28,8 +28,6 @@ import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
 import { ISdPsQueryResult } from '../types/query';
 import { sdpsQuery } from '../query/sdpsQuery';
-import { ICommodityCodeExtended } from '../types/species';
-import { commoditySearch } from '../data/species';
 
 export const getMissingLandingsArray = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
   const landingStatuses: LandingStatus[] = [LandingStatus.Pending];
@@ -100,14 +98,12 @@ export function uniquifyLandings(landingQuery: ILandingQueryWithIsLegallyDue[]):
   }, []);
 }
 
-export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Promise<void> => {
+export const processResubmitCCToTradeDynamics = async (certsToUpdate: IDocument[]): Promise<void> => {
   for (const certToUpdate of certsToUpdate) {
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
-
     let results: ICcQueryResult[] = [];
     const landings = _.flatten((getLandingsFromCatchCertificate(certToUpdate, true) || []));
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${landings.length}-DOCUMENT-LANDINGS][${certToUpdate.documentNumber}]`);
-
     if (landings.length) {
       const landingsByRss: ILandingQueryWithIsLegallyDue[] = uniquifyLandings(mapPlnLandingsToRssLandings(landings));
       logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][FOR][${JSON.stringify(landingsByRss)}]`);
@@ -119,90 +115,25 @@ export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Prom
       logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][NO-LANDINGS-FOUND][${certToUpdate.documentNumber}]`);
       continue;
     }
-
     if (results.length <= 0) {
       logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][NO-VALIDATIONS][${certToUpdate.documentNumber}]`);
       continue;
     }
-
-    await resendCcToTrade(results);
+    await resendCcToTradeDynamics(results);
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
-
-    const { exportData } = certToUpdate;
-    exportData.products.map((product: Product) => {
-      if (product.commodityCodeDescription === undefined) {
-        const commodityCode: ICommodityCodeExtended[] = commoditySearch(product.speciesCode, product.state.code, product.presentation.code);
-        const description: string | undefined = commodityCode.find((c: ICommodityCodeExtended) => c.code === product.commodityCode)?.description;
-        if (description) {
-          product.commodityCodeDescription = description;
-          logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][DESCRIPTION-UPDATED][${product.speciesId}][WITH][${description}]`);
-        }
-      }
-    });
-
-    await upsertCertificate(certToUpdate.documentNumber, { exportData });
-
     logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
 
-export const resubmitCCToTrade = async (): Promise<void> => {
-  try {
-    if (!appConfig.runResubmitCcToTrade) return;
-
-    const startDate = new Date(appConfig.runResubmitCcToTradeStartDate)
-    const query: FilterQuery<IDocumentModel> = {
-      __t: "catchCert",
-      "status":  DocumentStatuses.Complete,  
-      "createdAt": { "$gt": startDate },
-      "exportData.products": {
-        "$elemMatch": {
-          "commodityCodeDescription": { "$exists": false }
-        }
-      }
-    }
-
-    const certsToUpdate: IDocument[]  = await DocumentModel
-      .find(query, null, { timeout: true, lean: true })
-      .sort({ createdAt: -1 });
-
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][CERTS][LENGTH:${certsToUpdate.length}]`);
-    await processResubmitCCToTrade(certsToUpdate);
-
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][COMPLETE]`);
-  } catch (e) {
-    logger.error(`[RUN-RESUBMIT-TRADE-DOCUMENT][ERROR][${e}]`);
-  }
-}
-
-export const processResubmitSdToTrade = async (certsToUpdate: IDocument[]): Promise<void> => {
+export const processResubmitPSToTradeDynamics = async (certsToUpdate: IDocument[]): Promise<void> => {
   for (const certToUpdate of certsToUpdate) {
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
+    logger.info(`[RUN-RESUBMIT-PS-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
     let results: ISdPsQueryResult[] = [];
     results = Array.from(sdpsQuery([certToUpdate], postCodeToDa));
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
-    await resendSdToTrade(results);
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
-  }
-}
-
-export const resubmitSdToTrade = async (): Promise<void> => {
-  try {
-    if (!appConfig.runResubmitCcToTrade) return;
-    logger.info('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-CC][START]');
-    const query: FilterQuery<IDocumentModel> = {
-      'documentNumber': 'GBR-2024-SD-A7FE281B8',                          
-      'status': DocumentStatuses.Complete,      
-    }
-    const certsToUpdate: IDocument[] = await DocumentModel
-      .find(query, null, { timeout: true, lean: true })
-      .sort({ createdAt: -1 });
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERTS][LENGTH:${certsToUpdate.length}]`);
-    await processResubmitSdToTrade(certsToUpdate);
-    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][COMPLETE]`);
-  } catch (e) {
-    logger.error(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][ERROR][${e}]`);
+    logger.info(`[RUN-RESUBMIT-PS-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
+    await resendPsToTradeDynamics(results);
+    logger.info(`[RUN-RESUBMIT-PS-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
+    logger.info(`[RUN-RESUBMIT-PS-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
 
@@ -274,5 +205,35 @@ export const resetLandingStatusJob = async (): Promise<void> => {
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][REPROCESS-LANDINGS][REPROCESS-FILE-UPDATED]`);
   } catch (e) {
     logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][REPROCESS-LANDINGS][ERROR][${e}]`);
+  }
+}
+
+
+export const resubmitCCPSToTradeDynamics = async (): Promise<void> => {
+  try {
+    if (!appConfig.runResubmitCcToTrade) return;
+
+    const ccQuery: FilterQuery<IDocumentModel> = {
+      'documentNumber': 'GBR-2025-CC-BBE364112',
+      'status': DocumentStatuses.Complete,
+    }
+    const ccToUpdate: IDocument[] = await DocumentModel
+      .find(ccQuery, null, { timeout: true, lean: true })
+      .sort({ createdAt: -1 });
+    logger.info(`[RUN-RESUBMIT-CC-TRADE-DYNAMICS-DOCUMENT][CERTS][LENGTH:${ccToUpdate.length}]`);
+    await processResubmitCCToTradeDynamics(ccToUpdate);
+    
+    const psQuery: FilterQuery<IDocumentModel> = {
+      'documentNumber': 'GBR-2025-PS-EBDE87220',
+      'status': DocumentStatuses.Complete,
+    }
+    const psToUpdate: IDocument[] = await DocumentModel
+      .find(psQuery, null, { timeout: true, lean: true })
+      .sort({ createdAt: -1 });
+    logger.info(`[RUN-RESUBMIT-PS-TRADE-DYNAMICS-DOCUMENT][CERTS][LENGTH:${psToUpdate.length}]`);
+    await processResubmitPSToTradeDynamics(psToUpdate)
+    logger.info(`[RUN-RESUBMIT-TRADE-DYNAMICS-DOCUMENT][COMPLETE]`);
+  } catch (e) {
+    logger.error(`[RUN-RESUBMIT-TRADE-DYNAMICS-DOCUMENT][ERROR][${e}]`);
   }
 }

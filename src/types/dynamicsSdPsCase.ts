@@ -1,19 +1,5 @@
-import { ICountry } from "mmo-shared-reference-data";
 import { CertificateCompany } from "./defraValidation";
-
-export enum SdPsCaseTwoType {
-    RealTimeValidation_Success = 'Real Time Validation - Successful',
-    RealTimeValidation_Overuse = 'Real Time Validation - Overuse Failure',
-    RealTimeValidation_Weight = 'Real Time Validation - Weight Failure',
-    VoidByExporter = 'Void by an Exporter',
-    VoidByAdmin = 'Void by SMO/PMO'
-}
-
-export enum SdPsStatus {
-    Success = 'Validation Success',
-    Overuse = 'Overuse Failure',
-    Weight = 'Weight Failure'
-}
+import { ICountry } from 'mmo-shared-reference-data';
 export interface IDynamicsProcessingStatementCase {
     exporter: CertificateCompany;
     documentUrl: string;
@@ -32,8 +18,6 @@ export interface IDynamicsProcessingStatementCase {
     requestedByAdmin: boolean;
     clonedFrom?: string;
     parentDocumentVoid?: boolean;
-    companyName: string;
-
 }
 
 export interface IDynamicsProcessingStatementCatch {
@@ -56,3 +40,16 @@ export interface IDynamicsProcessingStatementValidation {
     overuseInfo?: string[];
 }
 
+export enum SdPsCaseTwoType {
+    RealTimeValidation_Success = 'Real Time Validation - Successful',
+    RealTimeValidation_Overuse = 'Real Time Validation - Overuse Failure',
+    RealTimeValidation_Weight = 'Real Time Validation - Weight Failure',
+    VoidByExporter = 'Void by an Exporter',
+    VoidByAdmin = 'Void by SMO/PMO'
+}
+
+export enum SdPsStatus {
+    Success = 'Validation Success',
+    Overuse = 'Overuse Failure',
+    Weight = 'Weight Failure'
+}

@@ -27,18 +27,19 @@ import { saveReportingValidation } from '../data/blob-storage';
 import logger from '../logger';
 import { ICommodityCodeExtended } from '../types/species';
 import { commoditySearch } from '../data/species';
-import { toDynamicsCcCase, toDynamicsSd } from '../landings/transformations/dynamicsValidation';
+import { toDynamicsCcCase, toDynamicsPs } from '../landings/transformations/dynamicsValidation';
 import { toLandings } from '../landings/transformations/defraValidation';
 import { IDynamicsCatchCertificateCase } from '../types/dynamicsValidation';
 import { Type } from '../types/defraTradeValidation';
-import { toDefraTradeCc, toDefraTradeSd } from '../landings/transformations/defraTradeValidation';
+import { toDefraTradeCc, toDefraTradePs } from '../landings/transformations/defraTradeValidation';
 import config from "../config";
 import { readFileSync } from 'fs';
 import path from 'path';
 import { getTotalRiskScore, isHighRisk } from '../data/risking';
 import { ISdPsQueryResult } from '../types/query';
-import {  IDefraTradeStorageDocument } from '../types/defraTradeSdPsCase';
-import {  IDynamicsStorageDocumentCase, IDynamicsStorageDocumentProduct } from '../types/dynamicsValidationSdPs';
+import { IDefraTradeProcessingStatement } from '../types/defraTradeSdPsCase';
+import { IDynamicsProcessingStatementCase, SdPsCaseTwoType } from '../types/dynamicsSdPsCase'
+import { IDynamicsProcessingStatementCatch } from '../types/dynamicsValidationSdPs';
 
 export const reportExceeding14DaysLandings = async (queryResults: ICcQueryResult[]): Promise<void> => {
   await reportLandings(queryResults, reportCc14DayLimitReached, '14-DAY-LIMIT-REACHED');
@@ -325,7 +326,7 @@ const getUpdatedValidationData = (ccValidationData: ICcQueryResult[]): ICcQueryR
   return ccValidationData;
 }
 
-const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
+const sendCctoTradeDynamics = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   let catchCertificate: IDocument
   const certificateId = ccValidationData[0].documentNumber;
   const correlationId = uuidv4();
@@ -356,124 +357,38 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
 
     logger.info(`[REREPORT-CC-SUBMITTED][GENERATED-CC][${certificateId}][${JSON.stringify(catchCertificate)}]`);
     await reportCcToTrade(catchCertificate, MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, getUpdatedValidationData(ccValidationData));
+
+    logger.info(`[CASE-MANAGEMENT-CC][DOCUMENT-NUMBER][${catchCertificate.documentNumber}][CORRELATION-ID][${correlationId}]`);
+    const message: ServiceBusMessage = {
+      body: dynamicsCatchCertificateCase,
+      subject: `${MessageLabel.CATCH_CERTIFICATE_SUBMITTED}-${catchCertificate.documentNumber}`,
+      sessionId: correlationId
+    };
+
+    await addToReportQueue(
+      catchCertificate.documentNumber,
+      message,
+      config.azureQueueUrl,
+      config.azureReportQueueName,
+      config.enableReportToQueue
+    );
+
   } else {
     logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
   }
 }
 
-export const resendCcToTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
+export const resendCcToTradeDynamics = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   try {
     logger.info(`[REPORT-CC-RESUBMITTED][ccValidationData][${ccValidationData.length}]`);
 
     if (ccValidationData.length > 0) {
-      await sendCctoTrade(ccValidationData);
+      await sendCctoTradeDynamics(ccValidationData);
     }
   } catch (e) {
     logger.error(`[REREPORT-CC-SUBMITTED][ERROR][${e}]`);
     throw e;
   }
-};
-
-export const resendSdToTrade = async (
-  ccValidationData: ISdPsQueryResult[],
-): Promise<void> => {
-  try {
-    logger.info(
-      `[REPORT-SD-RESUBMITTED][ccValidationData][${ccValidationData.length}]`,
-    );
-    if (ccValidationData.length > 0) {
-      await sendSdToTrade(ccValidationData);
-    }
-  } catch (e) {
-    logger.error(`[REREPORT-SD-SUBMITTED][ERROR][${e}]`);
-    throw e;
-  }
-};
-
-export const sendSdToTrade = async (sdpsValidationData: ISdPsQueryResult[]): Promise<void> => {
-  if (sdpsValidationData.length > 0) {
-    const certificateId = sdpsValidationData[0].documentNumber;
-    const correlationId = uuidv4();
-    logger.info(`[DATA-HUB][REPORT-SD-SUBMITTED][${certificateId}]`);
-    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId, "storageDocument");
-    
-    if (certificate?.documentNumber) {
-      logger.info(`[DATA-HUB][REPORT-SD-SUBMITTED][${certificateId}][FOUND]`);      
-      const storageDocumentCase: IDynamicsStorageDocumentCase = toDynamicsSd(sdpsValidationData, certificate, correlationId);
-      await reportSdToTrade(certificate, MessageLabel.STORAGE_DOCUMENT_SUBMITTED, storageDocumentCase, sdpsValidationData);      
-    }
-    else {
-      logger.info(`[DATA-HUB][REPORT-SD-SUBMITTED][${certificateId}][NOT-FOUND]`);
-    }
-  }
-};
-
-export const reportSdToTrade = async (storageDocument: IDocument, caselabel: MessageLabel, storageDocumentCase: IDynamicsStorageDocumentCase, sdQueryResults: ISdPsQueryResult[] | null): Promise<void> => {
-  delete storageDocumentCase.clonedFrom;
-  delete storageDocumentCase.parentDocumentVoid;
-  if (!config.azureTradeQueueEnabled) {
-    logger.info(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${storageDocument.documentNumber}][CHIP-DISABLED]`);
-    const message: ServiceBusMessage = {
-      body: {
-        ...storageDocumentCase,
-        products: storageDocumentCase.products ? storageDocumentCase.products.map((_: IDynamicsStorageDocumentProduct) => {
-          delete _['isDocumentIssuedInUK'];
-          return {
-            ..._,
-          }
-        }) : undefined
-      },
-      subject: `${caselabel}-${storageDocument.documentNumber}`,
-      sessionId: storageDocumentCase._correlationId
-    };
-    await addToReportQueue(
-      storageDocument.documentNumber,
-      message,
-      config.azureTradeQueueUrl,
-      config.azureReportTradeQueueName,
-      config.enableReportToQueue
-    );
-    return;
-  }
-  const sdDefraTrade: IDefraTradeStorageDocument = toDefraTradeSd(storageDocument, storageDocumentCase, sdQueryResults);
-  logger.info(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${storageDocument.documentNumber}][PAYLOAD][${JSON.stringify(sdDefraTrade)}]`);
-  const validate_sd_defra_trade = getValidator('StorageDocument.json')
-  const valid: boolean = validate_sd_defra_trade(sdDefraTrade);
-  if (!valid) {
-    logger.error(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${storageDocument.documentNumber}][INVALID-PAYLOAD][${JSON.stringify(validate_sd_defra_trade.errors)}]`);
-    return;
-  }
-  let status: CertificateStatus;
-  if (!Array.isArray(sdQueryResults)) {  
-    status = CertificateStatus.VOID
-  } else {    
-    status = sdQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
-  }
-  const messageId = uuidv4();
-  const message: ServiceBusMessage = {
-    body: sdDefraTrade,
-    messageId,
-    correlationId: sdDefraTrade._correlationId,
-    contentType: 'application/json',
-    applicationProperties: {
-      EntityKey: storageDocument.documentNumber,
-      PublisherId: 'FES',
-      OrganisationId: sdDefraTrade.exporter.accountId ?? null,
-      UserId: sdDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_sd_defra_trade.schema.properties.version.const),
-      Type: Type.INTERNAL,
-      Status: status,
-      TimestampUtc: moment.utc().toISOString()
-    },
-    subject: `${caselabel}-${storageDocument.documentNumber}`,
-  };
-  await addToReportQueue(
-    storageDocument.documentNumber,
-    message,
-    config.azureTradeQueueUrl,
-    config.azureReportTradeQueueName,
-    config.enableReportToQueue
-  );
 };
 
 export const filterReports = async (unprocessed: any[]): Promise<void> => {
@@ -513,3 +428,149 @@ export const processReports = async (): Promise<void> => {
     logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][ERROR]${e.message}`)
   }
 }
+
+export const resendPsToTradeDynamics = async (
+  ccValidationData: ISdPsQueryResult[],
+): Promise<void> => {
+  try {
+    logger.info(
+      `[REPORT-PS-RESUBMITTED][ccValidationData][${ccValidationData.length}]`,
+    );
+    if (ccValidationData.length > 0) {
+      await sendPSToTradeDynamics(ccValidationData);
+    }
+  } catch (e) {
+    logger.error(`[REREPORT-PS-SUBMITTED][ERROR][${e}]`);
+    throw e;
+  }
+};
+
+export const sendPSToTradeDynamics = async (sdpsValidationData: ISdPsQueryResult[]): Promise<void> => {
+  if (sdpsValidationData.length > 0) {
+    const certificateId = sdpsValidationData[0].documentNumber;
+    const correlationId = uuidv4();
+    logger.info(`[DATA-HUB][REPORT-PS-SUBMITTED][${certificateId}]`);
+    const certificate = await getCertificateByDocumentNumberWithNumberOfFailedAttempts(certificateId, "processingStatement");
+    if (certificate?.documentNumber) {
+      logger.info(`[DATA-HUB][REPORT-PS-SUBMITTED][${certificateId}][FOUND]`);
+      const processDocumentCase: IDynamicsProcessingStatementCase = toDynamicsPs(sdpsValidationData, certificate, correlationId);
+      await reportPsToTrade(certificate, MessageLabel.PROCESSING_STATEMENT_SUBMITTED, processDocumentCase, sdpsValidationData);
+      await reportPs(sdpsValidationData, certificate, correlationId, MessageLabel.PROCESSING_STATEMENT_SUBMITTED);
+    }
+    else {
+      logger.info(`[DATA-HUB][REPORT-PS-SUBMITTED][${certificateId}][NOT-FOUND]`);
+    }
+  }
+};
+
+export const reportPsToTrade = async (processingStatement: IDocument, caselabel: MessageLabel, processingStatementCase: IDynamicsProcessingStatementCase, psQueryResults: ISdPsQueryResult[] | null): Promise<void> => {
+
+  delete processingStatementCase.clonedFrom;
+  delete processingStatementCase.parentDocumentVoid;
+
+  if (!config.azureTradeQueueEnabled) {
+    logger.info(`[DEFRA-TRADE-PS][DOCUMENT-NUMBER][${processingStatement.documentNumber}][CHIP-DISABLED]`);
+
+    const message: ServiceBusMessage = {
+      body: {
+        ...processingStatementCase,
+        catches: processingStatementCase.catches ? processingStatementCase.catches.map((_: IDynamicsProcessingStatementCatch) => {
+          delete _['isDocumentIssuedInUK'];
+          return {
+            ..._,
+          }
+        }) : undefined,
+      },
+      subject: `${caselabel}-${processingStatement.documentNumber}`,
+      sessionId: processingStatementCase._correlationId
+    };
+
+    await addToReportQueue(
+      processingStatement.documentNumber,
+      message,
+      config.azureTradeQueueUrl,
+      config.azureReportTradeQueueName,
+      config.enableReportToQueue
+    );
+
+    return;
+  }
+  const psDefraTrade: IDefraTradeProcessingStatement = toDefraTradePs(processingStatement, processingStatementCase, psQueryResults);
+
+  const validate_ps_defra_trade = getValidator('ProcessingStatement.json')
+  const valid: boolean = validate_ps_defra_trade(psDefraTrade);
+  if (!valid) {
+    logger.error(`[DEFRA-TRADE-PS][DOCUMENT-NUMBER][${processingStatement.documentNumber}][INVALID-PAYLOAD][${JSON.stringify(validate_ps_defra_trade.errors)}]`);
+    return;
+  }
+
+  let status: CertificateStatus;
+  if (!Array.isArray(psQueryResults)) {
+    status = CertificateStatus.VOID
+  } else {
+    status = psQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
+  }
+
+  const messageId = uuidv4();
+  const message: ServiceBusMessage = {
+    body: psDefraTrade,
+    messageId,
+    correlationId: psDefraTrade._correlationId,
+    contentType: 'application/json',
+    applicationProperties: {
+      EntityKey: processingStatement.documentNumber,
+      PublisherId: 'FES',
+      OrganisationId: psDefraTrade.exporter.accountId ?? null,
+      UserId: psDefraTrade.exporter.contactId ?? null,
+      SchemaVersion: parseInt(validate_ps_defra_trade.schema.properties.version.const),
+      Type: Type.INTERNAL,
+      Status: status,
+      TimestampUtc: moment.utc().toISOString()
+    },
+    subject: `${caselabel}-${processingStatement.documentNumber}`,
+  };
+
+  await addToReportQueue(
+    processingStatement.documentNumber,
+    message,
+    config.azureTradeQueueUrl,
+    config.azureReportTradeQueueName,
+    config.enableReportToQueue
+  );
+};
+export const reportPs = async (
+  sdpsValidationData: ISdPsQueryResult[] | null,
+  processingStatement: IDocument,
+  correlationId: string,
+  caselabel: MessageLabel,
+  caseTypeTwo?: SdPsCaseTwoType): Promise<IDynamicsProcessingStatementCase> => {
+  const psCase: IDynamicsProcessingStatementCase = toDynamicsPs(
+    sdpsValidationData,
+    processingStatement,
+    correlationId,
+    caseTypeTwo
+  );
+
+  if (!psCase.clonedFrom) {
+    delete psCase.clonedFrom;
+    delete psCase.parentDocumentVoid;
+  }
+
+  logger.info(`[CASE-MANAGEMENT-PS][DOCUMENT-NUMBER][${processingStatement.documentNumber}][CORRELATION-ID][${correlationId}]`);
+
+  const message: ServiceBusMessage = {
+    body: psCase,
+    subject: `${caselabel}-${processingStatement.documentNumber}`,
+    sessionId: correlationId
+  };
+
+  await addToReportQueue(
+    processingStatement.documentNumber,
+    message,
+    config.azureQueueUrl,
+    config.azureReportQueueName,
+    config.enableReportToQueue
+  );
+
+  return psCase;
+};
