@@ -89,8 +89,8 @@ export const toDefraTradeLanding = (landing: ICcQueryResult): IDefraTradeLanding
 export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCatchCertificateCase, ccQueryResults: ICcQueryResult[] | null): IDefraTradeCatchCertificate => {
   const transportation: CertificateTransport = document.exportData?.transportation
     ? toTransportation(document.exportData.transportation)
-    : toTransportation(document.exportData?.transportations?.find((t) => t.departurePlace));
-  
+    : toTransportation(document.exportData?.transportations.find((t) => t.departurePlace || t.vehicle === 'truck' && t.cmr));
+
   if (transportation) {
     Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
   }

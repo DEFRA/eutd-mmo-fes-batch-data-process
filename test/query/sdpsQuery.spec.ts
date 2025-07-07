@@ -244,7 +244,6 @@ describe('species not found on fcc', () => {
     foreignCatchCerts.next().value
 
     Query.unwindForeignCatchCerts(Array.from(foreignCatchCerts));
-    console.log(actual,"actual")
     expect(actual).toEqual(expected)
   });
   it('test 2', () => {
