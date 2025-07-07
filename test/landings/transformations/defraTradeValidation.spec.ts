@@ -2118,7 +2118,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
   })
 
   it('will return a IDefraTradeCatchCertificate payload with no transport', () => {
-    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: undefined, transportations: undefined} }, dynamicsCatchCertificateCase, ccQueryResults);
+    const result: IDefraTradeCatchCertificate = SUT.toDefraTradeCc({ ...exampleCc, exportData: { ...exampleCc.exportData, transportation: undefined, transportations: []} }, dynamicsCatchCertificateCase, ccQueryResults);
     expect(result).toStrictEqual({
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
@@ -3329,3 +3329,4 @@ describe('When mapping from an ISdPsQueryResult to a IDefraTradeProcessingStatem
     });
   });
 });
+
