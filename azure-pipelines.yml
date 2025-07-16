@@ -17,6 +17,7 @@ trigger:
       - 'develop'
       - 'hotfix/*'
       - 'feature/*'
+      - 'epic/*'
 
 resources:
   repositories:
