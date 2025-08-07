@@ -357,7 +357,10 @@
           ]
         },
         "defra_street": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "defra_subbuildingname": {
           "type": [
