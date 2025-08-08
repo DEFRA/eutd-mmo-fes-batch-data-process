@@ -69,6 +69,7 @@ export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
          exportWeightFactor: rawValidatedLanding.weightFactor,
          gearType: rawValidatedLanding.gearType,
          highSeasArea: rawValidatedLanding.extended.highSeasArea,
+         exclusiveEconomicZones: rawValidatedLanding.extended.exclusiveEconomicZones,
          rfmo: rawValidatedLanding.extended.rfmo,
          isLandingDataAvailable: rawValidatedLanding.numberOfLandingsOnDay > 0,
          isDirectLanding: ccBatchReportForLanding.directLanding === 'Y',
