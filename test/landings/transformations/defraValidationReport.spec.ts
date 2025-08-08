@@ -68,6 +68,20 @@ describe('toLandings', () => {
       flag: 'GBR',
       cfr: 'GBRC20514',
       highSeasArea: 'yes',
+      exclusiveEconomicZones: [
+        {
+          officialCountryName: "Nigeria", 
+          isoCodeAlpha2: "NG", 
+          isoCodeAlpha3: "NGA", 
+          isoNumericCode: "566"
+        }, 
+        { 
+          officialCountryName: "France",
+          isoCodeAlpha2: "FR",
+          isoCodeAlpha3: "FRA",
+          isoNumericCode: "250"
+        }
+      ],
       rfmo: 'General Fisheries Commission for the Mediterranean (GFCM)',
       species: 'Lobster',
       state: 'FRE',
@@ -605,6 +619,20 @@ describe('toLandings', () => {
         "exportWeight": 121,
         "gearType": "Type 1",
         "highSeasArea": 'yes',
+        "exclusiveEconomicZones": [
+          {
+            "officialCountryName": "Nigeria", 
+            "isoCodeAlpha2": "NG", 
+            "isoCodeAlpha3": "NGA", 
+            "isoNumericCode": "566"
+          }, 
+          { 
+            "officialCountryName": "France",
+            "isoCodeAlpha2": "FR",
+            "isoCodeAlpha3": "FRA",
+            "isoNumericCode": "250"
+          }
+        ],
         "rfmo": 'General Fisheries Commission for the Mediterranean (GFCM)',
         "exportWeightFactor": 5,
         "isDirectLanding": true,
