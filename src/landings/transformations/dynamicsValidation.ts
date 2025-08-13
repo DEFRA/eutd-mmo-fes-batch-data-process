@@ -41,7 +41,7 @@ import { CaseOneType, CaseTwoType, IDynamicsCatchCertificateCase } from "../../t
 import { isEmpty } from "lodash";
 import { CertificateAudit, CertificateCompany, IAuditEvent } from "../../types/defraValidation";
 import { ISdPsQueryResult } from "../../types/query";
-import { SdPsCaseTwoType, SdPsStatus,IDynamicsProcessingStatementCatch} from "../../types/dynamicsValidationSdPs";
+import { SdPsCaseTwoType, SdPsStatus, IDynamicsProcessingStatementCatch } from "../../types/dynamicsValidationSdPs";
 import { IDynamicsProcessingStatementCase } from "../../types/dynamicsSdPsCase";
 
 export const isSpeciesFailure = (func: (riskScore: number, threshold?: number) => boolean) => (
@@ -77,8 +77,8 @@ const isFailedWeightCheck = (ccQueryLanding: ICcQueryResult) =>
 
 const isFailedSpeciesCheck = (ccQueryLanding: ICcQueryResult) => {
   return isSpeciesFailure(isHighRisk)(ccQueryLanding.extended.isSpeciesRiskEnabled ?? isRiskEnabled(), ccQueryLanding.isSpeciesExists, getRiskScore(ccQueryLanding), ccQueryLanding.extended.threshold) &&
-  !isElog(isWithinDeminimus)(ccQueryLanding) &&
-  ccQueryLanding.isLandingExists
+    !isElog(isWithinDeminimus)(ccQueryLanding) &&
+    ccQueryLanding.isLandingExists
 }
 
 const isFailedNoLandingDataCheck = (ccQueryLanding: ICcQueryResult) =>
@@ -103,7 +103,18 @@ const pendingLandingDataRetrospectiveTransformation = (status: LandingStatusType
   }
 }
 
-export const isLandingDataExpectedAtRetro = (landingExpectedDate: string): boolean => 
+const addEEZCode = (acc: string, code: string) => acc ? `${acc},${code}` : code;
+const buildEEZ = (countries: ICountry): string | undefined  => {
+  if (!Array.isArray(countries) || countries.length === 0)
+    return;
+
+  return countries.reduce((acc: string, zone: ICountry) => {
+    const code = zone.isoCodeAlpha3 ?? zone.isoCodeAlpha2;
+    return code ?  addEEZCode(acc, code): acc;
+  }, '');
+}
+
+export const isLandingDataExpectedAtRetro = (landingExpectedDate: string): boolean =>
   landingExpectedDate === undefined ? true : moment.utc().isSameOrAfter(moment.utc(landingExpectedDate), 'day');
 
 export const isRejectedLanding = (ccQuery: ICcQueryResult): boolean => (
@@ -149,7 +160,7 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     weight: validatedLanding.rawWeightOnCert,
     gearType: validatedLanding.gearType,
     highSeasArea: validatedLanding.extended.highSeasArea,
-    exclusiveEconomicZones: validatedLanding.extended.exclusiveEconomicZones,
+    exclusiveEconomicZones: buildEEZ(validatedLanding.extended.exclusiveEconomicZones),
     rfmo: validatedLanding.extended.rfmo,
     numberOfTotalSubmissions: validatedLanding.extended.numberOfSubmissions,
     vesselOverriddenByAdmin: validatedLanding.extended.vesselOverriddenByAdmin === true,
@@ -335,7 +346,7 @@ export function toAudit(systemAudit: IAuditEvent): CertificateAudit {
   return result;
 }
 
-export function toExporterPsSd(psSdCertificate: any): CertificateCompany {  
+export function toExporterPsSd(psSdCertificate: any): CertificateCompany {
   return {
     companyName: psSdCertificate.exportData.exporterDetails.exporterCompanyName,
     contactId: psSdCertificate.exportData.exporterDetails.contactId,

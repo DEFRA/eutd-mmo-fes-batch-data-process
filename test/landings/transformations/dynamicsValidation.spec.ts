@@ -7,7 +7,7 @@ import * as SUT from "../../../src/landings/transformations/dynamicsValidation";
 import * as Cache from "../../../src/data/cache";
 import * as risking from '../../../src/data/risking';
 import * as Vessel from '../../../src/data/vessel';
-import * as Shared from 'mmo-shared-reference-data' ;
+import * as Shared from 'mmo-shared-reference-data';
 import { CaseTwoType } from "../../../src/types/dynamicsValidation";
 import { IDocument, InvestigationStatus, LandingSources } from "mmo-shared-reference-data";
 import { CertificateAudit, IAuditEvent } from "../../../src/types/defraValidation";
@@ -159,10 +159,10 @@ describe("When mapping from an ICcQueryResult to a IDynamicsLanding", () => {
   beforeEach(() => {
     mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
     mockIsHighRisk.mockReturnValue(false);
-  
+
     mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
     mockGetTotalRiskScore.mockReturnValue(1);
-  
+
     mockGetExporterRiskScore = jest.spyOn(risking, 'getExporterBehaviourRiskScore');
     mockGetExporterRiskScore.mockReturnValue(1);
 
@@ -733,7 +733,33 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
       dataEverExpected: true,
       landingDataExpectedDate: "2023-05-26",
       landingDataEndDate: "2023-06-05",
-      isLegallyDue: true
+      isLegallyDue: true,
+      exclusiveEconomicZones: [
+        {
+          officialCountryName: "Nigeria",
+          isoCodeAlpha2: "NG",
+          isoCodeAlpha3: "NGA",
+          isoNumericCode: "566"
+        },
+        {
+          officialCountryName: "France",
+          isoCodeAlpha2: "FR",
+          isoCodeAlpha3: "FRA",
+          isoNumericCode: "250"
+        },
+        {
+          officialCountryName: "Northen Ireland",
+          isoCodeAlpha2: "NI",
+          isoCodeAlpha3: null,
+          isoNumericCode: null
+        },
+        {
+          officialCountryName: "Invalid Country",
+          isoCodeAlpha2: null,
+          isoCodeAlpha3: null,
+          isoNumericCode: null
+        }
+      ],
     },
     isExceeding14DayLimit: true
   };
@@ -972,208 +998,206 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
     expect(result.landingDataExpectedAtSubmission).toBe(false);
   });
 
-
   it('should set landingOutcomeAtRetrospectiveCheck when dataEverExpected is true', async () => {
     const result = SUT.toLanding(sampleICcQueryResult);
 
     expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
   });
 
-  
   it('should set landingOutcomeAtRetrospectiveCheck to Failure when there is no landing data, high risk and end date has passed', async () => {
     const result = SUT.toLanding({
-      "documentNumber":"GBR-2024-CC-CD4947996",
-      "documentType":"catchCertificate",
-      "createdAt":"2024-10-15T11:10:15.259Z",
-      "status":"COMPLETE",
-      "extended":{
-         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
-         "exporterName":"single org business exporter",
-         "exporterCompanyName":"Ady company",
-         "exporterPostCode":"B1 1TT",
-         "vessel":"SHAMU",
-         "landingId":"GBR-2024-CC-CD4947996-4865866801",
-         "pln":"M60",
-         "fao":"FAO27",
-         "flag":"GBR",
-         "cfr":"GBR000C20597",
-         "presentation":"WHL",
-         "presentationName":"Whole",
-         "species":"European seabass (BSS)",
-         "scientificName":"Dicentrarchus labrax",
-         "state":"FRE",
-         "stateName":"Fresh",
-         "commodityCode":"03028410",
-         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
-         "transportationVehicle":"truck",
-         "numberOfSubmissions":2,
-         "speciesOverriddenByAdmin":false,
-         "licenceHolder":"MR M H  CROMWELL ",
-         "dataEverExpected":true,
-         "landingDataExpectedDate":"2024-10-16",
-         "landingDataEndDate":"2024-10-16",
-         "isLegallyDue":false,
-         "homePort":"SAUNDERSFOOT",
-         "imoNumber":null,
-         "licenceNumber":"11379",
-         "licenceValidTo":"2030-12-31"
+      "documentNumber": "GBR-2024-CC-CD4947996",
+      "documentType": "catchCertificate",
+      "createdAt": "2024-10-15T11:10:15.259Z",
+      "status": "COMPLETE",
+      "extended": {
+        "exporterContactId": "f72591a1-6d8b-e911-a96f-000d3a29b5de",
+        "exporterName": "single org business exporter",
+        "exporterCompanyName": "Ady company",
+        "exporterPostCode": "B1 1TT",
+        "vessel": "SHAMU",
+        "landingId": "GBR-2024-CC-CD4947996-4865866801",
+        "pln": "M60",
+        "fao": "FAO27",
+        "flag": "GBR",
+        "cfr": "GBR000C20597",
+        "presentation": "WHL",
+        "presentationName": "Whole",
+        "species": "European seabass (BSS)",
+        "scientificName": "Dicentrarchus labrax",
+        "state": "FRE",
+        "stateName": "Fresh",
+        "commodityCode": "03028410",
+        "commodityCodeDescription": "Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+        "transportationVehicle": "truck",
+        "numberOfSubmissions": 2,
+        "speciesOverriddenByAdmin": false,
+        "licenceHolder": "MR M H  CROMWELL ",
+        "dataEverExpected": true,
+        "landingDataExpectedDate": "2024-10-16",
+        "landingDataEndDate": "2024-10-16",
+        "isLegallyDue": false,
+        "homePort": "SAUNDERSFOOT",
+        "imoNumber": null,
+        "licenceNumber": "11379",
+        "licenceValidTo": "2030-12-31"
       },
-      "rssNumber":"C20597",
-      "da":"Wales",
-      "dateLanded":"2024-10-16",
-      "species":"BSS",
-      "weightFactor":1,
-      "weightOnCert":100,
-      "rawWeightOnCert":100,
-      "weightOnAllCerts":100,
-      "weightOnAllCertsBefore":0,
-      "weightOnAllCertsAfter":100,
-      "isLandingExists":false,
-      "isExceeding14DayLimit":false,
-      "speciesAlias":"N",
-      "durationSinceCertCreation":"PT0.261S",
-      "weightOnLandingAllSpecies":0,
-      "isSpeciesExists":false,
-      "weightOnLanding":0,
-      "numberOfLandingsOnDay":0,
-      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
-      "durationBetweenCertCreationAndLastLandingRetrieved":null,
-      "isOverusedAllCerts":false,
-      "isOverusedThisCert":false,
-      "overUsedInfo":[]
-   });
+      "rssNumber": "C20597",
+      "da": "Wales",
+      "dateLanded": "2024-10-16",
+      "species": "BSS",
+      "weightFactor": 1,
+      "weightOnCert": 100,
+      "rawWeightOnCert": 100,
+      "weightOnAllCerts": 100,
+      "weightOnAllCertsBefore": 0,
+      "weightOnAllCertsAfter": 100,
+      "isLandingExists": false,
+      "isExceeding14DayLimit": false,
+      "speciesAlias": "N",
+      "durationSinceCertCreation": "PT0.261S",
+      "weightOnLandingAllSpecies": 0,
+      "isSpeciesExists": false,
+      "weightOnLanding": 0,
+      "numberOfLandingsOnDay": 0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved": null,
+      "durationBetweenCertCreationAndLastLandingRetrieved": null,
+      "isOverusedAllCerts": false,
+      "isOverusedThisCert": false,
+      "overUsedInfo": []
+    });
 
     expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
   });
 
   it('should set landingOutcomeAtRetrospectiveCheck to Success when dataEverExpected is true', async () => {
     const result = SUT.toLanding({
-      "documentNumber":"GBR-2024-CC-CD4947996",
-      "documentType":"catchCertificate",
-      "createdAt":"2024-10-15T11:10:15.259Z",
-      "status":"COMPLETE",
-      "extended":{
-         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
-         "exporterName":"single org business exporter",
-         "exporterCompanyName":"Ady company",
-         "exporterPostCode":"B1 1TT",
-         "vessel":"SHAMU",
-         "landingId":"GBR-2024-CC-CD4947996-4865866801",
-         "pln":"M60",
-         "fao":"FAO27",
-         "flag":"GBR",
-         "cfr":"GBR000C20597",
-         "presentation":"WHL",
-         "presentationName":"Whole",
-         "species":"European seabass (BSS)",
-         "scientificName":"Dicentrarchus labrax",
-         "state":"FRE",
-         "stateName":"Fresh",
-         "commodityCode":"03028410",
-         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
-         "transportationVehicle":"truck",
-         "numberOfSubmissions":2,
-         "speciesOverriddenByAdmin":false,
-         "licenceHolder":"MR M H  CROMWELL ",
-         "dataEverExpected": false,
-         "landingDataExpectedDate":"2024-10-16",
-         "landingDataEndDate":"2024-10-16",
-         "isLegallyDue":false,
-         "homePort":"SAUNDERSFOOT",
-         "imoNumber":null,
-         "licenceNumber":"11379",
-         "licenceValidTo":"2030-12-31"
+      "documentNumber": "GBR-2024-CC-CD4947996",
+      "documentType": "catchCertificate",
+      "createdAt": "2024-10-15T11:10:15.259Z",
+      "status": "COMPLETE",
+      "extended": {
+        "exporterContactId": "f72591a1-6d8b-e911-a96f-000d3a29b5de",
+        "exporterName": "single org business exporter",
+        "exporterCompanyName": "Ady company",
+        "exporterPostCode": "B1 1TT",
+        "vessel": "SHAMU",
+        "landingId": "GBR-2024-CC-CD4947996-4865866801",
+        "pln": "M60",
+        "fao": "FAO27",
+        "flag": "GBR",
+        "cfr": "GBR000C20597",
+        "presentation": "WHL",
+        "presentationName": "Whole",
+        "species": "European seabass (BSS)",
+        "scientificName": "Dicentrarchus labrax",
+        "state": "FRE",
+        "stateName": "Fresh",
+        "commodityCode": "03028410",
+        "commodityCodeDescription": "Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+        "transportationVehicle": "truck",
+        "numberOfSubmissions": 2,
+        "speciesOverriddenByAdmin": false,
+        "licenceHolder": "MR M H  CROMWELL ",
+        "dataEverExpected": false,
+        "landingDataExpectedDate": "2024-10-16",
+        "landingDataEndDate": "2024-10-16",
+        "isLegallyDue": false,
+        "homePort": "SAUNDERSFOOT",
+        "imoNumber": null,
+        "licenceNumber": "11379",
+        "licenceValidTo": "2030-12-31"
       },
-      "rssNumber":"C20597",
-      "da":"Wales",
-      "dateLanded":"2024-10-16",
-      "species":"BSS",
-      "weightFactor":1,
-      "weightOnCert":100,
-      "rawWeightOnCert":100,
-      "weightOnAllCerts":100,
-      "weightOnAllCertsBefore":0,
-      "weightOnAllCertsAfter":100,
+      "rssNumber": "C20597",
+      "da": "Wales",
+      "dateLanded": "2024-10-16",
+      "species": "BSS",
+      "weightFactor": 1,
+      "weightOnCert": 100,
+      "rawWeightOnCert": 100,
+      "weightOnAllCerts": 100,
+      "weightOnAllCertsBefore": 0,
+      "weightOnAllCertsAfter": 100,
       "isLandingExists": false,
-      "isExceeding14DayLimit":false,
-      "speciesAlias":"N",
-      "durationSinceCertCreation":"PT0.261S",
-      "weightOnLandingAllSpecies":0,
-      "isSpeciesExists":false,
-      "weightOnLanding":0,
-      "numberOfLandingsOnDay":0,
-      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
-      "durationBetweenCertCreationAndLastLandingRetrieved":null,
-      "isOverusedAllCerts":false,
-      "isOverusedThisCert":false,
-      "overUsedInfo":[]
-   });
+      "isExceeding14DayLimit": false,
+      "speciesAlias": "N",
+      "durationSinceCertCreation": "PT0.261S",
+      "weightOnLandingAllSpecies": 0,
+      "isSpeciesExists": false,
+      "weightOnLanding": 0,
+      "numberOfLandingsOnDay": 0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved": null,
+      "durationBetweenCertCreationAndLastLandingRetrieved": null,
+      "isOverusedAllCerts": false,
+      "isOverusedThisCert": false,
+      "overUsedInfo": []
+    });
 
     expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Success");
   });
 
   it('should set landingOutcomeAtRetrospectiveCheck to Failure when landingDataExpectedDate is undefined', async () => {
     const result = SUT.toLanding({
-      "documentNumber":"GBR-2024-CC-CD4947996",
-      "documentType":"catchCertificate",
-      "createdAt":"2024-10-15T11:10:15.259Z",
-      "status":"COMPLETE",
-      "extended":{
-         "exporterContactId":"f72591a1-6d8b-e911-a96f-000d3a29b5de",
-         "exporterName":"single org business exporter",
-         "exporterCompanyName":"Ady company",
-         "exporterPostCode":"B1 1TT",
-         "vessel":"SHAMU",
-         "landingId":"GBR-2024-CC-CD4947996-4865866801",
-         "pln":"M60",
-         "fao":"FAO27",
-         "flag":"GBR",
-         "cfr":"GBR000C20597",
-         "presentation":"WHL",
-         "presentationName":"Whole",
-         "species":"European seabass (BSS)",
-         "scientificName":"Dicentrarchus labrax",
-         "state":"FRE",
-         "stateName":"Fresh",
-         "commodityCode":"03028410",
-         "commodityCodeDescription":"Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
-         "transportationVehicle":"truck",
-         "numberOfSubmissions":2,
-         "speciesOverriddenByAdmin":false,
-         "licenceHolder":"MR M H  CROMWELL ",
-         "dataEverExpected": true,
-         "landingDataExpectedDate": undefined,
-         "landingDataEndDate":"2024-10-16",
-         "isLegallyDue":false,
-         "homePort":"SAUNDERSFOOT",
-         "imoNumber":null,
-         "licenceNumber":"11379",
-         "licenceValidTo":"2030-12-31"
+      "documentNumber": "GBR-2024-CC-CD4947996",
+      "documentType": "catchCertificate",
+      "createdAt": "2024-10-15T11:10:15.259Z",
+      "status": "COMPLETE",
+      "extended": {
+        "exporterContactId": "f72591a1-6d8b-e911-a96f-000d3a29b5de",
+        "exporterName": "single org business exporter",
+        "exporterCompanyName": "Ady company",
+        "exporterPostCode": "B1 1TT",
+        "vessel": "SHAMU",
+        "landingId": "GBR-2024-CC-CD4947996-4865866801",
+        "pln": "M60",
+        "fao": "FAO27",
+        "flag": "GBR",
+        "cfr": "GBR000C20597",
+        "presentation": "WHL",
+        "presentationName": "Whole",
+        "species": "European seabass (BSS)",
+        "scientificName": "Dicentrarchus labrax",
+        "state": "FRE",
+        "stateName": "Fresh",
+        "commodityCode": "03028410",
+        "commodityCodeDescription": "Fresh or chilled European sea bass\"Dicentrarchus labrax\"",
+        "transportationVehicle": "truck",
+        "numberOfSubmissions": 2,
+        "speciesOverriddenByAdmin": false,
+        "licenceHolder": "MR M H  CROMWELL ",
+        "dataEverExpected": true,
+        "landingDataExpectedDate": undefined,
+        "landingDataEndDate": "2024-10-16",
+        "isLegallyDue": false,
+        "homePort": "SAUNDERSFOOT",
+        "imoNumber": null,
+        "licenceNumber": "11379",
+        "licenceValidTo": "2030-12-31"
       },
-      "rssNumber":"C20597",
-      "da":"Wales",
-      "dateLanded":"2024-10-16",
-      "species":"BSS",
-      "weightFactor":1,
-      "weightOnCert":100,
-      "rawWeightOnCert":100,
-      "weightOnAllCerts":100,
-      "weightOnAllCertsBefore":0,
-      "weightOnAllCertsAfter":100,
+      "rssNumber": "C20597",
+      "da": "Wales",
+      "dateLanded": "2024-10-16",
+      "species": "BSS",
+      "weightFactor": 1,
+      "weightOnCert": 100,
+      "rawWeightOnCert": 100,
+      "weightOnAllCerts": 100,
+      "weightOnAllCertsBefore": 0,
+      "weightOnAllCertsAfter": 100,
       "isLandingExists": false,
-      "isExceeding14DayLimit":false,
-      "speciesAlias":"N",
-      "durationSinceCertCreation":"PT0.261S",
-      "weightOnLandingAllSpecies":0,
+      "isExceeding14DayLimit": false,
+      "speciesAlias": "N",
+      "durationSinceCertCreation": "PT0.261S",
+      "weightOnLandingAllSpecies": 0,
       "isSpeciesExists": true,
-      "weightOnLanding":0,
-      "numberOfLandingsOnDay":0,
-      "durationBetweenCertCreationAndFirstLandingRetrieved":null,
-      "durationBetweenCertCreationAndLastLandingRetrieved":null,
-      "isOverusedAllCerts":false,
-      "isOverusedThisCert":false,
-      "overUsedInfo":[]
-   });
+      "weightOnLanding": 0,
+      "numberOfLandingsOnDay": 0,
+      "durationBetweenCertCreationAndFirstLandingRetrieved": null,
+      "durationBetweenCertCreationAndLastLandingRetrieved": null,
+      "isOverusedAllCerts": false,
+      "isOverusedThisCert": false,
+      "overUsedInfo": []
+    });
     expect(result.landingOutcomeAtRetrospectiveCheck).toBe("Failure");
   });
 
@@ -1251,6 +1275,11 @@ describe('When mapping from an ICcQueryResult to a IDynamicsLanding (additional 
     const result = SUT.toLanding(copySampleICcQueryResult);
     expect(result.dateDataReceived).toBeUndefined();
 
+  });
+
+  it('should set a comma separated list for added EEZs', () => {
+    const result = SUT.toLanding(sampleICcQueryResult);
+    expect(result.exclusiveEconomicZones).toEqual("NGA,FRA,NI");
   });
 });
 
@@ -1414,10 +1443,10 @@ describe('When mapping from an ICcQueryResult to an IDynamicsLandingValidation',
   beforeEach(() => {
     mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
     mockIsHighRisk.mockReturnValue(false);
-  
+
     mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
     mockGetTotalRiskScore.mockReturnValue(1);
-  
+
     mockGetExporterRiskScore = jest.spyOn(risking, 'getExporterBehaviourRiskScore');
     mockGetExporterRiskScore.mockReturnValue(1);
 
@@ -1737,21 +1766,21 @@ describe('When mapping from an ICcQueryResult to an IDynamicsLandingValidation',
     let mockGetTotalRiskScore;
     let mockGetExporterRiskScore;
     let mockGetVesselLength;
-  
+
     beforeEach(() => {
       mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
       mockIsHighRisk.mockReturnValue(false);
-    
+
       mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
       mockGetTotalRiskScore.mockReturnValue(1);
-    
+
       mockGetExporterRiskScore = jest.spyOn(risking, 'getExporterBehaviourRiskScore');
       mockGetExporterRiskScore.mockReturnValue(1);
-  
+
       mockGetVesselLength = jest.spyOn(Vessel, 'getVesselLength');
       mockGetVesselLength.mockReturnValue(9);
     });
-  
+
     afterEach(() => {
       mockIsHighRisk.mockRestore();
       mockGetTotalRiskScore.mockRestore();
@@ -1792,21 +1821,21 @@ describe('When mapping from an ICcQueryResult to an IDynamicsLandingValidation',
     let mockGetTotalRiskScore;
     let mockGetExporterRiskScore;
     let mockGetVesselLength;
-  
+
     beforeEach(() => {
       mockIsHighRisk = jest.spyOn(risking, 'isHighRisk');
       mockIsHighRisk.mockReturnValue(false);
-    
+
       mockGetTotalRiskScore = jest.spyOn(risking, 'getTotalRiskScore');
       mockGetTotalRiskScore.mockReturnValue(1);
-    
+
       mockGetExporterRiskScore = jest.spyOn(risking, 'getExporterBehaviourRiskScore');
       mockGetExporterRiskScore.mockReturnValue(1);
-  
+
       mockGetVesselLength = jest.spyOn(Vessel, 'getVesselLength');
       mockGetVesselLength.mockReturnValue(9);
     });
-  
+
     afterEach(() => {
       mockIsHighRisk.mockRestore();
       mockGetTotalRiskScore.mockRestore();
@@ -2340,7 +2369,7 @@ describe('When validating a single landing', () => {
     mockIsHighRisk.mockRestore();
     mockGetTotalRiskScore.mockRestore();
     mockIsRiskEnabled.mockRestore();
-   // mockIsSpeciesFailure.mockRestore();
+    // mockIsSpeciesFailure.mockRestore();
     mockIsElog.mockRestore();
     mockIsWithinDeminimus.mockRestore();
   });
@@ -7930,7 +7959,7 @@ describe("When mapping from an ICcQueryResult to a IDynamicsCatchCertificateCase
   });
 
   it('will map the root properties with no landings', () => {
-    const result = SUT.toDynamicsCcCase(null, {...exampleCc, audit: [] }, correlationId, CaseTwoType.VoidByExporter);
+    const result = SUT.toDynamicsCcCase(null, { ...exampleCc, audit: [] }, correlationId, CaseTwoType.VoidByExporter);
 
     expect(result.documentNumber).toEqual('GBR-2020-CC-1BC924FCF');
     expect(result.caseType1).toEqual('CC');
@@ -7981,7 +8010,7 @@ describe("when mapping audit", () => {
       triggeredBy: '',
       timestamp: new Date(),
       data: {}
-  }
+    }
 
     const result = SUT.toAudit(audit);
     expect(result.investigationStatus).toBeUndefined();
@@ -7992,7 +8021,7 @@ describe("when mapping audit", () => {
       eventType: '',
       triggeredBy: '',
       timestamp: new Date()
-  }
+    }
 
     const result = SUT.toAudit(audit);
     expect(result.investigationStatus).toBeUndefined();

@@ -74,10 +74,14 @@
           "flag": "GBR",
           "homePort": "PLYMOUTH",
           "catchArea": "FAO18",
+          "highSeasArea": "Yes",
+          "exclusiveEconomicZones": "NGA,FRA",
+          "rfmo": "General Fisheries Commission for the Mediterranean (GFCM)",
           "fishingLicenceNumber": "50424",
           "fishingLicenceValidTo": "2030-12-31T00:00:00",
           "imo": null,
           "weight": 500,
+          "gearType": "Type 1",
           "speciesAlias": "Y",
           "speciesAnomaly": "SQR",
           "numberOfTotalSubmissions": 1,
@@ -106,7 +110,8 @@
           },
           "dataEverExpected": true,
           "landingDataExpectedDate": "2023-05-26",
-          "landingDataEndDate": "2023-06-05"
+          "landingDataEndDate": "2023-06-05",
+          "landingDataExpectedAtSubmission": false
         }
       ],
       "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
@@ -589,6 +594,47 @@
             "FAO88"
           ]
         },
+        "highSeasArea": {
+          "description": "The high seas area fish was caught in",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Yes",
+            "No"
+          ]
+        },
+        "exclusiveEconomicZones": {
+          "description": "The Exclusive Economic Zones where fish were caught",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rfmo": {
+          "description": "The Regional Fisheries Management Organisation the fish was caught in",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Commission for the Conservation of Antarctic Marine Living Resources (CCAMLR)",
+            "General Fisheries Commission for the Mediterranean (GFCM)",
+            "North East Atlantic Fisheries Commission (NEAFC)",
+            "Northwest Atlantic Fisheries Organization (NAFO)",
+            "North Pacific Fisheries Commission (NPFC)",
+            "South East Atlantic Fisheries Organisation (SEAFO)",
+            "South Pacific Regional Fisheries Management Organisation (SPRFMO)",
+            "Southern Indian Ocean Fisheries Agreement (SIOFA)",
+            "Western and Central Pacific Fisheries Commission (WCPFC)",
+            "Commission for the Conservation of Southern Bluefin Tuna (CCSBT)",
+            "International Commission for the Conservation of Atlantic Tunas (ICCAT)",
+            "Indian Ocean Tuna Commission (IOTC)",
+            "Inter-American Tropical Tuna Commission (IATTC)",
+            "North Atlantic Salmon Conservation Organization (NASCO)"
+          ]
+        },
         "fishingLicenceNumber": {
           "description": "The licence for the vessel used in the landing",
           "type": "string"
@@ -619,6 +665,9 @@
         "weight": {
           "type": "number",
           "description": "The raw export weight"
+        },
+        "gearType": {
+          "type": "string"
         },
         "speciesAlias": {
           "description": "status (Y/N) of certain species mismatching during real-time validation and retrospective validation",
@@ -810,18 +859,6 @@
           "required": []
         }
       ]
-    },
-    "transportDocument": {
-      "type": "object",
-      "required": [
-        "name",
-        "reference"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string" },
-        "reference": { "type": "string" }
-      }
     }
   },
   "properties": {
