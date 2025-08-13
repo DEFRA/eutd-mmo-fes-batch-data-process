@@ -284,21 +284,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         "speciesAlias": "N",
         "weight": 89,
         "gearType": "Type 1",
-        "highSeasArea": "yes",
-        "exclusiveEconomicZones": [
-          {
-            "officialCountryName": "Nigeria", 
-            "isoCodeAlpha2": "NG", 
-            "isoCodeAlpha3": "NGA", 
-            "isoNumericCode": "566"
-          }, 
-          { 
-            "officialCountryName": "France",
-            "isoCodeAlpha2": "FR",
-            "isoCodeAlpha3": "FRA",
-            "isoNumericCode": "250"
-          }
-        ],
+        "highSeasArea": "Yes",
+        "exclusiveEconomicZones": "NGA,FRA",
         "rfmo": "General Fisheries Commission for the Mediterranean (GFCM)",
         "numberOfTotalSubmissions": 1,
         "vesselOverriddenByAdmin": false,
@@ -397,7 +384,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       scientificName: "Aphanopus carbo",
       state: 'FRE',
       stateName: 'fresh',
-      highSeasArea: "yes",
+      highSeasArea: "Yes",
       exclusiveEconomicZones: [
         {
           officialCountryName: "Nigeria", 
@@ -491,7 +478,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       scientificName: "Aphanopus carbo",
       state: 'FRE',
       stateName: 'fresh',
-      highSeasArea: "yes",
+      highSeasArea: "Yes",
       exclusiveEconomicZones: [
         {
           officialCountryName: "Nigeria", 
@@ -631,21 +618,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -798,21 +772,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -1540,21 +1501,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -1706,21 +1654,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -1877,21 +1812,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2046,21 +1968,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2211,21 +2120,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2364,21 +2260,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2532,21 +2415,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2681,21 +2551,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -2842,21 +2699,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -3047,7 +2891,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         scientificName: "Aphanopus carbo",
         state: 'FRE',
         stateName: 'fresh',
-        highSeasArea: "yes",
+        highSeasArea: "Yes",
         exclusiveEconomicZones: [
           {
             officialCountryName: "Nigeria", 
@@ -3156,21 +3000,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
@@ -3302,21 +3133,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
           speciesAnomaly: undefined,
           weight: 122,
           gearType: "Type 1",
-          highSeasArea: "yes",
-          exclusiveEconomicZones: [
-            {
-              officialCountryName: "Nigeria", 
-              isoCodeAlpha2: "NG", 
-              isoCodeAlpha3: "NGA", 
-              isoNumericCode: "566"
-            }, 
-            { 
-              officialCountryName: "France",
-              isoCodeAlpha2: "FR",
-              isoCodeAlpha3: "FRA",
-              isoNumericCode: "250"
-            }
-          ],
+          highSeasArea: "Yes",
+          exclusiveEconomicZones: "NGA,FRA",
           rfmo: "General Fisheries Commission for the Mediterranean (GFCM)",
           numberOfTotalSubmissions: 1,
           vesselOverriddenByAdmin: false,
