@@ -57,7 +57,8 @@
         {
           "status": "Pending Landing Data",
           "id": "2342340-24513aga-adfrewbf",
-          "landingDate": "2023-06-10 01:34:05",
+          "startDate": "2023-06-10",
+          "landingDate": "2023-06-10",
           "is14DayLimitReached": false,
           "species": "Atlantic Herring (HER)",
           "state": "Fresh",
@@ -507,6 +508,9 @@
         "id": {
           "type": "string"
         },
+        "startDate": {
+          "type": "string"
+        },
         "landingDate": {
           "type": "string"
         },
@@ -682,13 +686,19 @@
           "description": "Number of times this landing has been submitted at real time"
         },
         "validation": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "items": {
             "$ref": "#/definitions/landingValidation"
           }
         },
         "risking": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "items": {
             "$ref": "#/definitions/risk"
           }
@@ -862,8 +872,9 @@
     }
   },
   "properties": {
-    "version" : {
-      "type":"string", "const":"2"
+    "version": {
+      "type": "string",
+      "const": "2"
     },
     "da": {
       "type": "string"
@@ -966,15 +977,24 @@
           "type": "string"
         },
         "isoCodeAlpha3": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "isoNumericCode": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
     "landings": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "$ref": "#/definitions/landing"
       }
