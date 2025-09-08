@@ -8,10 +8,10 @@ export class ApplicationConfig {
   public cloudRoleName: string;
   public scheduleFishCountriesAndSpeciesJob: string;
   public scheduleVesselsDataJob: string;
-  public basicAuthUser: string | any;
-  public basicAuthPassword: string | any;
-  public dbConnectionUri: string | any;
-  public dbName: string | any;
+  public basicAuthUser: string ;
+  public basicAuthPassword: string;
+  public dbConnectionUri: string ;
+  public dbName: string;
   public externalAppUrl: string;
   public internalAppUrl: string;
   public azureBlobUrl: string;
