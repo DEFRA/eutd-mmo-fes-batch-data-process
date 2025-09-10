@@ -260,7 +260,7 @@ export const loadExporterBehaviourFromAzureBlob = async (blobConnStr: string): P
 export const updateCache = (
   species: any[] | undefined,
   factors: IConversionFactor[] | undefined,
-  speciesAliases?: any | undefined
+  speciesAliases?: Record<string, string> | undefined[]
 ) => {
   if (species) {
     SPECIES = species;
