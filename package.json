@@ -76,7 +76,7 @@
         "ajv-keywords": "^5.1.0",
         "applicationinsights": "2.9.7",
         "applicationinsights-native-metrics": "0.0.10",
-        "axios": "^1.11.0",
+        "axios": "^1.12.2",
         "bunyan": "1.8.15",
         "cross-env": "7.0.3",
         "csvtojson": "2.0.10",
