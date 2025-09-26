@@ -623,6 +623,7 @@
             "null"
           ],
           "enum": [
+            "",
             "Commission for the Conservation of Antarctic Marine Living Resources (CCAMLR)",
             "General Fisheries Commission for the Mediterranean (GFCM)",
             "North East Atlantic Fisheries Commission (NEAFC)",
