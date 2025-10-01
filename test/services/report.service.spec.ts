@@ -3132,7 +3132,7 @@ describe("Report reSubmitted", () => {
       mockLogError.mockRestore();
     });
 
-    it('all methods required by resendCcToTradeDynamics should be called with the correct data', async () => {
+    it('all methods required by resendCcToTrade should be called with the correct data', async () => {
       const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id', };
       const getCatchCertificate = {
         ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: {
@@ -3152,7 +3152,7 @@ describe("Report reSubmitted", () => {
       mockToCCDefraTrade.mockResolvedValue(undefined);
       mockGetCertificate.mockResolvedValue(getCatchCertificate);
 
-      await SUT.resendCcToTradeDynamics(data);
+      await SUT.resendCcToTrade(data);
 
       expect(data[0].extended.commodityCodeDescription).toBe('1234-description');
       expect(data[1].extended.commodityCodeDescription).toBe('blah blah');
@@ -3170,7 +3170,7 @@ describe("Report reSubmitted", () => {
         throw 'error';
       });
 
-      const caughtError = await SUT.resendCcToTradeDynamics(data).catch((err) => err)
+      const caughtError = await SUT.resendCcToTrade(data).catch((err) => err)
       expect(caughtError).toBe('error');
       expect(mockLogWarn).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][getCertificateByDocumentNumberWithNumberOfFailedAttempts][error]');
       expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][ERROR][error]');
@@ -3193,7 +3193,7 @@ describe("Report reSubmitted", () => {
       mockToCCDefraTrade.mockResolvedValue(undefined);
       mockGetCertificate.mockResolvedValue(getCatchCertificate);
 
-      await SUT.resendCcToTradeDynamics(data);
+      await SUT.resendCcToTrade(data);
 
       expect(mockLogError).toHaveBeenNthCalledWith(1, '[REREPORT-CC-SUBMITTED][FAIL][X-CC-1][NO-EXPORTER-DETAILS]');
     });
