@@ -84,7 +84,7 @@
         "joi": "^17.13.1",
         "lodash": "^4.17.21",
         "mingo": "^6.4.15",
-        "mmo-shared-reference-data": "1.2.15",
+        "mmo-shared-reference-data": "1.2.16",
         "moment": "^2.30.1",
         "mongodb": "6.7.0",
         "mongoose": "^8.4.1",

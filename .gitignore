@@ -5,3 +5,4 @@ coverage/
 .vscode/
 dist/
 service_bus
+.idea
