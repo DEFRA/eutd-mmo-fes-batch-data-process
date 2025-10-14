@@ -201,7 +201,7 @@ export const resubmitCCToTrade = async (): Promise<void> => {
     const ccQuery: FilterQuery<IDocumentModel> = {
       createdAt: {
         $gte: new Date("2025-09-04T00:00:00.000Z"),
-        $lte: new Date("2025-10-09T23:59:59.999Z"),
+        $lte: new Date("2025-10-16T23:59:59.999Z"),
       },
       "exportData.landingsEntryOption": "uploadEntry",
       status: DocumentStatuses.Complete,
