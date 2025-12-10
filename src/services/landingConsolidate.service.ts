@@ -16,12 +16,13 @@ export const fetchRefereshLandings = async (): Promise<ILandingQuery[]> => {
   }
 };
 
-export const updateConsolidateLandings = (landings: ILanding[]): void => {
+export const updateConsolidateLandings = async (landings: ILanding[]): Promise<void> => {
   try {
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][${landings.length}][LANDINGS-UPDATE]`);
     const baseUrl = appConfig.consolidationServicUrl;
     const client: AxiosInstance = axios.create({ baseURL: baseUrl });
-    client.post('/v1/jobs/landings', { landings });
+    const response: AxiosResponse = await client.post('/v1/jobs/landings', { landings });
+    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][LANDINGS-UPDATE][API][RESPONSE-CODE][${response.status}]`);
   } catch (e) {
     logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][LANDINGS-UPDATE][ERROR][${e}]`);
   }

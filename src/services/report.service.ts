@@ -326,7 +326,7 @@ const getUpdatedValidationData = (ccValidationData: ICcQueryResult[]): ICcQueryR
   return ccValidationData;
 }
 
-const sendCctoTradeDynamics = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
+const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   let catchCertificate: IDocument
   const certificateId = ccValidationData[0].documentNumber;
   const correlationId = uuidv4();
@@ -358,32 +358,17 @@ const sendCctoTradeDynamics = async (ccValidationData: ICcQueryResult[]): Promis
     logger.info(`[REREPORT-CC-SUBMITTED][GENERATED-CC][${certificateId}][${JSON.stringify(catchCertificate)}]`);
     await reportCcToTrade(catchCertificate, MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, getUpdatedValidationData(ccValidationData));
 
-    logger.info(`[CASE-MANAGEMENT-CC][DOCUMENT-NUMBER][${catchCertificate.documentNumber}][CORRELATION-ID][${correlationId}]`);
-    const message: ServiceBusMessage = {
-      body: dynamicsCatchCertificateCase,
-      subject: `${MessageLabel.CATCH_CERTIFICATE_SUBMITTED}-${catchCertificate.documentNumber}`,
-      sessionId: correlationId
-    };
-
-    await addToReportQueue(
-      catchCertificate.documentNumber,
-      message,
-      config.azureQueueUrl,
-      config.azureReportQueueName,
-      config.enableReportToQueue
-    );
-
   } else {
     logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
   }
 }
 
-export const resendCcToTradeDynamics = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
+export const resendCcToTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> => {
   try {
     logger.info(`[REPORT-CC-RESUBMITTED][ccValidationData][${ccValidationData.length}]`);
 
     if (ccValidationData.length > 0) {
-      await sendCctoTradeDynamics(ccValidationData);
+      await sendCctoTrade(ccValidationData);
     }
   } catch (e) {
     logger.error(`[REREPORT-CC-SUBMITTED][ERROR][${e}]`);

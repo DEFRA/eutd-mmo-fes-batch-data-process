@@ -1797,11 +1797,11 @@ describe('resetLandingStatus', () => {
   })
 });
 
-describe('resubmitCCPSToTradeDynamics', () => {
+describe('resubmitCCToTrade', () => {
   let mongoServer;
   let mockMapPlnLandingsToRssLandings;
   let mockGetLandingsMultiple;
-  let mockresendCcToTradeDynamics;
+  let mockresendCcToTrade;
   let loggerErrorMock;
   let dataMock;
   let mockGetLandings;
@@ -1823,8 +1823,8 @@ describe('resubmitCCPSToTradeDynamics', () => {
     appConfig.runResubmitCcToTradeStartDate = '2015-01-01T00:00:00';
     mockMapPlnLandingsToRssLandings = jest.spyOn(PlnToRss, 'mapPlnLandingsToRssLandings');
     mockGetLandingsMultiple = jest.spyOn(Landing, 'getLandingsMultiple');
-    mockresendCcToTradeDynamics = jest.spyOn(report, 'resendCcToTradeDynamics');
-    mockresendCcToTradeDynamics.mockResolvedValue(undefined);
+    mockresendCcToTrade = jest.spyOn(report, 'resendCcToTrade');
+    mockresendCcToTrade.mockResolvedValue(undefined);
     loggerErrorMock = jest.spyOn(logger, 'error');
     dataMock = jest.spyOn(cache, 'getVesselsIdx');
     dataMock.mockReturnValue(vesselsIdx);
@@ -1856,7 +1856,7 @@ describe('resubmitCCPSToTradeDynamics', () => {
 
   it('if appConfig.runResubmitCcToTrade is false then return', async () => {
     appConfig.runResubmitCcToTrade = false;
-    const result = await SUT.resubmitCCPSToTradeDynamics();
+    const result = await SUT.resubmitCCToTrade();
     expect(result).toBeUndefined();
   });
     it('When there are no landings in the document then show no landings logger', async () => {
@@ -1929,7 +1929,7 @@ describe('resubmitCCPSToTradeDynamics', () => {
       documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
     }]
 
-    await SUT.processResubmitCCToTradeDynamics(catchCert)
+    await SUT.processResubmitCCToTrade(catchCert)
     expect(loggerInfoMock).toHaveBeenCalledWith(
       `[RUN-RESUBMIT-TRADE-DOCUMENT][GBR-2024-CC-08F28C758][NO-LANDINGS-FOUND][GBR-2024-CC-08F28C758]`
     );
@@ -2004,7 +2004,7 @@ describe('resubmitCCPSToTradeDynamics', () => {
       documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
     }]
     mockGetLandings.mockReturnValue(undefined)
-    await SUT.processResubmitCCToTradeDynamics(catchCert)
+    await SUT.processResubmitCCToTrade(catchCert)
     const landings = _.flatten((sharedRefData.getLandingsFromCatchCertificate(catchCert, true) || []));
     expect(landings).toEqual([]);
   });
@@ -2012,7 +2012,7 @@ describe('resubmitCCPSToTradeDynamics', () => {
     const catchCert = new DocumentModel ({
       documentNumber: 'GBR-2025-CC-BBE364112',
       status: 'COMPLETE',
-      createdAt: moment.utc('2025-01-07').toISOString(),    //Edit Date
+      createdAt: moment.utc('2025-09-09').toISOString(),    //Edit Date
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -2021,9 +2021,9 @@ describe('resubmitCCPSToTradeDynamics', () => {
       audit: [],
       __v: 0,
       exportData: {
-        landingsEntryOption: 'directLanding',
+        landingsEntryOption: 'uploadEntry',
         transportation: {
-          vehicle: 'directLanding',
+          vehicle: 'uploadEntry',
           exportedFrom: 'United Kingdom',
           exportedTo: {
             officialCountryName: 'France',
@@ -2105,7 +2105,8 @@ describe('resubmitCCPSToTradeDynamics', () => {
                 dataEverExpected: true,
                 landingDataExpectedDate: '2010-06-29',
                 landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA'
+                _status: 'HAS_LANDING_DATA',
+                rfmo:""
               }
             ],
             factor: 1
@@ -2118,108 +2119,9 @@ describe('resubmitCCPSToTradeDynamics', () => {
       documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
     })
 
-    const processingStatement = new DocumentModel({
-      "documentNumber": "GBR-2025-PS-EBDE87220",
-      "status": "COMPLETE",
-      "createdAt": new Date("2020-06-24T10:39:32.000Z"),
-      "createdBy": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12",
-      "createdByEmail": "foo@foo.com",
-      "requestByAdmin": false,
-      "contactId": "ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13",
-      "__t": "processingStatement",
-      "audit": [],
-      "exportData": {
-        "catches": [
-          {
-            "catchCertificateNumber": "GBR-2023-CC-1975CB0F9",
-            "catchCertificateType": "non_uk",
-            "species": "Northern shortfin squid (SQI)",
-            "speciesCode": "SQI",
-            "id": "GBR-2023-CC-1975CB0F9-1692962600",
-            "totalWeightLanded": "80",
-            "exportWeightBeforeProcessing": "80",
-            "exportWeightAfterProcessing": "80",
-            "scientificName": "Illex illecebrosus",
-            "_id": {
-              "$oid": "64e88f2814ee5ab32f4a9278"
-            }
-          }
-        ],
-        "products": [
-          {
-            "id": "GBR-2025-PS-EBDE87220-1692962523",
-            "commodityCode": "03021180",
-            "description": "something",
-            "_id": {
-              "$oid": "64e88f2814ee5ab32f4a9279"
-            }
-          }
-        ],
-        "consignmentDescription": null,
-        "healthCertificateNumber": "20/2/123456",
-        "healthCertificateDate": "25/08/2023",
-        "exporterDetails": {
-          "contactId": "4704bf69-18f9-ec11-bb3d-000d3a2f806d",
-          "accountId": "8504bf69-18f9-ec11-bb3d-000d3a2f806d",
-          "addressOne": "NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT",
-          "buildingNumber": null,
-          "subBuildingName": "NATURAL ENGLAND",
-          "buildingName": "LANCASTER HOUSE",
-          "streetName": "HAMPSHIRE COURT",
-          "county": null,
-          "country": "United Kingdom of Great Britain and Northern Ireland",
-          "postcode": "NE4 7YH",
-          "townCity": "NEWCASTLE UPON TYNE",
-          "exporterCompanyName": "Automation Testing Ltd",
-          "_dynamicsAddress": {
-            "defra_uprn": "10091818796",
-            "defra_buildingname": "LANCASTER HOUSE",
-            "defra_subbuildingname": "NATURAL ENGLAND",
-            "defra_premises": null,
-            "defra_street": "HAMPSHIRE COURT",
-            "defra_locality": "NEWCASTLE BUSINESS PARK",
-            "defra_dependentlocality": null,
-            "defra_towntext": "NEWCASTLE UPON TYNE",
-            "defra_county": null,
-            "defra_postcode": "NE4 7YH",
-            "_defra_country_value": "f49cf73a-fa9c-e811-a950-000d3a3a2566",
-            "defra_internationalpostalcode": null,
-            "defra_fromcompanieshouse": false,
-            "defra_addressid": "a6bb5e78-18f9-ec11-bb3d-000d3a449c8e",
-            "_defra_country_value_OData_Community_Display_V1_FormattedValue": "United Kingdom of Great Britain and Northern Ireland",
-            "_defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty": "defra_Country",
-            "_defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname": "defra_country",
-            "defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue": "No"
-          },
-          "_dynamicsUser": {
-            "firstName": "Automation",
-            "lastName": "Tester"
-          }
-        },
-        "personResponsibleForConsignment": "Isaac",
-        "plantApprovalNumber": "1234",
-        "plantName": "name",
-        "plantAddressOne": "LANCASTER HOUSE, MMO SUB, HAMPSHIRE COURT",
-        "plantSubBuildingName": "MMO SUB",
-        "plantBuildingName": "LANCASTER HOUSE",
-        "plantStreetName": "HAMPSHIRE COURT",
-        "plantCounty": "TYNESIDE",
-        "plantCountry": "ENGLAND",
-        "plantTownCity": "NEWCASTLE UPON TYNE",
-        "plantPostcode": "NE4 7YH",
-        "dateOfAcceptance": "25/08/2023",
-        "exportedTo": {
-          "officialCountryName": "France",
-          "isoCodeAlpha2": "FR",
-          "isoCodeAlpha3": "FRA",
-          "isoNumericCode": "250"
-        }
-      },
-      "documentUri": "_5831e2cd-faef-4e64-9d67-3eb23ba7d930.pdf"
-    });
 
     await catchCert.save()
-    await processingStatement.save()
+
 
     const plnToRssVal = [
       {
@@ -2288,13 +2190,12 @@ describe('resubmitCCPSToTradeDynamics', () => {
     mockMapPlnLandingsToRssLandings.mockReturnValue(plnToRssVal);
     mockGetLandingsMultiple.mockResolvedValue(getMultLand)
 
-    await SUT.resubmitCCPSToTradeDynamics();
+    await SUT.resubmitCCToTrade();
     expect(mockMapPlnLandingsToRssLandings).toHaveBeenCalled();
     expect(mockGetLandingsMultiple).toHaveBeenCalled();
     const updatedCC = await DocumentModel.find({ documentNumber: 'GBR-2025-CC-BBE364112' });
-    const updatedPS = await DocumentModel.find({ documentNumber: 'GBR-2025-PS-EBDE87220' });
+    console.log(updatedCC,"updatedCC")
     expect(updatedCC).toHaveLength(1);
-    expect(updatedPS).toHaveLength(1);
   });
 
   it('should throw error', async () => {
@@ -2302,7 +2203,7 @@ describe('resubmitCCPSToTradeDynamics', () => {
     const catchCert = new DocumentModel ({
       documentNumber: 'GBR-2025-CC-BBE364112',
       status: 'COMPLETE',
-      createdAt: moment.utc('2025-01-07').toISOString(),    //Edit Date
+      createdAt: moment.utc('2025-09-09').toISOString(),    //Edit Date
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -2311,9 +2212,9 @@ describe('resubmitCCPSToTradeDynamics', () => {
       audit: [],
       __v: 0,
       exportData: {
-        landingsEntryOption: 'directLanding',
+        landingsEntryOption: 'uploadEntry',
         transportation: {
-          vehicle: 'directLanding',
+          vehicle: 'uploadEntry',
           exportedFrom: 'United Kingdom',
           exportedTo: {
             officialCountryName: 'France',
@@ -2395,7 +2296,9 @@ describe('resubmitCCPSToTradeDynamics', () => {
                 dataEverExpected: true,
                 landingDataExpectedDate: '2010-06-29',
                 landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA'
+                _status: 'HAS_LANDING_DATA',
+                rfmo:""
+
               }
             ],
             factor: 1
@@ -2408,19 +2311,19 @@ describe('resubmitCCPSToTradeDynamics', () => {
       documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
     })
     await catchCert.save()
-    mockresendCcToTradeDynamics.mockRejectedValue(error);
+    mockresendCcToTrade.mockRejectedValue(error);
     mockMapPlnLandingsToRssLandings.mockReturnValue([]);
     mockGetLandingsMultiple.mockResolvedValue([])
-    await SUT.resubmitCCPSToTradeDynamics();
+    await SUT.resubmitCCToTrade();
 
-    expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-RESUBMIT-TRADE-DYNAMICS-DOCUMENT][ERROR][Error: error]');
+    expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-RESUBMIT-TRADE-DOCUMENT][ERROR][Error: error]');
 
   });
-  it('should not resubmitCCPSToTradeDynamics for document without validation data', async () => {
+  it('should not resubmitCCToTrade for document without validation data', async () => {
     const catchCert = new DocumentModel({
       documentNumber: 'GBR-2025-CC-BBE364112',
       status: 'COMPLETE',
-      createdAt: moment.utc('2025-09-27T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2025-09-09').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -2429,9 +2332,9 @@ describe('resubmitCCPSToTradeDynamics', () => {
       audit: [],
       __v: 0,
       exportData: {
-        landingsEntryOption: 'directLanding',
+        landingsEntryOption: 'uploadEntry',
         transportation: {
-          vehicle: 'directLanding',
+          vehicle: 'uploadEntry',
           exportedFrom: 'United Kingdom',
           exportedTo: {
             officialCountryName: 'France',
@@ -2513,7 +2416,8 @@ describe('resubmitCCPSToTradeDynamics', () => {
                 dataEverExpected: true,
                 landingDataExpectedDate: '2010-06-29',
                 landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA'
+                _status: 'HAS_LANDING_DATA',
+                rfmo:""
               }
             ],
             factor: 1
@@ -2530,12 +2434,12 @@ describe('resubmitCCPSToTradeDynamics', () => {
     mockMapPlnLandingsToRssLandings.mockReturnValue([]);
     mockGetLandingsMultiple.mockResolvedValue([])
 
-    await SUT.resubmitCCPSToTradeDynamics()
+    await SUT.resubmitCCToTrade()
 
     expect(mockMapPlnLandingsToRssLandings).toHaveBeenCalled();
     expect(mockGetLandingsMultiple).toHaveBeenCalled();
     expect(mockGetLandingsMultiple).toHaveBeenCalledWith([]);
-    expect(mockresendCcToTradeDynamics).not.toHaveBeenCalled();
+    expect(mockresendCcToTrade).not.toHaveBeenCalled();
   });
   
 })
