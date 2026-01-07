@@ -2,15 +2,15 @@ name: $(BuildID).$(Date:yyyyMMdd).$(SourceBranchName)
 
 parameters:
   - name: deployFromFeature
-    displayName: "Deploy from Feature Branch"
+    displayName: 'Deploy from Feature Branch'
     type: boolean
     default: false
   - name: deployToSecondaryRegion
-    displayName: "Deploy to Secondary Region for DR"
+    displayName: 'Deploy to Secondary Region for DR'
     type: boolean
     default: false
   - name: skipPRE1
-    displayName: "Skip PRE1 Deployment"
+    displayName: 'Skip PRE1 Deployment'
     type: boolean
     default: false
 
@@ -25,13 +25,13 @@ trigger:
 pr:
   branches:
     include:
-      - "main"
-      - "develop"
-			
+      - 'main'
+      - 'develop'
+
 resources:
   repositories:
     - repository: MMOPipelineCommon
-      name: "DEFRA/eutd-mmo-fes-pipeline-common"
+      name: 'DEFRA/eutd-mmo-fes-pipeline-common'
       endpoint: DEFRA
       type: github
       ref: refs/heads/main
