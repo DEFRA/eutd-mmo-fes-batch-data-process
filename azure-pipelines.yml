@@ -22,7 +22,12 @@ trigger:
       - 'hotfix/*'
       - 'feature/*'
       - 'epic/*'
-
+pr:
+  branches:
+    include:
+      - "main"
+      - "develop"
+			
 resources:
   repositories:
     - repository: MMOPipelineCommon
