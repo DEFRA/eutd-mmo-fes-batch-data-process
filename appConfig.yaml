@@ -1,0 +1,245 @@
+appSettings:
+  - key: INSTRUMENTATION_KEY
+    value: ''  
+    type: appinsights
+    target: common
+
+  - key: AZURE_BLOB_CONTAINER
+    value: 't1-catchcerts'
+    type: config
+    target: common
+  
+  - key: AZURE_BLOB_URL
+    value: '#{{ SR_AZURE_BLOB_URL }}'
+    type: config
+    target: common
+  
+  - key: AZURE_SAS
+    value: 'SR-AZURE-BLOB-SAS'
+    type: secret
+    target: common
+  
+  - key: AZURE_QUEUE_CONNECTION_STRING
+    value: 'SERVICEBUS-CONNECTION-STRING'
+    type: secret
+    target: common
+  
+  - key: AZURE_QUEUE_TRADE_CONNECTION_STRING
+    value: 'TRADE-QUEUE-CONNECTION-STRING'
+    type: secret
+    target: common
+  
+  - key: ENABLE_CHIP_REPORTING
+    value: 'true'
+    type: config
+    target: common
+  
+  - key: BOOMI_URL
+    value: '#{{ boomiUrl }}'
+    type: config
+    target: common
+  
+  - key: COSMOS_DB_RW_CONNECTION_URI
+    value: 'COSMOS-DB-RW-CONNECTION-URI'
+    type: secret
+    target: common
+  
+  - key: DB_NAME
+    value: 'mmo_exportcert'
+    type: config
+    target: common
+  
+  - key: EXTERNAL_APP_URL
+    value: '#{{ externalFrontendBaseUrl }}'
+    type: config
+    target: main
+  
+  - key: INTERNAL_ADMIN_URL
+    value: '#{{ internalAdminFrontendBaseUrl }}'
+    type: config
+    target: main
+
+  - key: INSTRUMENTATION_CLOUD_ROLE
+    value: '#{{ repoName1 }}'
+    type: config
+    target: main
+
+  - key: LANDING_REPROCESSING_LIMIT
+    value: '50'
+    type: config
+    target: common
+  
+  - key: MMO_CC_LANDINGS_CONSOLIDATION_SVC_URL
+    value: 'https://#{{ environment }}-#{{ repoName4 }}-#{{ nc-resource-webapp }}.azurewebsites.net'
+    type: config
+    target: main
+
+  - key: NODE_ENV
+    value: 'production'
+    type: config
+    target: common
+  
+  - key: PORT
+    value: '9000'
+    type: config
+    target: common
+
+  - key: REF_BOOMI_API_OAUTH_CLIENT_ID
+    value: 'REF-BOOMI-API-OAUTH-CLIENT-ID'
+    type: secret
+    target: common
+  
+  - key: REF_BOOMI_API_OAUTH_CLIENT_SECRET
+    value: 'REF-BOOMI-API-OAUTH-CLIENT-SECRET'
+    type: secret
+    target: common
+  
+  - key: REF_BOOMI_API_OAUTH_TOKEN_URL
+    value: '#{{ REF-BOOMI-API-OAUTH-TOKEN-URL }}'
+    type: config
+    target: common
+  
+  - key: REF_BOOMI_API_OAUTH_AL_SCOPE
+    value: '#{{ REF-BOOMI-API-OAUTH-AL-SCOPE }}'
+    type: config
+    target: common
+  
+  - key: REF_BOOMI_API_OAUTH_MMO_SCOPE
+    value: '#{{ REF-BOOMI-API-OAUTH-MMO-SCOPE }}'
+    type: config
+    target: common
+  
+  - key: REF_SERVICE_BASIC_AUTH_PASSWORD
+    value: 'REF-SERVICE-BASIC-AUTH-PASSWORD'
+    type: secret
+    target: common
+  
+  - key: REF_SERVICE_BASIC_AUTH_USER
+    value: 'REF-SERVICE-BASIC-AUTH-USER'
+    type: secret
+    target: common
+  
+  - key: REFERENCE_DATA_AZURE_STORAGE
+    value: 'REFDATA-STORAGE-CONNECTION-STRING'
+    type: secret
+    target: common
+  
+  - key: REFRESH_SPECIES_JOB
+    value: '#{{ REF_DATA_READER_REFRESH_SPECIES_JOB }}'
+    type: config
+    target: common
+  
+  - key: REFRESH_VESSEL_JOB
+    value: '#{{ REF_DATA_READER_REFRESH_VESSEL_JOB }}'
+    type: config
+    target: common
+  
+  - key: REPORT_QUEUE
+    value: 'mmo-ecc-dyn-req-queue'
+    type: config
+    target: common
+  
+  - key: REPORT_QUEUE_TRADE
+    value: 'defra.trade.catch.create'
+    type: config
+    target: common
+  
+  - key: RUN_LANDING_REPROCESSING_JOB
+    value: 'false'
+    type: config
+    target: common
+  
+  - key: RUN_RESUBMIT_CC_TO_TRADE
+    value: 'false'
+    type: config
+    target: main
+  
+  - key: RUN_RESUBMIT_CC_TO_TRADE_START_DATE
+    value: '2024-06-27T00:00:00.000Z'
+    type: config
+    target: main
+  
+  - key: VESSEL_NOT_FOUND_ENABLE
+    value: 'true'
+    type: config
+    target: common
+  
+  - key: VESSEL_NOT_FOUND_NAME
+    value: 'Vessel not found'
+    type: config
+    target: common
+  
+  - key: VESSEL_NOT_FOUND_PLN
+    value: 'N/A'
+    type: config
+    target: common
+  
+  - key: MAXIMUM_DEFRA_VALIDATION_REPORT_BATCH_SIZE
+    value: '1000'
+    type: config
+    target: common
+  
+  - key: WEBSITE_HEALTHCHECK_MAXPINGFAILURES
+    value: '5'
+    type: config
+    target: common
+  
+  - key: WEBSITE_HEALTHCHECK_MAXUNHEALTHYWORKERPERCENT
+    value: '50'
+    type: config
+    target: common
+  
+  - key: WEBSITE_NAME
+    value: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}'
+    type: config
+    target: main
+  
+  - key: WEBSITE_WARMUP_PATH
+    value: '/health'
+    type: config
+    target: common
+  
+  - key: WEBSITES_CONTAINER_START_TIME_LIMIT
+    value: '300'
+    type: config
+    target: common
+  
+  - key: WEBSITES_PORT
+    value: '9000'
+    type: config
+    target: common
+  
+  - key: EXTERNAL_APP_URL
+    value: '#{{ externalFrontendStgBaseUrl }}'
+    type: config
+    target: staging
+
+  - key: INTERNAL_ADMIN_URL
+    value: '#{{ internalAdminFrontendStgBaseUrl }}'
+    type: config
+    target: staging
+
+  - key: INSTRUMENTATION_CLOUD_ROLE
+    value: '#{{ repoName1 }}-staging'
+    type: config
+    target: staging
+
+  - key: MMO_CC_LANDINGS_CONSOLIDATION_SVC_URL
+    value: 'https://#{{ environment }}-#{{ repoName4 }}-#{{ nc-resource-webapp }}-staging.azurewebsites.net'
+    type: config
+    target: staging
+
+  - key: RUN_RESUBMIT_CC_TO_TRADE
+    value: 'false'
+    type: config
+    target: staging
+
+  - key: RUN_RESUBMIT_CC_TO_TRADE_START_DATE
+    value: '2024-06-27T00:00:00.000Z'
+    type: config
+    target: staging
+
+  - key: WEBSITE_NAME
+    value: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}-staging'
+    type: config
+    target: staging
