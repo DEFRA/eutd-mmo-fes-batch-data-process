@@ -43,16 +43,19 @@ appSettings:
     value: '#{{ externalFrontendBaseUrl }}'
     type: config
     stagingValue: '#{{ externalFrontendStgBaseUrl }}'
+    slotSetting: true
   
   - key: INTERNAL_ADMIN_URL
     value: '#{{ internalAdminFrontendBaseUrl }}'
     type: config
     stagingValue: '#{{ internalAdminFrontendStgBaseUrl }}'
+    slotSetting: true
 
   - key: INSTRUMENTATION_CLOUD_ROLE
     value: '#{{ repoName1 }}'
     type: config
     stagingValue: '#{{ repoName1 }}-staging'
+    slotSetting: true
 
   - key: LANDING_REPROCESSING_LIMIT
     value: '50'
@@ -62,6 +65,7 @@ appSettings:
     value: 'https://#{{ environment }}-#{{ repoName4 }}-#{{ nc-resource-webapp }}.azurewebsites.net'
     type: config
     stagingValue: 'https://#{{ environment }}-#{{ repoName4 }}-#{{ nc-resource-webapp }}-staging.azurewebsites.net'
+    slotSetting: true
 
   - key: NODE_ENV
     value: 'production'
@@ -127,12 +131,14 @@ appSettings:
     value: 'false'
     type: config
     stagingValue: 'false'
-  
+    slotSetting: true
+
   - key: RUN_RESUBMIT_CC_TO_TRADE_START_DATE
     value: '2024-06-27T00:00:00.000Z'
     type: config
     stagingValue: '2024-06-27T00:00:00.000Z'
-  
+    slotSetting: true
+
   - key: VESSEL_NOT_FOUND_ENABLE
     value: 'true'
     type: config
@@ -161,7 +167,8 @@ appSettings:
     value: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}'
     type: config
     stagingValue: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}-staging'
-  
+    slotSetting: true
+ 
   - key: WEBSITE_WARMUP_PATH
     value: '/health'
     type: config
