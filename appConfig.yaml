@@ -180,4 +180,7 @@ appSettings:
   - key: WEBSITES_PORT
     value: '9000'
     type: config
-  
+
+  - key: WEBSITES_PORT2
+    value: '900'
+    type: config
