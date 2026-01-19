@@ -182,5 +182,5 @@ appSettings:
     type: config
 
   - key: WEBSITES_PORT2
-    value: '900'
+    value: '900-stage'
     type: config
