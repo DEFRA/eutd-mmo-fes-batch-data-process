@@ -8198,6 +8198,11 @@ describe('toDynamicsSd', () => {
     expect(result.products).toEqual([]);
   });
 
+  it('will return undefined products when sdQueryResults is null', () => {
+    const result = SUT.toDynamicsSd(null, baseStorageDocument as any, 'correlation-id', SdPsCaseTwoType.RealTimeValidation_Success);
+    expect(result.products).toBeUndefined();
+  });
+
   it('will map numberOfFailedSubmissions correctly', () => {
     const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
     expect(result.numberOfFailedSubmissions).toEqual(0);
@@ -8207,6 +8212,12 @@ describe('toDynamicsSd', () => {
     const docWithoutFailedAttempts = { ...baseStorageDocument, numberOfFailedAttempts: undefined };
     const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutFailedAttempts as any, 'correlation-id');
     expect(result.numberOfFailedSubmissions).toEqual(0);
+  });
+
+  it('will map numberOfFailedSubmissions correctly when truthy', () => {
+    const docWithFailedAttempts = { ...baseStorageDocument, numberOfFailedAttempts: 5 };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithFailedAttempts as any, 'correlation-id');
+    expect(result.numberOfFailedSubmissions).toEqual(5);
   });
 
   it('will map clonedFrom when provided', () => {
@@ -8249,5 +8260,53 @@ describe('toDynamicsSd', () => {
   it('will set _correlationId correctly', () => {
     const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'test-correlation-id');
     expect(result._correlationId).toEqual('test-correlation-id');
+  });
+
+  it('will return undefined exportedTo when not provided', () => {
+    const docWithoutExportedTo = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        exportedTo: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutExportedTo as any, 'correlation-id');
+    expect(result.exportedTo).toBeUndefined();
+  });
+
+  it('will return undefined pointOfDestination when transportation is undefined', () => {
+    const docWithoutTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        transportation: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutTransportation as any, 'correlation-id');
+    expect(result.pointOfDestination).toBeUndefined();
+  });
+
+  it('will return pointOfDestination when transportation is provided', () => {
+    const docWithTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        transportation: { pointOfDestination: 'Paris' }
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithTransportation as any, 'correlation-id');
+    expect(result.pointOfDestination).toEqual('Paris');
+  });
+
+  it('will return undefined placeOfUnloading when arrivalTransportation is undefined', () => {
+    const docWithoutArrivalTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        arrivalTransportation: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutArrivalTransportation as any, 'correlation-id');
+    expect(result.placeOfUnloading).toBeUndefined();
   });
 });

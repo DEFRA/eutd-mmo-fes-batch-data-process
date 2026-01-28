@@ -3546,6 +3546,16 @@ describe('When mapping from an ISdPsQueryResult to a IDefraTradeStorageDocumentP
     expect(result.issuingCountry).toEqual("Norway");
   });
 
+  it('will return undefined issuingCountry when non-uk and issuingCountry is undefined', () => {
+    const input = { 
+      ...baseInput, 
+      catchCertificateType: 'non-uk',
+      issuingCountry: undefined
+    };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.issuingCountry).toBeUndefined();
+  });
+
   it('will map supportingDocuments correctly', () => {
     const result = SUT.toDefraTradeSdProduct(baseInput);
     expect(result.supportingDocuments).toEqual('DOC1,DOC2');
@@ -3782,5 +3792,47 @@ describe('When transforming Storage Document to IDefraTradeStorageDocument using
     
     expect(result.transportation.modeofTransport).toEqual('bicycle');
     expect(result.transportation.exportLocation).toEqual('Dover');
+  });
+
+  it('will handle undefined arrivalTransportation', () => {
+    const docWithoutArrival = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        arrivalTransportation: undefined
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutArrival as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    // When arrivalTransportation is undefined, toTransportation returns undefined
+    expect(result.arrivalTransportation).toBeUndefined();
+  });
+
+  it('will handle undefined exportedTo', () => {
+    const docWithoutExportedTo = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        exportedTo: undefined
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutExportedTo as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.exportedTo).toBeUndefined();
+  });
+
+  it('will handle undefined exportData by returning undefined for transportation fields', () => {
+    const docWithoutExportData = {
+      ...baseDocument,
+      exportData: undefined
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutExportData as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation).toBeUndefined();
+    expect(result.arrivalTransportation).toBeUndefined();
+    expect(result.exportedTo).toBeUndefined();
   });
 });
