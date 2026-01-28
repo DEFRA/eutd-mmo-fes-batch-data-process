@@ -1,15 +1,12 @@
 const moment = require('moment');
 const mongoose = require('mongoose');
-import _ from 'lodash';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { DocumentModel } from '../../src/types/document';
 import { LandingModel } from '../../src/types/landing';
 import { generateIndex, LandingStatus, LandingSources, type ILanding, type ICcQueryResult } from 'mmo-shared-reference-data';
 import * as SUT from '../../src/landings/landingsUpdater';
 import * as cache from '../../src/data/cache';
-import * as PlnToRss from '../../src/query/plnToRss';
 import * as sharedRefData from "mmo-shared-reference-data"
-import * as Landing from '../../src/persistence/landing';
 import * as catchCerts from '../../src/persistence/catchCerts';
 import * as landingRefresher from '../../src/landings/landingsRefresh';
 import * as landingConsolidation from '../../src/services/landingConsolidate.service';
@@ -19,7 +16,6 @@ import * as file from '../../src/data/local-file';
 import logger from '../../src/logger';
 import appConfig from '../../src/config';
 import fs from 'fs';
-import * as species from '../../src/data/species';
 
 
 jest.mock('axios')
@@ -1840,7 +1836,7 @@ describe('resubmitSdToTrade', () => {
     const storageDoc = new DocumentModel({
       documentNumber: 'GBR-2026-SD-TEST123',
       status: 'COMPLETE',
-      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
+      createdAt: moment.utc('2025-12-01T12:00:00.000Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -1891,7 +1887,7 @@ describe('resubmitSdToTrade', () => {
     const storageDoc = new DocumentModel({
       documentNumber: 'GBR-2026-SD-TEST456',
       status: 'COMPLETE',
-      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
+      createdAt: moment.utc('2025-12-01T12:00:00.000Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
