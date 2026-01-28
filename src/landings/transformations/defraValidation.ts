@@ -24,6 +24,8 @@ import {
    isRiskEnabled,
  } from "../../data/risking";
  import { isRejectedLanding } from '../transformations/dynamicsValidation';
+import { CertificateStorageFacility } from '../../types/defraValidation';
+import { isEmpty } from 'lodash';
 
 
 export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
@@ -111,4 +113,24 @@ export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
           landingOutcomeAtRetrospectiveCheck: isRejectedLanding(rawValidatedLanding) ? LandingRetrospectiveOutcomeType.Failure : LandingRetrospectiveOutcomeType.Success,
       }
    });
+}
+
+export function toDefraSdStorageFacility(sdStorageFacility): CertificateStorageFacility {
+   return sdStorageFacility ? {
+      name: sdStorageFacility.facilityName,
+      address: {
+         building_number: sdStorageFacility.facilityBuildingNumber,
+         sub_building_name: sdStorageFacility.facilitySubBuildingName,
+         building_name: sdStorageFacility.facilityBuildingName,
+         street_name: sdStorageFacility.facilityStreetName,
+         county: sdStorageFacility.facilityCounty,
+         country: sdStorageFacility.facilityCountry,
+         line1: sdStorageFacility.facilityAddressOne,
+         city: sdStorageFacility.facilityTownCity,
+         postCode: sdStorageFacility.facilityPostcode
+      },
+      dateOfUnloading: moment(sdStorageFacility.facilityArrivalDate, 'DD/MM/YYYY').format('YYYY-MM-DD'),
+      approvalNumber: !isEmpty(sdStorageFacility.facilityApprovalNumber) ? sdStorageFacility.facilityApprovalNumber : undefined,
+      productHandling: !isEmpty(sdStorageFacility.facilityStorage) ? sdStorageFacility.facilityStorage : undefined,
+   } : undefined;
 }
