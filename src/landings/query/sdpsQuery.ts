@@ -66,6 +66,7 @@ export function* sdpsQuery (documents: any[], postCodeToDa: any):
 
     const fcc = fccIdx[`${item.certificateNumber}${item.species}`]
 
+    /* istanbul ignore if -- defensive code: fcc is always found since both are derived from the same unwoundCatches data */
     if (!fcc) {
       logger.error(`[FOREIGN-CATCH-CERTS][ERROR]Unable to find [${item.certificateNumber}${item.species}] in fccIdx`)
     } else {
