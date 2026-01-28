@@ -1,4 +1,5 @@
 import * as SUT from '../../../src/landings/query/sdpsQuery';
+import logger from '../../../src/logger';
 
 jest.mock('../../../src/logger', () => ({
   info: jest.fn(),
@@ -214,7 +215,7 @@ describe('sdpsQuery', () => {
         }
       ];
       
-      const daLookup = () => 'England';
+      const daLookup = (postcode) => 'England';
       const results = Array.from(SUT.unwindDocumentsToCatches(documents, daLookup));
 
       expect(results).toHaveLength(1);

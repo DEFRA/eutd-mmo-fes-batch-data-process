@@ -510,9 +510,6 @@ export function toDynamicsSd(
   caseTypeTwo?: SdPsCaseTwoType
 ): IDynamicsStorageDocumentCase {
   const daLookUp = postCodeDaLookup(postCodeToDa);
-  const exportData = storageDocument.exportData;
-  const arrivalTransportation = exportData.arrivalTransportation;
-  const transportation = exportData.transportation;
 
   return {
     exporter: toExporterPsSd(storageDocument),
@@ -524,13 +521,13 @@ export function toDynamicsSd(
     documentNumber: storageDocument.documentNumber,
     clonedFrom: storageDocument.clonedFrom,
     parentDocumentVoid: storageDocument.parentDocumentVoid,
-    companyName: exportData.exporterDetails.exporterCompanyName,
+    companyName: storageDocument.exportData.exporterDetails.exporterCompanyName,
     products: validatedSdProducts ? validatedSdProducts.map(_ => toSdProduct(_)) : undefined,
-    da: daLookUp(exportData.exporterDetails.postcode),
+    da: daLookUp(storageDocument.exportData.exporterDetails.postcode),
     _correlationId: correlationId,
     requestedByAdmin: storageDocument.requestByAdmin,
-    exportedTo: exportData.exportedTo ? toExportedToPsSd(storageDocument) : undefined,
-    placeOfUnloading: arrivalTransportation ? arrivalTransportation.placeOfUnloading : undefined,
-    pointOfDestination: transportation ? transportation.pointOfDestination : undefined
+    exportedTo: storageDocument.exportData?.exportedTo ? toExportedToPsSd(storageDocument) : undefined,
+    placeOfUnloading: storageDocument.exportData?.arrivalTransportation?.placeOfUnloading,
+    pointOfDestination: storageDocument.exportData?.transportation?.pointOfDestination
   };
 }

@@ -1836,7 +1836,7 @@ describe('resubmitSdToTrade', () => {
     const storageDoc = new DocumentModel({
       documentNumber: 'GBR-2026-SD-TEST123',
       status: 'COMPLETE',
-      createdAt: moment.utc('2025-12-01T12:00:00.000Z').toISOString(),
+      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
@@ -1887,7 +1887,7 @@ describe('resubmitSdToTrade', () => {
     const storageDoc = new DocumentModel({
       documentNumber: 'GBR-2026-SD-TEST456',
       status: 'COMPLETE',
-      createdAt: moment.utc('2025-12-01T12:00:00.000Z').toISOString(),
+      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
