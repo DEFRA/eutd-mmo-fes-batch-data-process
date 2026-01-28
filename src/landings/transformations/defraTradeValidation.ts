@@ -292,17 +292,20 @@ export const toDefraTradeProduct = (product: ISdPsQueryResult): IDefraTradeStora
   toDefraTradeSdProduct(product);
 
 export const toDefraTradeSd = (document: IDocument, documentCase: IDynamicsStorageDocumentCase, sdQueryResults: ISdPsQueryResult[] | null): IDefraTradeStorageDocument => {
-  const transportation: CertificateTransport = toTransportation(document.exportData?.transportation);
-  const arrivalTransportation: CertificateTransport = toTransportation(document.exportData?.arrivalTransportation);
-  Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
-
-  transportation.exportDate = moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).isValid() ? moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).format('YYYY-MM-DD') : moment.utc().format('YYYY-MM-DD');
+  const exportData = document.exportData;
+  const transportation: CertificateTransport = toTransportation(exportData ? exportData.transportation : undefined);
+  const arrivalTransportation: CertificateTransport = toTransportation(exportData ? exportData.arrivalTransportation : undefined);
+  
+  if (transportation) {
+    Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
+    transportation.exportDate = moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).isValid() ? moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).format('YYYY-MM-DD') : moment.utc().format('YYYY-MM-DD');
+  }
 
   return {
     ...documentCase,
     products: Array.isArray(sdQueryResults) ? sdQueryResults.map((_: ISdPsQueryResult) => toDefraTradeProduct(_)) : null,
     storageFacility: toDefraSdStorageFacility(document.exportData),
-    exportedTo: document.exportData?.exportedTo,
+    exportedTo: exportData ? exportData.exportedTo : undefined,
     transportation,
     arrivalTransportation,
     authority: toAuthority()
