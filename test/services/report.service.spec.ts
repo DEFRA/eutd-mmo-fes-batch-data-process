@@ -7715,11 +7715,10 @@ describe('reportSdToTrade', () => {
 
       const callArgs = mockPersistence.mock.calls[0];
       const message = callArgs[1];
-      if (message.body.products) {
-        message.body.products.forEach(product => {
-          expect(product.isDocumentIssuedInUK).toBeUndefined();
-        });
-      }
+      expect(message.body.products).toBeDefined();
+      message.body.products.forEach(product => {
+        expect(product.isDocumentIssuedInUK).toBeUndefined();
+      });
     });
   });
 
@@ -7897,7 +7896,8 @@ describe('reportSdToTrade', () => {
     it('should handle undefined exporter accountId and contactId', async () => {
       const storageDocumentCase = { ...baseStorageDocumentCase };
       // Create a payload without contactId and accountId (schema allows optional)
-      const { contactId, accountId, ...exporterWithoutIds } = validSdDefraTrade.exporter;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { contactId: _contactId, accountId: _accountId, ...exporterWithoutIds } = validSdDefraTrade.exporter;
       const undefinedExporterPayload = {
         ...validSdDefraTrade,
         exporter: exporterWithoutIds
@@ -7911,6 +7911,8 @@ describe('reportSdToTrade', () => {
       const message = callArgs[1];
 
       // When contactId/accountId are undefined, ?? null returns null
+      expect(message.applicationProperties.OrganisationId).toBeNull();
+      expect(message.applicationProperties.UserId).toBeNull();
     });
   });
 });
