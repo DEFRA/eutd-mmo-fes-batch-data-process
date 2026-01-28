@@ -9,6 +9,7 @@ import * as risking from '../../../src/data/risking';
 import * as Vessel from '../../../src/data/vessel';
 import * as Shared from 'mmo-shared-reference-data';
 import { CaseTwoType } from "../../../src/types/dynamicsValidation";
+import { SdPsCaseTwoType } from "../../../src/types/dynamicsValidationSdPs";
 import { IDocument, InvestigationStatus, LandingSources } from "mmo-shared-reference-data";
 import { CertificateAudit, IAuditEvent } from "../../../src/types/defraValidation";
 
@@ -8025,5 +8026,287 @@ describe("when mapping audit", () => {
 
     const result = SUT.toAudit(audit);
     expect(result.investigationStatus).toBeUndefined();
+  });
+});
+
+describe('toSdProduct', () => {
+  const baseInput = {
+    documentNumber: "SD1",
+    catchCertificateNumber: "CC1",
+    catchCertificateType: "uk",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    scientificName: "Gadus morhua",
+    commodityCode: "03025110",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: null,
+    extended: {
+      id: 'SD1-catch-1',
+    },
+    productDescription: 'Fresh cod fillets',
+    supportingDocuments: 'DOC1,DOC2',
+    netWeightProductArrival: '90',
+    netWeightFisheryProductArrival: '85',
+    netWeightProductDeparture: '80',
+    netWeightFisheryProductDeparture: '75'
+  };
+
+  it('will map status to Success when no issues', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.validation.status).toEqual('Validation Success');
+  });
+
+  it('will map status to Weight when isMismatch is true', () => {
+    const input = { ...baseInput, isMismatch: true };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.validation.status).toEqual('Weight Failure');
+  });
+
+  it('will map status to Overuse when isOverAllocated is true (takes precedence)', () => {
+    const input = { ...baseInput, isMismatch: true, isOverAllocated: true };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.validation.status).toEqual('Overuse Failure');
+  });
+
+  it('will map isDocumentIssuedInUK to true when catchCertificateType is uk', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.isDocumentIssuedInUK).toEqual(true);
+  });
+
+  it('will map isDocumentIssuedInUK to false when catchCertificateType is not uk', () => {
+    const input = { ...baseInput, catchCertificateType: 'non-uk' };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.isDocumentIssuedInUK).toEqual(false);
+  });
+
+  it('will parse net weight fields as integers', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.netWeightProductArrival).toEqual(90);
+    expect(result.netWeightFisheryProductArrival).toEqual(85);
+    expect(result.netWeightProductDeparture).toEqual(80);
+    expect(result.netWeightFisheryProductDeparture).toEqual(75);
+  });
+
+  it('will return undefined for net weight fields when not provided', () => {
+    const input = { ...baseInput, netWeightProductArrival: undefined };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.netWeightProductArrival).toBeUndefined();
+  });
+
+  it('will map issuingCountry as United Kingdom when catchCertificateType is uk', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.issuingCountry).toEqual('United Kingdom');
+  });
+
+  it('will map issuingCountry from officialCountryName when catchCertificateType is not uk', () => {
+    const input = { 
+      ...baseInput, 
+      catchCertificateType: 'non-uk',
+      issuingCountry: { officialCountryName: 'Norway' }
+    };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.issuingCountry).toEqual('Norway');
+  });
+
+  it('will filter overuseInfo to exclude current document', () => {
+    const input = { ...baseInput, overUsedInfo: ['SD1', 'SD2', 'SD3'] };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.validation.overuseInfo).toEqual(['SD2', 'SD3']);
+  });
+
+  it('will return undefined for overuseInfo when only current document is in list', () => {
+    const input = { ...baseInput, overUsedInfo: ['SD1'] };
+    const result = SUT.toSdProduct(input as any);
+    expect(result.validation.overuseInfo).toBeUndefined();
+  });
+
+  it('will map productDescription correctly', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.productDescription).toEqual('Fresh cod fillets');
+  });
+
+  it('will map supportingDocuments correctly', () => {
+    const result = SUT.toSdProduct(baseInput as any);
+    expect(result.supportingDocuments).toEqual('DOC1,DOC2');
+  });
+});
+
+describe('toDynamicsSd', () => {
+  const baseStorageDocument: Partial<Shared.IDocument> = {
+    documentNumber: 'SD-001',
+    createdAt: new Date('2021-01-01T00:00:00Z'),
+    documentUri: 'test-document.pdf',
+    numberOfFailedAttempts: 0,
+    clonedFrom: undefined,
+    parentDocumentVoid: undefined,
+    requestByAdmin: false,
+    exportData: {
+      exporterDetails: {
+        postcode: 'NE1 1AA',
+        exporterCompanyName: 'Test Company',
+        exporterFullName: 'Test User',
+        contactId: 'contact-123',
+        accountId: 'account-123'
+      },
+      exportedTo: { officialCountryName: 'France' },
+      arrivalTransportation: { placeOfUnloading: 'Calais' }
+    }
+  };
+
+  const baseSdQueryResults = [{
+    documentNumber: "SD-001",
+    catchCertificateNumber: "CC1",
+    catchCertificateType: "uk",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    scientificName: "Gadus morhua",
+    commodityCode: "03025110",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: null,
+    extended: { id: 'SD1-catch-1' }
+  }];
+
+  it('will map document number correctly', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.documentNumber).toEqual('SD-001');
+  });
+
+  it('will map products when provided', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0].foreignCatchCertificateNumber).toEqual('CC1');
+  });
+
+  it('will return undefined products when sdQueryResults is empty array', () => {
+    const result = SUT.toDynamicsSd([], baseStorageDocument as any, 'correlation-id');
+    expect(result.products).toEqual([]);
+  });
+
+  it('will return undefined products when sdQueryResults is null', () => {
+    const result = SUT.toDynamicsSd(null, baseStorageDocument as any, 'correlation-id', SdPsCaseTwoType.RealTimeValidation_Success);
+    expect(result.products).toBeUndefined();
+  });
+
+  it('will map numberOfFailedSubmissions correctly', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.numberOfFailedSubmissions).toEqual(0);
+  });
+
+  it('will default numberOfFailedSubmissions to 0 when not provided', () => {
+    const docWithoutFailedAttempts = { ...baseStorageDocument, numberOfFailedAttempts: undefined };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutFailedAttempts as any, 'correlation-id');
+    expect(result.numberOfFailedSubmissions).toEqual(0);
+  });
+
+  it('will map numberOfFailedSubmissions correctly when truthy', () => {
+    const docWithFailedAttempts = { ...baseStorageDocument, numberOfFailedAttempts: 5 };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithFailedAttempts as any, 'correlation-id');
+    expect(result.numberOfFailedSubmissions).toEqual(5);
+  });
+
+  it('will map clonedFrom when provided', () => {
+    const docWithClone = { ...baseStorageDocument, clonedFrom: 'SD-000' };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithClone as any, 'correlation-id');
+    expect(result.clonedFrom).toEqual('SD-000');
+  });
+
+  it('will map parentDocumentVoid when provided', () => {
+    const docWithParentVoid = { ...baseStorageDocument, parentDocumentVoid: true };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithParentVoid as any, 'correlation-id');
+    expect(result.parentDocumentVoid).toEqual(true);
+  });
+
+  it('will map exportedTo when provided', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.exportedTo).toBeDefined();
+  });
+
+  it('will use provided caseTypeTwo when specified', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id', SdPsCaseTwoType.VoidByExporter);
+    expect(result.caseType2).toEqual(SdPsCaseTwoType.VoidByExporter);
+  });
+
+  it('will map placeOfUnloading from arrivalTransportation', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.placeOfUnloading).toEqual('Calais');
+  });
+
+  it('will map companyName correctly', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.companyName).toEqual('Test Company');
+  });
+
+  it('will map requestedByAdmin correctly', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'correlation-id');
+    expect(result.requestedByAdmin).toEqual(false);
+  });
+
+  it('will set _correlationId correctly', () => {
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, baseStorageDocument as any, 'test-correlation-id');
+    expect(result._correlationId).toEqual('test-correlation-id');
+  });
+
+  it('will return undefined exportedTo when not provided', () => {
+    const docWithoutExportedTo = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        exportedTo: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutExportedTo as any, 'correlation-id');
+    expect(result.exportedTo).toBeUndefined();
+  });
+
+  it('will return undefined pointOfDestination when transportation is undefined', () => {
+    const docWithoutTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        transportation: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutTransportation as any, 'correlation-id');
+    expect(result.pointOfDestination).toBeUndefined();
+  });
+
+  it('will return pointOfDestination when transportation is provided', () => {
+    const docWithTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        transportation: { pointOfDestination: 'Paris' }
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithTransportation as any, 'correlation-id');
+    expect(result.pointOfDestination).toEqual('Paris');
+  });
+
+  it('will return undefined placeOfUnloading when arrivalTransportation is undefined', () => {
+    const docWithoutArrivalTransportation = {
+      ...baseStorageDocument,
+      exportData: {
+        ...baseStorageDocument.exportData,
+        arrivalTransportation: undefined
+      }
+    };
+    const result = SUT.toDynamicsSd(baseSdQueryResults as any, docWithoutArrivalTransportation as any, 'correlation-id');
+    expect(result.placeOfUnloading).toBeUndefined();
   });
 });

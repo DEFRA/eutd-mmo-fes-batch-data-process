@@ -1,30 +1,29 @@
 import moment from 'moment';
 import { missingLandingRefreshQuery, exceedingLimitLandingQuery } from "../query/ccQuery";
 import { getCatchCerts, getCertificateByDocumentNumber, upsertCertificate } from "../persistence/catchCerts";
-import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendCcToTrade } from "../services/report.service";
+import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendSdToTrade } from "../services/report.service";
 import { fetchRefereshLandings, updateConsolidateLandings } from '../services/landingConsolidate.service';
 import { fetchAndProcessNewLandings } from './landingsRefresh';
-import { getSpeciesAliases, getToLiveWeightFactor, getVesselsIdx, loadLandingReprocessData, updateLandingReprocessData } from "../data/cache";
+import { getToLiveWeightFactor, loadLandingReprocessData, updateLandingReprocessData } from "../data/cache";
 import {
   type ILanding,
   type ICcQueryResult,
   type Product,
-  ccQuery,
   LandingStatus,
   mapLandingWithLandingStatus,
   ILandingQuery,
   IDocument,
-  getLandingsFromCatchCertificate,
-  DocumentStatuses
+  DocumentStatuses,
+  postCodeToDa
 } from 'mmo-shared-reference-data';
 import logger from '../logger';
 import appConfig from '../config';
 import _ from 'lodash';
-import { mapPlnLandingsToRssLandings } from '../query/plnToRss';
-import { getLandingsMultiple } from '../persistence/landing';
 import { DocumentModel, IDocumentModel } from '../types/document';
 import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
+import { ISdPsQueryResult } from '../types/query';
+import { sdpsQuery } from './query/sdpsQuery';
 
 export const getMissingLandingsArray = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
   const landingStatuses: LandingStatus[] = [LandingStatus.Pending];
@@ -93,33 +92,6 @@ export function uniquifyLandings(landingQuery: ILandingQueryWithIsLegallyDue[]):
 
     return [...landings, landing]
   }, []);
-}
-
-export const processResubmitCCToTrade = async (certsToUpdate: IDocument[]): Promise<void> => {
-  for (const certToUpdate of certsToUpdate) {
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
-    let results: ICcQueryResult[] = [];
-    const landings = _.flatten((getLandingsFromCatchCertificate(certToUpdate, true) || []));
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${landings.length}-DOCUMENT-LANDINGS][${certToUpdate.documentNumber}]`);
-    if (landings.length) {
-      const landingsByRss: ILandingQueryWithIsLegallyDue[] = uniquifyLandings(mapPlnLandingsToRssLandings(landings));
-      logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][FOR][${JSON.stringify(landingsByRss)}]`);
-      const multipleLandings: ILanding[] = await getLandingsMultiple(landingsByRss);
-      logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][RUNNING-CCQUERY][WITH][${multipleLandings.length}][LANDINGS]`);
-      results = Array.from(ccQuery([certToUpdate], multipleLandings, getVesselsIdx(), moment(certToUpdate.createdAt), getSpeciesAliases));
-      logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
-    } else {
-      logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][NO-LANDINGS-FOUND][${certToUpdate.documentNumber}]`);
-      continue;
-    }
-    if (results.length <= 0) {
-      logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][NO-VALIDATIONS][${certToUpdate.documentNumber}]`);
-      continue;
-    }
-    await resendCcToTrade(results);
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
-  }
 }
 
 export const exceeding14DayLandingsAndReportingCron = async (): Promise<void> => {
@@ -193,31 +165,37 @@ export const resetLandingStatusJob = async (): Promise<void> => {
   }
 }
 
-
-export const resubmitCCToTrade = async (): Promise<void> => {
-  try {
-    if (!appConfig.runResubmitCcToTrade) return;
-
-    const ccQuery: FilterQuery<IDocumentModel> = {
-      createdAt: {
-        $gte: new Date("2025-09-04T00:00:00.000Z"),
-        $lte: new Date("2025-10-16T23:59:59.999Z"),
-      },
-      "exportData.landingsEntryOption": "uploadEntry",
-      status: DocumentStatuses.Complete,
-      "exportData.products": {
-        $elemMatch: {
-          "caughtBy.rfmo": ""
-        }
-      },
-    };
-    const ccToUpdate: IDocument[] = await DocumentModel
-      .find(ccQuery, null, { timeout: true, lean: true })
-      .sort({ createdAt: -1 });
-    logger.info(`[RUN-RESUBMIT-CC-TRADE-DOCUMENT][CERTS][LENGTH:${ccToUpdate.length}]`);
-    await processResubmitCCToTrade(ccToUpdate);
-    logger.info(`[RUN-RESUBMIT-TRADE-DOCUMENT][COMPLETE]`);
-  } catch (e) {
-    logger.error(`[RUN-RESUBMIT-TRADE-DOCUMENT][ERROR][${e}]`);
+export const processResubmitSdToTrade = async (certsToUpdate: IDocument[]): Promise<void> => {
+  for (const certToUpdate of certsToUpdate) {
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][${certToUpdate.documentNumber}]`);
+    let results: ISdPsQueryResult[] = [];
+    results = Array.from(sdpsQuery([certToUpdate], postCodeToDa));
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
+    await resendSdToTrade(results);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }
 }
+export const resubmitSdToTrade = async (): Promise<void> => {
+  try {
+    if (!appConfig.runResubmitCcToTrade) return;
+    logger.info('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-CC][START]');
+    const query: FilterQuery<IDocumentModel> = {
+       createdAt: {
+        $gte: new Date("2025-11-20T00:00:00.000Z"),
+        $lte: new Date("2026-01-12T23:59:59.999Z"),
+      },
+      __t: "storageDocument",
+      status: DocumentStatuses.Complete      
+    }
+    const certsToUpdate: IDocument[] = await DocumentModel
+      .find(query, null, { timeout: true, lean: true })
+      .sort({ createdAt: -1 });
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERTS][LENGTH:${certsToUpdate.length}]`);
+    await processResubmitSdToTrade(certsToUpdate);
+    logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][COMPLETE]`);
+  } catch (e) {
+    logger.error(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][ERROR][${e}]`);
+  }
+}
+
