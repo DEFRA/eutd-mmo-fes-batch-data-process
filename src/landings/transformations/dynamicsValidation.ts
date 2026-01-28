@@ -42,7 +42,7 @@ import { isEmpty } from "lodash";
 import { CertificateAudit, CertificateCompany, IAuditEvent } from "../../types/defraValidation";
 import { ISdPsQueryResult } from "../../types/query";
 import { SdPsCaseTwoType, SdPsStatus, IDynamicsProcessingStatementCatch } from "../../types/dynamicsValidationSdPs";
-import { IDynamicsProcessingStatementCase } from "../../types/dynamicsSdPsCase";
+import { IDynamicsProcessingStatementCase, IDynamicsStorageDocumentCase, IDynamicsStorageDocumentProduct } from "../../types/dynamicsSdPsCase";
 
 export const isSpeciesFailure = (func: (riskScore: number, threshold?: number) => boolean) => (
   enabled: boolean,
@@ -463,4 +463,71 @@ export function toPsCatch(validatedPsCatches: ISdPsQueryResult): IDynamicsProces
         ? validatedPsCatches.overUsedInfo.filter(_ => _ !== validatedPsCatches.documentNumber) : undefined
     }
   }
+}
+
+export function toSdProduct(validatedSdProducts: ISdPsQueryResult): IDynamicsStorageDocumentProduct {
+
+  let status = SdPsStatus.Success;
+
+  if (validatedSdProducts.isMismatch) {
+    status = SdPsStatus.Weight
+  }
+
+  if (validatedSdProducts.isOverAllocated) {
+    status = SdPsStatus.Overuse
+  }
+
+  return {
+    foreignCatchCertificateNumber: validatedSdProducts.catchCertificateNumber,
+    isDocumentIssuedInUK: validatedSdProducts.catchCertificateType === 'uk',
+    species: toSpeciesCode(validatedSdProducts.species),
+    id: validatedSdProducts.extended.id,
+    cnCode: validatedSdProducts.commodityCode,
+    scientificName: validatedSdProducts.scientificName,
+    importedWeight: validatedSdProducts.weightOnFCC,
+    exportedWeight: validatedSdProducts.weightOnDoc,
+    productDescription: validatedSdProducts.productDescription,
+    supportingDocuments: validatedSdProducts.supportingDocuments,
+    netWeightProductArrival: validatedSdProducts.netWeightProductArrival ? parseInt(validatedSdProducts.netWeightProductArrival, 10) : undefined,
+    netWeightFisheryProductArrival: validatedSdProducts.netWeightFisheryProductArrival ? parseInt(validatedSdProducts.netWeightFisheryProductArrival, 10) : undefined,
+    netWeightProductDeparture: validatedSdProducts.netWeightProductDeparture ? parseInt(validatedSdProducts.netWeightProductDeparture, 10) : undefined,
+    netWeightFisheryProductDeparture: validatedSdProducts.netWeightFisheryProductDeparture ? parseInt(validatedSdProducts.netWeightFisheryProductDeparture, 10) : undefined,
+    validation: {
+      totalWeightExported: validatedSdProducts.weightOnAllDocs,
+      status: status,
+      weightExceededAmount: validatedSdProducts.overAllocatedByWeight,
+      overuseInfo: validatedSdProducts.overUsedInfo.some(_ => _ !== validatedSdProducts.documentNumber)
+        ? validatedSdProducts.overUsedInfo.filter(_ => _ !== validatedSdProducts.documentNumber) : undefined
+    },
+    issuingCountry: validatedSdProducts.catchCertificateType === 'uk' ? 'United Kingdom' : validatedSdProducts.issuingCountry?.officialCountryName
+  }
+}
+
+export function toDynamicsSd(
+  validatedSdProducts: ISdPsQueryResult[] | null,
+  storageDocument: IDocument,
+  correlationId: string,
+  caseTypeTwo?: SdPsCaseTwoType
+): IDynamicsStorageDocumentCase {
+  const daLookUp = postCodeDaLookup(postCodeToDa);
+
+  return {
+    exporter: toExporterPsSd(storageDocument),
+    documentUrl: `${ApplicationConfig.prototype.externalAppUrl}/qr/export-certificates/${storageDocument.documentUri}`,
+    documentDate: moment.utc(storageDocument.createdAt).toISOString(),
+    caseType1: CaseOneType.StorageDocument,
+    caseType2: caseTypeTwo || toSdPsCaseTwoType(validatedSdProducts),
+    numberOfFailedSubmissions: storageDocument.numberOfFailedAttempts ? storageDocument.numberOfFailedAttempts : 0,
+    documentNumber: storageDocument.documentNumber,
+    clonedFrom: storageDocument.clonedFrom,
+    parentDocumentVoid: storageDocument.parentDocumentVoid,
+    companyName: storageDocument.exportData.exporterDetails.exporterCompanyName,
+    products: validatedSdProducts ? validatedSdProducts.map(_ => toSdProduct(_)) : undefined,
+    da: daLookUp(storageDocument.exportData.exporterDetails.postcode),
+    _correlationId: correlationId,
+    requestedByAdmin: storageDocument.requestByAdmin,
+    exportedTo: storageDocument.exportData?.exportedTo ? toExportedToPsSd(storageDocument) : undefined,
+    placeOfUnloading: storageDocument.exportData?.arrivalTransportation?.placeOfUnloading,
+    pointOfDestination: storageDocument.exportData?.transportation?.pointOfDestination
+  };
 }

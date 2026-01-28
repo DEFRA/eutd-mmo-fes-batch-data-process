@@ -1797,18 +1797,11 @@ describe('resetLandingStatus', () => {
   })
 });
 
-describe('resubmitCCToTrade', () => {
+describe('resubmitSdToTrade', () => {
   let mongoServer;
-  let mockMapPlnLandingsToRssLandings;
-  let mockGetLandingsMultiple;
-  let mockresendCcToTrade;
+  let mockresendSdToTrade;
   let loggerErrorMock;
-  let dataMock;
-  let mockGetLandings;
-  let mockCommodityCodeSearch;
   let loggerInfoMock;
-  
-
 
   const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
 
@@ -1820,32 +1813,15 @@ describe('resubmitCCToTrade', () => {
 
   beforeEach(async () => {
     appConfig.runResubmitCcToTrade = true;
-    appConfig.runResubmitCcToTradeStartDate = '2015-01-01T00:00:00';
-    mockMapPlnLandingsToRssLandings = jest.spyOn(PlnToRss, 'mapPlnLandingsToRssLandings');
-    mockGetLandingsMultiple = jest.spyOn(Landing, 'getLandingsMultiple');
-    mockresendCcToTrade = jest.spyOn(report, 'resendCcToTrade');
-    mockresendCcToTrade.mockResolvedValue(undefined);
+    mockresendSdToTrade = jest.spyOn(report, 'resendSdToTrade');
+    mockresendSdToTrade.mockResolvedValue(undefined);
     loggerErrorMock = jest.spyOn(logger, 'error');
-    dataMock = jest.spyOn(cache, 'getVesselsIdx');
-    dataMock.mockReturnValue(vesselsIdx);
-    mockGetLandings = jest.spyOn(sharedRefData, 'getLandingsFromCatchCertificate');
-    mockCommodityCodeSearch = jest.spyOn(species, 'commoditySearch');
-    mockCommodityCodeSearch.mockReturnValue([{
-      code: "03074220",
-      description: "Squid \"Loligo spp.\", live, fresh or chilled",
-      faoName: "Inshore squids nei",
-      stateLabel: "fresh",
-      presentationLabel: "whole"
-    }])
     loggerInfoMock = jest.spyOn(logger, 'info');
-
   });
 
   afterEach(async () => {
     jest.resetAllMocks();
-    await LandingModel.deleteMany({});
     await DocumentModel.deleteMany({});
-    mockGetLandings.mockRestore();
   })
 
   afterAll(async () => {
@@ -1856,182 +1832,23 @@ describe('resubmitCCToTrade', () => {
 
   it('if appConfig.runResubmitCcToTrade is false then return', async () => {
     appConfig.runResubmitCcToTrade = false;
-    const result = await SUT.resubmitCCToTrade();
+    const result = await SUT.resubmitSdToTrade();
     expect(result).toBeUndefined();
   });
-    it('When there are no landings in the document then show no landings logger', async () => {
-    const catchCert: sharedRefData.IDocument[] = [{
-      documentNumber: 'GBR-2024-CC-08F28C758',
-      status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'catchCert',
-      audit: [],
-      exportData: {
-        landingsEntryOption: 'directLanding',
-        transportation: {
-          vehicle: 'directLanding',
-          exportedFrom: 'United Kingdom',
-          exportedTo: {
-            officialCountryName: 'France',
-            isoCodeAlpha2: 'FR',
-            isoCodeAlpha3: 'FRA',
-            isoNumericCode: '250'
-          }
-        },
-        exporterDetails: {
-          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'capgemini',
-          exporterFullName: 'Automation Tester',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: 'NE4 7YH',
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester'
-          }
-        },
-        products: [
-        ],
-        conservation: {
-          conservationReference: 'UK Fisheries Policy'
-        }
-      },
-      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
-    }]
 
-    await SUT.processResubmitCCToTrade(catchCert)
-    expect(loggerInfoMock).toHaveBeenCalledWith(
-      `[RUN-RESUBMIT-TRADE-DOCUMENT][GBR-2024-CC-08F28C758][NO-LANDINGS-FOUND][GBR-2024-CC-08F28C758]`
-    );
-  });
-   it('when getLandingsFromCatchCertificate is undefined should give zero landings', async () => {
-    const catchCert: sharedRefData.IDocument[] = [{
-      documentNumber: 'GBR-2024-CC-08F28C758',
+  it('resubmitSdToTrade should execute as expected for storage documents', async () => {
+    const storageDoc = new DocumentModel({
+      documentNumber: 'GBR-2026-SD-TEST123',
       status: 'COMPLETE',
-      createdAt: moment.utc('2020-09-26T08:26:06.939Z').toISOString(),
+      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
       createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
       createdByEmail: 'foo@foo.com',
       requestByAdmin: false,
       contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'catchCert',
-      audit: [],
-      exportData: {
-        landingsEntryOption: 'directLanding',
-        transportation: {
-          vehicle: 'directLanding',
-          exportedFrom: 'United Kingdom',
-          exportedTo: {
-            officialCountryName: 'France',
-            isoCodeAlpha2: 'FR',
-            isoCodeAlpha3: 'FRA',
-            isoNumericCode: '250'
-          }
-        },
-        exporterDetails: {
-          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'capgemini',
-          exporterFullName: 'Automation Tester',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: 'NE4 7YH',
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester'
-          }
-        },
-        products: [
-        ],
-        conservation: {
-          conservationReference: 'UK Fisheries Policy'
-        }
-      },
-      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
-    }]
-    mockGetLandings.mockReturnValue(undefined)
-    await SUT.processResubmitCCToTrade(catchCert)
-    const landings = _.flatten((sharedRefData.getLandingsFromCatchCertificate(catchCert, true) || []));
-    expect(landings).toEqual([]);
-  });
-  it('runResubmitCcToTrade should execute as expected.', async () => {
-    const catchCert = new DocumentModel ({
-      documentNumber: 'GBR-2025-CC-BBE364112',
-      status: 'COMPLETE',
-      createdAt: moment.utc('2025-09-09').toISOString(),    //Edit Date
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'catchCert',
+      __t: 'storageDocument',
       audit: [],
       __v: 0,
       exportData: {
-        landingsEntryOption: 'uploadEntry',
-        transportation: {
-          vehicle: 'uploadEntry',
-          exportedFrom: 'United Kingdom',
-          exportedTo: {
-            officialCountryName: 'France',
-            isoCodeAlpha2: 'FR',
-            isoCodeAlpha3: 'FRA',
-            isoNumericCode: '250'
-          }
-        },
         exporterDetails: {
           contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
           addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
@@ -2043,403 +1860,159 @@ describe('resubmitCCToTrade', () => {
           country: 'United Kingdom of Great Britain and Northern Ireland',
           postcode: 'NE4 7YH',
           townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'capgemini',
-          exporterFullName: 'Automation Tester',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: null,
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester'
-          }
+          exporterCompanyName: 'Test Company',
+          exporterFullName: 'Test User'
         },
-        products: [
+        catches: [
           {
-            speciesId: 'GBR-2024-CC-08F28C758-a87d55ef-942c-4dfc-8ad7-290a4f4f0b4a',
-            species: 'Inshore squids nei (SQZ)',
-            speciesCode: 'SQZ',
-            commodityCode: '03074220',
-            scientificName: 'Loliginidae',
-            state: {
-              code: 'FRE',
-              name: 'Fresh'
-            },
-            presentation: {
-              code: 'WHL',
-              name: 'Whole'
-            },
-            caughtBy: [
-              {
-                vessel: 'WIRON 5',
-                pln: 'WA1',
-                homePort: 'PLYMOUTH',
-                flag: 'GBR',
-                cfr: 'NLD200202641',
-                imoNumber: 9249556,
-                licenceNumber: '12480',
-                licenceValidTo: '2030-12-31',
-                licenceHolder: 'INTERFISH WIRONS LIMITED',
-                id: 'GBR-2024-CC-08F28C758-1022495422',
-                date: '2020-06-27',
-                faoArea: 'FAO27',
-                weight: 100,
-                numberOfSubmissions: 1,
-                isLegallyDue: true,
-                dataEverExpected: true,
-                landingDataExpectedDate: '2010-06-29',
-                landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA',
-                rfmo:""
-              }
-            ],
-            factor: 1
+            id: 'catch-1',
+            product: 'COD',
+            commodityCode: '03025110',
+            scientificName: 'Gadus morhua',
+            certificateNumber: 'UK-2026-CC-123456',
+            certificateType: 'uk',
+            productWeight: '100',
+            weightOnCC: '100'
           }
-        ],
-        conservation: {
-          conservationReference: 'UK Fisheries Policy'
-        }
+        ]
       },
-      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
-    })
-
-
-    await catchCert.save()
-
-
-    const plnToRssVal = [
-      {
-        rssNumber: "rssWA1",
-        dateLanded: '2020-07-04',
-        dataEverExpected: true,
-        landingDataExpectedDate: '2010-07-04',
-        landingDataEndDate: '2010-08-01',
-        createdAt: "2024-07-04T08:26:06.939Z",
-        isLegallyDue: true
-      },
-      {
-        rssNumber: "rssWA1",
-        dateLanded: '2020-07-04',
-        dataEverExpected: true,
-        landingDataExpectedDate: '2010-07-04',
-        landingDataEndDate: '2010-08-01',
-        createdAt: "2024-07-04T08:26:06.939Z",
-        isLegallyDue: true
-      },
-      {
-        rssNumber: "rssWA1",
-        dateLanded: '2020-07-04',
-        dataEverExpected: true,
-        landingDataExpectedDate: '2010-07-04',
-        landingDataEndDate: '2010-08-01',
-        createdAt: "2024-07-04T08:26:06.939Z",
-        isLegallyDue: true
-      }
-    ]
-
-    const getMultLand = [
-      {
-        rssNumber: "rssWA1",
-        dateTimeLanded: "2020-07-04T08:26:06.939Z",
-        dateTimeRetrieved: "2020-07-04T08:26:06.939Z",
-        items: [{
-          species: "LIN",
-          weight: 102,
-          factor: 2,
-          state: "PQR",
-          presentation: "WHL"
-        }]
-      },
-      {
-        rssNumber: "rssWA1",
-        dateTimeLanded: "2020-07-04T08:26:06.939Z",
-        dateTimeRetrieved: "2020-07-04T08:26:06.939Z",
-        items: [{
-          species: "LBE",
-          weight: 100,
-          factor: 1,
-          state: "FRE",
-          presentation: "WHL"
-        },
-        {
-          species: "SQC",
-          weight: 10,
-          factor: 3,
-          state: "FRE",
-          presentation: "WHL"
-        },]
-      },
-    ]
-
-    mockMapPlnLandingsToRssLandings.mockReturnValue(plnToRssVal);
-    mockGetLandingsMultiple.mockResolvedValue(getMultLand)
-
-    await SUT.resubmitCCToTrade();
-    expect(mockMapPlnLandingsToRssLandings).toHaveBeenCalled();
-    expect(mockGetLandingsMultiple).toHaveBeenCalled();
-    const updatedCC = await DocumentModel.find({ documentNumber: 'GBR-2025-CC-BBE364112' });
-    console.log(updatedCC,"updatedCC")
-    expect(updatedCC).toHaveLength(1);
-  });
-
-  it('should throw error', async () => {
-    const error: Error = new Error('error');
-    const catchCert = new DocumentModel ({
-      documentNumber: 'GBR-2025-CC-BBE364112',
-      status: 'COMPLETE',
-      createdAt: moment.utc('2025-09-09').toISOString(),    //Edit Date
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'catchCert',
-      audit: [],
-      __v: 0,
-      exportData: {
-        landingsEntryOption: 'uploadEntry',
-        transportation: {
-          vehicle: 'uploadEntry',
-          exportedFrom: 'United Kingdom',
-          exportedTo: {
-            officialCountryName: 'France',
-            isoCodeAlpha2: 'FR',
-            isoCodeAlpha3: 'FRA',
-            isoNumericCode: '250'
-          }
-        },
-        exporterDetails: {
-          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'capgemini',
-          exporterFullName: 'Automation Tester',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: null,
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester'
-          }
-        },
-        products: [
-          {
-            speciesId: 'GBR-2024-CC-08F28C758-a87d55ef-942c-4dfc-8ad7-290a4f4f0b4a',
-            species: 'Inshore squids nei (SQZ)',
-            speciesCode: 'SQZ',
-            commodityCode: '03074220',
-            scientificName: 'Loliginidae',
-            state: {
-              code: 'FRE',
-              name: 'Fresh'
-            },
-            presentation: {
-              code: 'WHL',
-              name: 'Whole'
-            },
-            caughtBy: [
-              {
-                vessel: 'WIRON 5',
-                pln: 'WA1',
-                homePort: 'PLYMOUTH',
-                flag: 'GBR',
-                cfr: 'NLD200202641',
-                imoNumber: 9249556,
-                licenceNumber: '12480',
-                licenceValidTo: '2030-12-31',
-                licenceHolder: 'INTERFISH WIRONS LIMITED',
-                id: 'GBR-2024-CC-08F28C758-1022495422',
-                date: '2020-06-27',
-                faoArea: 'FAO27',
-                weight: 100,
-                numberOfSubmissions: 1,
-                isLegallyDue: true,
-                dataEverExpected: true,
-                landingDataExpectedDate: '2010-06-29',
-                landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA',
-                rfmo:""
-
-              }
-            ],
-            factor: 1
-          }
-        ],
-        conservation: {
-          conservationReference: 'UK Fisheries Policy'
-        }
-      },
-      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
-    })
-    await catchCert.save()
-    mockresendCcToTrade.mockRejectedValue(error);
-    mockMapPlnLandingsToRssLandings.mockReturnValue([]);
-    mockGetLandingsMultiple.mockResolvedValue([])
-    await SUT.resubmitCCToTrade();
-
-    expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-RESUBMIT-TRADE-DOCUMENT][ERROR][Error: error]');
-
-  });
-  it('should not resubmitCCToTrade for document without validation data', async () => {
-    const catchCert = new DocumentModel({
-      documentNumber: 'GBR-2025-CC-BBE364112',
-      status: 'COMPLETE',
-      createdAt: moment.utc('2025-09-09').toISOString(),
-      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
-      createdByEmail: 'foo@foo.com',
-      requestByAdmin: false,
-      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
-      __t: 'catchCert',
-      audit: [],
-      __v: 0,
-      exportData: {
-        landingsEntryOption: 'uploadEntry',
-        transportation: {
-          vehicle: 'uploadEntry',
-          exportedFrom: 'United Kingdom',
-          exportedTo: {
-            officialCountryName: 'France',
-            isoCodeAlpha2: 'FR',
-            isoCodeAlpha3: 'FRA',
-            isoNumericCode: '250'
-          }
-        },
-        exporterDetails: {
-          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
-          addressOne: 'NATURAL ENGLAND, LANCASTER HOUSE, HAMPSHIRE COURT',
-          buildingNumber: null,
-          subBuildingName: 'NATURAL ENGLAND',
-          buildingName: 'LANCASTER HOUSE',
-          streetName: 'HAMPSHIRE COURT',
-          county: null,
-          country: 'United Kingdom of Great Britain and Northern Ireland',
-          postcode: 'NE4 7YH',
-          townCity: 'NEWCASTLE UPON TYNE',
-          exporterCompanyName: 'capgemini',
-          exporterFullName: 'Automation Tester',
-          _dynamicsAddress: {
-            defra_uprn: '10091818796',
-            defra_buildingname: 'LANCASTER HOUSE',
-            defra_subbuildingname: 'NATURAL ENGLAND',
-            defra_premises: null,
-            defra_street: 'HAMPSHIRE COURT',
-            defra_locality: 'NEWCASTLE BUSINESS PARK',
-            defra_dependentlocality: null,
-            defra_towntext: 'NEWCASTLE UPON TYNE',
-            defra_county: null,
-            defra_postcode: null,
-            _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
-            defra_internationalpostalcode: null,
-            defra_fromcompanieshouse: false,
-            defra_addressid: 'a6bb5e78-18f9-ec11-bb3d-000d3a449c8e',
-            _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland',
-            _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
-            _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
-            defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No'
-          },
-          _dynamicsUser: {
-            firstName: 'Automation',
-            lastName: 'Tester'
-          }
-        },
-        products: [
-          {
-            speciesId: 'GBR-2024-CC-08F28C758-a87d55ef-942c-4dfc-8ad7-290a4f4f0b4a',
-            species: 'Inshore squids nei (SQZ)',
-            speciesCode: 'SQZ',
-            commodityCode: '03074220',
-            scientificName: 'Loliginidae',
-            state: {
-              code: 'FRE',
-              name: 'Fresh'
-            },
-            presentation: {
-              code: 'WHL',
-              name: 'Whole'
-            },
-            caughtBy: [
-              {
-                vessel: 'WIRON 5',
-                pln: 'H1100',
-                homePort: 'PLYMOUTH',
-                flag: 'GBR',
-                cfr: 'NLD200202641',
-                imoNumber: 9249556,
-                licenceNumber: '12480',
-                licenceValidTo: '2030-12-31',
-                licenceHolder: 'INTERFISH WIRONS LIMITED',
-                id: 'GBR-2024-CC-08F28C758-1022495422',
-                date: '2024-06-27',
-                faoArea: 'FAO27',
-                weight: 100,
-                numberOfSubmissions: 1,
-                isLegallyDue: true,
-                dataEverExpected: true,
-                landingDataExpectedDate: '2010-06-29',
-                landingDataEndDate: moment.utc().format('YYYY-MM-DD'),
-                _status: 'HAS_LANDING_DATA',
-                rfmo:""
-              }
-            ],
-            factor: 1
-          }
-        ],
-        conservation: {
-          conservationReference: 'UK Fisheries Policy'
-        }
-      },
-      documentUri: '_5c3cb7a4-1007-411d-ab62-628af3319f32.pdf'
+      documentUri: '_test-document.pdf'
     });
-    await catchCert.save();
+    await storageDoc.save();
 
-    mockMapPlnLandingsToRssLandings.mockReturnValue([]);
-    mockGetLandingsMultiple.mockResolvedValue([])
-
-    await SUT.resubmitCCToTrade()
-
-    expect(mockMapPlnLandingsToRssLandings).toHaveBeenCalled();
-    expect(mockGetLandingsMultiple).toHaveBeenCalled();
-    expect(mockGetLandingsMultiple).toHaveBeenCalledWith([]);
-    expect(mockresendCcToTrade).not.toHaveBeenCalled();
+    await SUT.resubmitSdToTrade();
+    
+    expect(mockresendSdToTrade).toHaveBeenCalled();
+    expect(loggerInfoMock).toHaveBeenCalledWith('[RUN-RESUBMIT-SD-TRADE-DOCUMENT][COMPLETE]');
   });
-  
-})
+
+  it('should throw error and log it', async () => {
+    const error: Error = new Error('error');
+    const storageDoc = new DocumentModel({
+      documentNumber: 'GBR-2026-SD-TEST456',
+      status: 'COMPLETE',
+      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
+      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
+      createdByEmail: 'foo@foo.com',
+      requestByAdmin: false,
+      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
+      __t: 'storageDocument',
+      audit: [],
+      __v: 0,
+      exportData: {
+        exporterDetails: {
+          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+          postcode: 'NE4 7YH',
+          exporterCompanyName: 'Test Company',
+          exporterFullName: 'Test User'
+        },
+        catches: [
+          {
+            id: 'catch-1',
+            product: 'COD',
+            commodityCode: '03025110',
+            scientificName: 'Gadus morhua',
+            certificateNumber: 'UK-2026-CC-123456',
+            certificateType: 'uk',
+            productWeight: '100',
+            weightOnCC: '100'
+          }
+        ]
+      },
+      documentUri: '_test-document.pdf'
+    });
+    await storageDoc.save();
+
+    mockresendSdToTrade.mockRejectedValue(error);
+    await SUT.resubmitSdToTrade();
+
+    expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-RESUBMIT-SD-TRADE-DOCUMENT][ERROR][Error: error]');
+  });
+
+  it('processResubmitSdToTrade should process storage documents', async () => {
+    const storageDoc: sharedRefData.IDocument[] = [{
+      documentNumber: 'GBR-2026-SD-TEST789',
+      status: 'COMPLETE',
+      createdAt: moment.utc('2026-01-27T12:00:00.000Z').toISOString(),
+      createdBy: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ12',
+      createdByEmail: 'foo@foo.com',
+      requestByAdmin: false,
+      contactId: 'ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ13',
+      __t: 'storageDocument',
+      audit: [],
+      exportData: {
+        exporterDetails: {
+          contactId: '4704bf69-18f9-ec11-bb3d-000d3a2f806d',
+          postcode: 'NE4 7YH',
+          exporterCompanyName: 'Test Company',
+          exporterFullName: 'Test User'
+        },
+        catches: [
+          {
+            id: 'catch-1',
+            product: 'COD',
+            commodityCode: '03025110',
+            scientificName: 'Gadus morhua',
+            certificateNumber: 'UK-2026-CC-123456',
+            certificateType: 'uk',
+            productWeight: '100',
+            weightOnCC: '100'
+          }
+        ]
+      },
+      documentUri: '_test-document.pdf'
+    }];
+
+    await SUT.processResubmitSdToTrade(storageDoc);
+    
+    expect(mockresendSdToTrade).toHaveBeenCalled();
+    expect(loggerInfoMock).toHaveBeenCalledWith('[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][GBR-2026-SD-TEST789]');
+  });
+});
+
+describe('uniquifyLandings', () => {
+  it('should return empty array when given empty array', () => {
+    const result = SUT.uniquifyLandings([]);
+    expect(result).toEqual([]);
+  });
+
+  it('should return same array when all landings are unique', () => {
+    const landings = [
+      { pln: 'WA1', species: 'COD', date: '2021-01-01', weight: 100, isLegallyDue: false },
+      { pln: 'WA2', species: 'COD', date: '2021-01-01', weight: 200, isLegallyDue: true }
+    ];
+    const result = SUT.uniquifyLandings(landings as any);
+    expect(result).toHaveLength(2);
+    expect(result).toEqual(landings);
+  });
+
+  it('should remove duplicate landings', () => {
+    const duplicateLanding = { pln: 'WA1', species: 'COD', date: '2021-01-01', weight: 100, isLegallyDue: false };
+    const uniqueLanding = { pln: 'WA2', species: 'COD', date: '2021-01-01', weight: 200, isLegallyDue: true };
+    const landings = [duplicateLanding, uniqueLanding, duplicateLanding];
+    
+    const result = SUT.uniquifyLandings(landings as any);
+    
+    expect(result).toHaveLength(2);
+    expect(result).toContainEqual(duplicateLanding);
+    expect(result).toContainEqual(uniqueLanding);
+  });
+
+  it('should keep first occurrence when duplicates exist', () => {
+    const landing1 = { pln: 'WA1', species: 'COD', date: '2021-01-01', weight: 100, isLegallyDue: false };
+    const landing2 = { pln: 'WA1', species: 'COD', date: '2021-01-01', weight: 100, isLegallyDue: false };
+    const landings = [landing1, landing2];
+    
+    const result = SUT.uniquifyLandings(landings as any);
+    
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(landing1);
+  });
+
+  it('should return single item array unchanged', () => {
+    const singleLanding = { pln: 'WA1', species: 'COD', date: '2021-01-01', weight: 100, isLegallyDue: false };
+    const result = SUT.uniquifyLandings([singleLanding] as any);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(singleLanding);
+  });
+});

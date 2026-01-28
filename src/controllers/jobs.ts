@@ -1,5 +1,5 @@
 import { refreshRiskingData } from '../data/cache';
-import { landingsAndReportingCron, exceeding14DayLandingsAndReportingCron, resetLandingStatusJob, resubmitCCToTrade } from "../landings/landingsUpdater";
+import { landingsAndReportingCron, exceeding14DayLandingsAndReportingCron, resetLandingStatusJob, resubmitSdToTrade } from "../landings/landingsUpdater";
 import logger from "../logger";
 
 export const runLandingsAndReportingJob = async (): Promise<void> => {
@@ -21,9 +21,9 @@ export const runLandingsAndReportingJob = async (): Promise<void> => {
   await exceeding14DayLandingsAndReportingCron()
     .catch(e => logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAY-LANDINGS-AND-REPORTING-CRON][ERROR][${e}]`));
 
-  logger.info('[RESUBMIT-CC-TO-TRADE][TRADE-CC]');
-  await resubmitCCToTrade()
-    .catch(e => logger.error(`[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][${e}]`));
+  logger.info('[RESUBMIT-SD-TO-TRADE][TRADE-SD]');
+  await resubmitSdToTrade()
+    .catch(e => logger.error(`[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-SD][ERROR][${e}]`));
 
   logger.info('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
 }

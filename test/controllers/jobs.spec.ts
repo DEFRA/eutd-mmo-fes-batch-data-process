@@ -24,7 +24,7 @@ describe('scheduled jobs controller', () => {
     let mockRunExceeding14DayLandingsJob;
     let mockCurrentTime;
     let mockResetLandingStatusJob;
-    let mockresubmitCCToTrade;
+    let mockresubmitSdToTrade;
 
 
     beforeEach(() => {
@@ -32,7 +32,7 @@ describe('scheduled jobs controller', () => {
       mockRunJob = jest.spyOn(landingsUpdater, 'landingsAndReportingCron');
       mockRunExceeding14DayLandingsJob = jest.spyOn(landingsUpdater, 'exceeding14DayLandingsAndReportingCron');
       mockResetLandingStatusJob = jest.spyOn(landingsUpdater, 'resetLandingStatusJob');
-      mockresubmitCCToTrade = jest.spyOn(landingsUpdater, 'resubmitCCToTrade');
+      mockresubmitSdToTrade = jest.spyOn(landingsUpdater, 'resubmitSdToTrade');
 
 
       mockRefreshRisking.mockResolvedValue(null);
@@ -40,7 +40,7 @@ describe('scheduled jobs controller', () => {
       mockRunJob.mockResolvedValue(null);
       mockRunExceeding14DayLandingsJob.mockResolvedValue(null);
       mockResetLandingStatusJob.mockResolvedValue(null);
-      mockresubmitCCToTrade.mockResolvedValue(null);
+      mockresubmitSdToTrade.mockResolvedValue(null);
 
 
       mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1693751375000); // Sunday, September 3, 2023 2:29:35 PM
@@ -52,7 +52,7 @@ describe('scheduled jobs controller', () => {
       mockRunExceeding14DayLandingsJob.mockRestore();
       mockCurrentTime.mockRestore();
       mockResetLandingStatusJob.mockRestore();
-      mockresubmitCCToTrade.mockRestore();
+      mockresubmitSdToTrade.mockRestore();
     });
 
     it('will invoke the landings updater', async () => {
@@ -203,27 +203,27 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-        it('will invoke the Resubmit CCPS to Trade and Dynamics', async () => {
+        it('will invoke the Resubmit SD to Trade', async () => {
       await SUT.runLandingsAndReportingJob();
 
-      expect(mockresubmitCCToTrade).toHaveBeenCalled();
+      expect(mockresubmitSdToTrade).toHaveBeenCalled();
       expect(mockRunJob).toHaveBeenCalled();
       expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-    it('will catch errors from Resubmit CCPS to Trade and Dynamics', async () => {
+    it('will catch errors from Resubmit SD to Trade', async () => {
       const error = new Error('testing 123');
 
-      mockresubmitCCToTrade.mockRejectedValue(error);
+      mockresubmitSdToTrade.mockRejectedValue(error);
 
       await expect(SUT.runLandingsAndReportingJob()).resolves.toBe(undefined);
 
       expect(mockRunJob).toHaveBeenCalled();
       expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-CC-TO-TRADE][FAILED-TRADE-CC][ERROR][Error: testing 123]')
+      expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-SD][ERROR][Error: testing 123]')
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
