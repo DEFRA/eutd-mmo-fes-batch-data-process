@@ -699,3 +699,75 @@ describe('toLandings', () => {
     );
   });
 });
+
+describe('toDefraSdStorageFacility', () => {
+  const { toDefraSdStorageFacility } = require("../../../src/landings/transformations/defraValidation");
+
+  it('should return undefined when sdStorageFacility is null', () => {
+    const result = toDefraSdStorageFacility(null);
+    expect(result).toBeUndefined();
+  });
+
+  it('should return undefined when sdStorageFacility is undefined', () => {
+    const result = toDefraSdStorageFacility(undefined);
+    expect(result).toBeUndefined();
+  });
+
+  it('should map all fields correctly when sdStorageFacility is provided', () => {
+    const input = {
+      facilityName: 'Test Facility',
+      facilityBuildingNumber: '123',
+      facilitySubBuildingName: 'Unit A',
+      facilityBuildingName: 'Warehouse',
+      facilityStreetName: 'Test Street',
+      facilityCounty: 'Test County',
+      facilityCountry: 'UK',
+      facilityAddressOne: 'Line 1',
+      facilityTownCity: 'Test City',
+      facilityPostcode: 'TE1 1ST',
+      facilityArrivalDate: '15/01/2021',
+      facilityApprovalNumber: 'APPR-001',
+      facilityStorage: 'Cold Storage'
+    };
+
+    const result = toDefraSdStorageFacility(input);
+
+    expect(result.name).toEqual('Test Facility');
+    expect(result.address.building_number).toEqual('123');
+    expect(result.address.sub_building_name).toEqual('Unit A');
+    expect(result.address.building_name).toEqual('Warehouse');
+    expect(result.address.street_name).toEqual('Test Street');
+    expect(result.address.county).toEqual('Test County');
+    expect(result.address.country).toEqual('UK');
+    expect(result.address.line1).toEqual('Line 1');
+    expect(result.address.city).toEqual('Test City');
+    expect(result.address.postCode).toEqual('TE1 1ST');
+    expect(result.dateOfUnloading).toEqual('2021-01-15');
+    expect(result.approvalNumber).toEqual('APPR-001');
+    expect(result.productHandling).toEqual('Cold Storage');
+  });
+
+  it('should return undefined for approvalNumber when it is empty', () => {
+    const input = {
+      facilityName: 'Test Facility',
+      facilityArrivalDate: '15/01/2021',
+      facilityApprovalNumber: ''
+    };
+
+    const result = toDefraSdStorageFacility(input);
+
+    expect(result.approvalNumber).toBeUndefined();
+  });
+
+  it('should return undefined for productHandling when it is empty', () => {
+    const input = {
+      facilityName: 'Test Facility',
+      facilityArrivalDate: '15/01/2021',
+      facilityStorage: ''
+    };
+
+    const result = toDefraSdStorageFacility(input);
+
+    expect(result.productHandling).toBeUndefined();
+  });
+});
