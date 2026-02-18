@@ -1,8 +1,4 @@
 appSettings:
-  - key: INSTRUMENTATION_KEY
-    value: ''  
-    type: appinsights
-
   - key: AZURE_BLOB_CONTAINER
     value: 't1-catchcerts'
     type: config
@@ -181,6 +177,12 @@ appSettings:
     value: '9000'
     type: config
 
-  - key: WEBSITES_PORT2
-    value: '900-stage'
+  - key: slotSetting
+    value: 'prodValue'
+    type : config
+    stagingValue: 'stagingValue'
+    slotSetting: true
+  
+  - key: commonSetting
+    value: 'commonValue'
     type: config
