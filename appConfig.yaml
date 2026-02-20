@@ -1,4 +1,24 @@
 appSettings:
+  - key: WEBSITE_NAME
+    value: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}'
+    type: config
+    stagingValue: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}-staging'
+    slotSetting: true
+  
+  - key: WEBSITES_PORT
+    value: '9000'
+    type: config
+
+  - key: slotSetting
+    value: 'prodValue'
+    type : config
+    stagingValue: 'stagingValue'
+    slotSetting: true
+  
+  - key: commonSetting
+    value: 'commonValue'
+    type: config
+    
   # - key: AZURE_BLOB_CONTAINER
   #   value: 't1-catchcerts'
   #   type: config
@@ -167,22 +187,4 @@ appSettings:
   #   value: '300'
   #   type: config
 
-  - key: WEBSITE_NAME
-    value: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}'
-    type: config
-    stagingValue: '#{{ environment }}-#{{ repoName1 }}-#{{ nc-resource-webapp }}-staging'
-    slotSetting: true
-  
-  - key: WEBSITES_PORT
-    value: '9000'
-    type: config
 
-  - key: slotSetting
-    value: 'prodValue'
-    type : config
-    stagingValue: 'stagingValue'
-    slotSetting: true
-  
-  - key: commonSetting
-    value: 'commonValue'
-    type: config
