@@ -13,7 +13,11 @@ parameters:
     displayName: 'Skip PRE1 Deployment'
     type: boolean
     default: false
-
+  - name: deployAppConfigOnly
+    displayName: "Deploy App Settings Only"
+    type: boolean
+    default: false 
+    
 trigger:
   branches:
     include:
@@ -34,7 +38,7 @@ resources:
       name: 'DEFRA/eutd-mmo-fes-pipeline-common'
       endpoint: DEFRA
       type: github
-      ref: refs/heads/main
+      ref: feature/app-settings-update #refs/heads/main
 
 extends:
   template: /includes/app-deployment.yaml@MMOPipelineCommon
@@ -43,3 +47,4 @@ extends:
     deployFromFeature: ${{ parameters.deployFromFeature }}
     deployToSecondaryRegion: ${{ parameters.deployToSecondaryRegion }}
     skipPRE1: ${{ parameters.skipPRE1 }}
+    deployAppConfigOnly: ${{ parameters.deployAppConfigOnly }}
