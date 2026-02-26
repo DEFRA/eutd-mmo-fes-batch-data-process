@@ -1,7 +1,6 @@
 import { SdPsCaseTwoType } from "./dynamicsValidationSdPs";
-import { CertificateAuthority, CertificateCompany,CertificateAddress } from "./defraValidation";
+import { CertificateAuthority, CertificateCompany,CertificateAddress,CertificateStorageFacility, CertificateTransport  } from "./defraValidation";
 import { ICountry } from "mmo-shared-reference-data";
-
 export enum IDefraTradeSdPsStatus {
   Success = 'Validation Success',
   Overuse = "Validation Failure - Overuse",
@@ -88,6 +87,52 @@ export interface IDynamicsProcessingStatementValidation {
     totalUsedWeightAgainstCertificate: number;
     weightExceededAmount?: number;
     overuseInfo?: string[];
+}
+
+export interface IDefraTradeStorageDocumentValidation {
+  status: IDefraTradeSdPsStatus;
+  totalWeightExported: number;
+  weightExceededAmount?: number;
+  overuseInfo?: string[];
+}
+
+export interface IDefraTradeStorageDocumentProduct {
+  foreignCatchCertificateNumber: string;
+  species: string;
+  id: string;
+  cnCode: string;
+  scientificName: string;
+  importedWeight: number;
+  exportedWeight: number;
+  validation: IDefraTradeStorageDocumentValidation;
+  issuingCountry: string;
+  supportingDocuments?: string,
+  productDescription?: string,
+  netWeightProductArrival?: string,
+  netWeightFisheryProductArrival? : string,
+  netWeightProductDeparture? : string,
+  netWeightFisheryProductDeparture? : string
+}
+
+export interface IDefraTradeStorageDocument {
+  exporter: CertificateCompany;
+  documentUrl: string;
+  documentDate: string;
+  caseType1: string;
+  caseType2: SdPsCaseTwoType;
+  numberOfFailedSubmissions: number;
+  documentNumber: string;
+  companyName: string;
+  exportedTo: ICountry;
+  products?: IDefraTradeStorageDocumentProduct[];
+  _correlationId: string;
+  da: string;
+  requestedByAdmin: boolean;
+  transportation: CertificateTransport;
+  arrivalTransportation?: CertificateTransport;
+  storageFacilities?: CertificateStorageFacility[];
+  storageFacility: CertificateStorageFacility;
+  authority: CertificateAuthority;
 }
 export enum SdPsStatus {
     Success = 'Validation Success',

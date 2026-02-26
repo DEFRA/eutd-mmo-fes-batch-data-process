@@ -1,4 +1,4 @@
-import { ICcQueryResult } from "mmo-shared-reference-data";
+import { ICcQueryResult, ICountry } from "mmo-shared-reference-data";
 import { Document, Schema, model } from "mongoose";
 const EmptySchema = new Schema({},{strict:false });
 
@@ -6,36 +6,40 @@ export interface ICcQueryResultModel extends ICcQueryResult, Document {}
 export const FailedOnlineCertificates  = model<ICcQueryResultModel>('failedOnlineCertificates', EmptySchema);
 
 export interface ISdPsQueryResult {
-    documentNumber: string;
-    catchCertificateNumber?: string;
-    catchCertificateType?: string;
-    status: string;
-    documentType: string;
-    createdAt: string;
-    da: string | null;
-    species: string;
-    scientificName?: string;
-    commodityCode: string;
-    weightOnDoc: number;
-    extended: {
-      id: string,
-      exporterCompanyName?: string,
-      url?: string,
-      investigation?: string,
-      preApprovedBy?: string,
-      voidedBy?: string;
-    }
-    weightOnAllDocs: number;
-    weightOnFCC: number;
-    weightAfterProcessing?: number;
-    isOverAllocated: boolean;
-    overAllocatedByWeight: number;
-    overUsedInfo: string[]; //Linked PS or SD
-    isMismatch: boolean;
-    dateOfUnloading?: string;
-    placeOfUnloading?: string;
-    transportUnloadedFrom?: string;
+  documentNumber: string;
+  catchCertificateNumber?: string;
+  catchCertificateType?: string;
+  issuingCountry?: ICountry;
+  status: string;
+  documentType: string;
+  createdAt: string;
+  da: string | null;
+  species: string;
+  scientificName?: string;
+  commodityCode: string;
+  weightOnDoc: number;
+  extended: {
+    id: string,
+    exporterCompanyName?: string,
+    url?: string,
+    investigation?: string,
+    preApprovedBy?: string,
+    voidedBy?: string;
   }
+  weightOnAllDocs: number;
+  weightOnFCC: number;
+  weightAfterProcessing?: number;
+  isOverAllocated: boolean;
+  overAllocatedByWeight: number;
+  overUsedInfo: string[]; //Linked PS or SD
+  isMismatch: boolean;
+  netWeightProductArrival?: string,
+  netWeightFisheryProductArrival?: string,
+  netWeightProductDeparture?: string,
+  netWeightFisheryProductDeparture?: string,
+  supportingDocuments?: string,
+  productDescription?: string,
+}
 
   export interface IFlattenedCatch {
     documentNumber: string;

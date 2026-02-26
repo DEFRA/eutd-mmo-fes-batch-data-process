@@ -58,34 +58,6 @@ export const DefraValidationReportData = model<IDefraValidationReportData>('Defr
 export const DefraValidationReportModel = DefraValidationReportData.discriminator<IDefraValidationReportModel>('defraValidationReport', DefraValidationReportSchema);
 export const DefraValidationCatchCertificateModel = DefraValidationReportData.discriminator<IDefraValidationCatchCertificateModel>('defraValidationCatchCertificate', DefraValidationCatchCertificateSchema);
 
-interface ModeOfTransport {
-    modeofTransport: string;
-    exportLocation?: string;
-    exportDate?: string;
-}
-
-export interface Truck extends ModeOfTransport {
-    hasRoadTransportDocument: boolean;
-    nationality?: string;
-    registration?: string;
-}
-
-export interface Train extends ModeOfTransport {
-    billNumber: string;
-}
-
-export interface Plane extends ModeOfTransport {
-    flightNumber: string;
-    containerId: string;
-}
-
-export interface Vessel extends ModeOfTransport {
-    name: string;
-    flag: string;
-    containerId: string;
-}
-
-type FishingVessel = ModeOfTransport;
 
 export type CertificateTransport = Truck | Train | Plane | Vessel | FishingVessel;
 
@@ -147,8 +119,50 @@ export interface CertificateAuthority {
     email:  string,
     dateIssued: string,
   }
-  
-  export interface CertificateStorageFacility {
+
+export interface CertificateStorageFacility {
     name?: string;
     address: CertificateAddress;
+    dateOfUnloading?: string,
+    approvalNumber?: string,
+    productHandling?: string
 }
+
+
+interface ModeOfTransport {
+    modeofTransport: string;
+    placeOfUnloading?: string;
+    exportLocation?: string;
+    exportDate?: string;
+    freightbillNumber?: string;
+    countryofDeparture?: string;
+    whereDepartsFrom?: string;
+    departureDate?: string;
+    pointOfDestination?: string;
+}
+
+export interface Truck extends ModeOfTransport {
+    hasRoadTransportDocument: boolean;
+    nationality?: string;
+    registration?: string;
+    containerId?: string;
+}
+
+export interface Train extends ModeOfTransport {
+    billNumber?: string;
+    containerId?: string;
+}
+
+export interface Plane extends ModeOfTransport {
+    flightNumber?: string;
+    containerId: string;
+    airwaybillNumber?: string;
+}
+
+export interface Vessel extends ModeOfTransport {
+    name?: string;
+    flag: string;
+    containerId: string;
+}
+
+type FishingVessel = ModeOfTransport;

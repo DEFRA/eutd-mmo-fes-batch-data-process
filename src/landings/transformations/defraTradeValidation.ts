@@ -6,8 +6,10 @@ import { Catch } from "../../types/document";
 import { ApplicationConfig } from "../../config";
 import { getTotalRiskScore, isHighRisk } from "../../data/risking";
 import { ISdPsQueryResult } from "../../types/query";
-import {  IDefraTradeSdPsStatus, IDynamicsProcessingStatementCase, IDefraTradeProcessingStatementCatch,IDefraTradeProcessingStatement} from "../../types/defraTradeSdPsCase";
+import {  IDefraTradeSdPsStatus, IDynamicsProcessingStatementCase, IDefraTradeProcessingStatementCatch,IDefraTradeProcessingStatement, IDefraTradeStorageDocumentProduct, IDefraTradeStorageDocument} from "../../types/defraTradeSdPsCase";
 import moment from "moment";
+import { toDefraSdStorageFacility } from "./defraValidation";
+import { IDynamicsStorageDocumentCase } from "../../types/dynamicsSdPsCase";
 
 const TRANSPORT_VEHICLE_TRUCK  = 'truck';
 const TRANSPORT_VEHICLE_TRAIN  = 'train';
@@ -113,8 +115,10 @@ export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCa
 };
 
 export function toTransportation(transportation) : CertificateTransport {
-  if(transportation === undefined)
+  if(transportation === undefined || transportation === null)
      return undefined;
+
+  const handleEmptyValue = (value) => value !== undefined && value !== null && value !== '' ? value : undefined;
 
   switch (transportation.vehicle) {
      case TRANSPORT_VEHICLE_TRUCK:
@@ -124,37 +128,70 @@ export function toTransportation(transportation) : CertificateTransport {
            nationality: transportation.nationalityOfVehicle,
            registration: transportation.registrationNumber,
            exportLocation: transportation.departurePlace,
-           exportDate: transportation.exportDate
+           exportDate: transportation.exportDate,
+           freightbillNumber: handleEmptyValue(transportation.freightBillNumber),
+           countryofDeparture: transportation.departureCountry,
+           whereDepartsFrom: transportation.departurePort,
+           departureDate: transportation.departureDate,
+           placeOfUnloading: transportation.placeOfUnloading,
+           containerId: handleEmptyValue(transportation.containerIdentificationNumber),
+           pointOfDestination: transportation.pointOfDestination
         }
      case TRANSPORT_VEHICLE_TRAIN:
         return {
            modeofTransport: transportation.vehicle,
            billNumber: transportation.railwayBillNumber,
            exportLocation: transportation.departurePlace,
-           exportDate: transportation.exportDate
+           exportDate: transportation.exportDate,
+           freightbillNumber: handleEmptyValue(transportation.freightBillNumber),
+           countryofDeparture: transportation.departureCountry,
+           whereDepartsFrom: transportation.departurePort,
+           departureDate: transportation.departureDate,
+           placeOfUnloading: transportation.placeOfUnloading,
+           containerId: handleEmptyValue(transportation.containerIdentificationNumber),
+           pointOfDestination: transportation.pointOfDestination
         }
      case TRANSPORT_VEHICLE_PLANE:
         return {
            modeofTransport: transportation.vehicle,
            flightNumber: transportation.flightNumber,
-           containerId: transportation.containerNumber,
+           containerId: transportation.containerNumbers ? transportation.containerNumbers : transportation.containerNumber,
            exportLocation: transportation.departurePlace,
-           exportDate: transportation.exportDate
+           exportDate: transportation.exportDate,
+           freightbillNumber: handleEmptyValue(transportation.freightBillNumber),
+           airwaybillNumber: handleEmptyValue(transportation.airwayBillNumber),
+           countryofDeparture: transportation.departureCountry,
+           whereDepartsFrom: transportation.departurePort,
+           departureDate: transportation.departureDate,
+           placeOfUnloading: transportation.placeOfUnloading,
+           pointOfDestination: transportation.pointOfDestination
         }
      case TRANSPORT_VEHICLE_CONTAINER_VESSEL:
         return {
            modeofTransport: TRANSPORT_VEHICLE_VESSEL,
            name: transportation.vesselName,
            flag: transportation.flagState,
-           containerId: transportation.containerNumber,
+           containerId: transportation.containerNumbers ? transportation.containerNumbers : transportation.containerNumber,
            exportLocation: transportation.departurePlace,
-           exportDate: transportation.exportDate
+           exportDate: transportation.exportDate,
+           freightbillNumber: handleEmptyValue(transportation.freightBillNumber),
+           countryofDeparture: transportation.departureCountry,
+           whereDepartsFrom: transportation.departurePort,
+           departureDate: transportation.departureDate,
+           placeOfUnloading: transportation.placeOfUnloading,
+           pointOfDestination: transportation.pointOfDestination
         }
      default:
         return {
            modeofTransport: transportation.vehicle,
            exportLocation: transportation.departurePlace,
-           exportDate: transportation.exportDate
+           exportDate: transportation.exportDate,
+           freightbillNumber: handleEmptyValue(transportation.freightBillNumber),
+           countryofDeparture: transportation.countryofDeparture,
+           whereDepartsFrom: transportation.departurePort,
+           departureDate: transportation.departureDate,
+           placeOfUnloading: transportation.placeOfUnloading,
+           pointOfDestination: transportation.pointOfDestination
         }
   }
 }
@@ -212,3 +249,65 @@ export const toDefraTradePs = (document: IDocument, processingStatementCase: IDy
   healthCertificateDate: moment(document.exportData?.healthCertificateDate, ["DD/MM/YYYY", "DD/M/YYYY", "D/MM/YYYY", "D/M/YYYY"]).format('YYYY-MM-DD'),
   authority: toAuthority()
 });
+
+
+export function toDefraTradeSdProduct(validatedSdProducts: ISdPsQueryResult): IDefraTradeStorageDocumentProduct {
+
+  let status = IDefraTradeSdPsStatus.Success;
+
+  if (validatedSdProducts.isMismatch) {
+    status = IDefraTradeSdPsStatus.Weight
+  }
+
+  if (validatedSdProducts.isOverAllocated) {
+    status = IDefraTradeSdPsStatus.Overuse
+  }
+
+  return {
+    foreignCatchCertificateNumber: validatedSdProducts.catchCertificateNumber,
+    species: validatedSdProducts.species,
+    id: validatedSdProducts.extended.id,
+    cnCode: validatedSdProducts.commodityCode,
+    scientificName: validatedSdProducts.scientificName,
+    importedWeight: validatedSdProducts.weightOnFCC,
+    exportedWeight: validatedSdProducts.weightOnDoc,
+    validation: {
+      totalWeightExported: validatedSdProducts.weightOnAllDocs,
+      status: status,
+      weightExceededAmount: validatedSdProducts.overAllocatedByWeight,
+      overuseInfo: validatedSdProducts.overUsedInfo.some(_ => _ !== validatedSdProducts.documentNumber)
+        ? validatedSdProducts.overUsedInfo.filter(_ => _ !== validatedSdProducts.documentNumber) : undefined
+    },
+    issuingCountry: validatedSdProducts.catchCertificateType === 'uk' ? 'United Kingdom' : validatedSdProducts.issuingCountry?.officialCountryName,
+    supportingDocuments: validatedSdProducts.supportingDocuments,
+    productDescription: validatedSdProducts.productDescription,
+    netWeightProductArrival: validatedSdProducts.netWeightProductArrival,
+    netWeightFisheryProductArrival: validatedSdProducts.netWeightFisheryProductArrival,
+    netWeightProductDeparture: validatedSdProducts.netWeightProductDeparture,
+    netWeightFisheryProductDeparture: validatedSdProducts.netWeightFisheryProductDeparture
+  }
+}
+
+export const toDefraTradeProduct = (product: ISdPsQueryResult): IDefraTradeStorageDocumentProduct =>
+  toDefraTradeSdProduct(product);
+
+export const toDefraTradeSd = (document: IDocument, documentCase: IDynamicsStorageDocumentCase, sdQueryResults: ISdPsQueryResult[] | null): IDefraTradeStorageDocument => {
+  const exportData = document.exportData;
+  const transportation: CertificateTransport = toTransportation(exportData ? exportData.transportation : undefined);
+  const arrivalTransportation: CertificateTransport = toTransportation(exportData ? exportData.arrivalTransportation : undefined);
+  
+  if (transportation) {
+    Object.keys(transportation).forEach(key => transportation[key] === undefined && delete transportation[key]);
+    transportation.exportDate = moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).isValid() ? moment(transportation.exportDate, ['DD/MM/YYYY', 'DD/M/YYYY', 'D/MM/YYYY']).format('YYYY-MM-DD') : moment.utc().format('YYYY-MM-DD');
+  }
+
+  return {
+    ...documentCase,
+    products: Array.isArray(sdQueryResults) ? sdQueryResults.map((_: ISdPsQueryResult) => toDefraTradeProduct(_)) : null,
+    storageFacility: toDefraSdStorageFacility(document.exportData),
+    exportedTo: exportData ? exportData.exportedTo : undefined,
+    transportation,
+    arrivalTransportation,
+    authority: toAuthority()
+  }
+};

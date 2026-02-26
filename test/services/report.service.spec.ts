@@ -7371,3 +7371,549 @@ describe('azureTradeQueueEnabled feature flag turned off', () => {
     expect(mockMapper).not.toHaveBeenCalled();
   });
 });
+
+describe('resendSdToTrade', () => {
+  let mockSendSdToTrade;
+  let mockLogInfo;
+  let mockLogError;
+
+  beforeEach(() => {
+    mockSendSdToTrade = jest.spyOn(SUT, 'sendSdToTrade');
+    mockLogInfo = jest.spyOn(logger, 'info');
+    mockLogError = jest.spyOn(logger, 'error');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should call sendSdToTrade when ccValidationData has items', async () => {
+    const ccValidationData: ISdPsQueryResult[] = [{
+      documentNumber: "SD-001",
+      catchCertificateNumber: "CC1",
+      catchCertificateType: "uk",
+      documentType: "SD",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      commodityCode: "03025110",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: null,
+      extended: { id: 'catch-1' }
+    }];
+
+    mockSendSdToTrade.mockResolvedValue(undefined);
+
+    await SUT.resendSdToTrade(ccValidationData);
+
+    expect(mockLogInfo).toHaveBeenCalledWith('[REPORT-SD-RESUBMITTED][ccValidationData][1]');
+    expect(mockSendSdToTrade).toHaveBeenCalledWith(ccValidationData);
+  });
+
+  it('should not call sendSdToTrade when ccValidationData is empty', async () => {
+    mockSendSdToTrade.mockResolvedValue(undefined);
+
+    await SUT.resendSdToTrade([]);
+
+    expect(mockLogInfo).toHaveBeenCalledWith('[REPORT-SD-RESUBMITTED][ccValidationData][0]');
+    expect(mockSendSdToTrade).not.toHaveBeenCalled();
+  });
+
+  it('should throw error and log when sendSdToTrade fails', async () => {
+    const ccValidationData: ISdPsQueryResult[] = [{
+      documentNumber: "SD-001",
+      catchCertificateNumber: "CC1",
+      catchCertificateType: "uk",
+      documentType: "SD",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      commodityCode: "03025110",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: null,
+      extended: { id: 'catch-1' }
+    }];
+
+    const error = new Error('Test error');
+    mockSendSdToTrade.mockRejectedValue(error);
+
+    await expect(SUT.resendSdToTrade(ccValidationData)).rejects.toThrow('Test error');
+    expect(mockLogError).toHaveBeenCalledWith('[REREPORT-SD-SUBMITTED][ERROR][Error: Test error]');
+  });
+});
+
+describe('sendSdToTrade', () => {
+  let mockGetCertificate;
+  let mockReportSdToTrade;
+  let mockLogInfo;
+
+  beforeEach(() => {
+    mockGetCertificate = jest.spyOn(catchCerts, 'getCertificateByDocumentNumberWithNumberOfFailedAttempts');
+    mockReportSdToTrade = jest.spyOn(SUT, 'reportSdToTrade');
+    mockLogInfo = jest.spyOn(logger, 'info');
+    uuid.mockReturnValue('test-correlation-id');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should not process when sdpsValidationData is empty', async () => {
+    await SUT.sendSdToTrade([]);
+
+    expect(mockGetCertificate).not.toHaveBeenCalled();
+    expect(mockReportSdToTrade).not.toHaveBeenCalled();
+  });
+
+  it('should call reportSdToTrade when certificate is found', async () => {
+    const sdpsValidationData: ISdPsQueryResult[] = [{
+      documentNumber: "SD-001",
+      catchCertificateNumber: "CC1",
+      catchCertificateType: "uk",
+      documentType: "SD",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      commodityCode: "03025110",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: null,
+      extended: { id: 'catch-1' }
+    }];
+
+    const mockCertificate = {
+      documentNumber: 'SD-001',
+      __t: 'storageDocument',
+      exportData: {
+        exporterDetails: { postcode: 'NE1 1AA', exporterCompanyName: 'Test Co' }
+      }
+    };
+
+    mockGetCertificate.mockResolvedValue(mockCertificate);
+    mockReportSdToTrade.mockResolvedValue(undefined);
+
+    await SUT.sendSdToTrade(sdpsValidationData);
+
+    expect(mockLogInfo).toHaveBeenCalledWith('[DATA-HUB][REPORT-SD-SUBMITTED][SD-001]');
+    expect(mockLogInfo).toHaveBeenCalledWith('[DATA-HUB][REPORT-SD-SUBMITTED][SD-001][FOUND]');
+    expect(mockReportSdToTrade).toHaveBeenCalled();
+  });
+
+  it('should log NOT-FOUND when certificate is not found', async () => {
+    const sdpsValidationData: ISdPsQueryResult[] = [{
+      documentNumber: "SD-001",
+      catchCertificateNumber: "CC1",
+      catchCertificateType: "uk",
+      documentType: "SD",
+      createdAt: "2020-01-01",
+      status: "COMPLETE",
+      species: "Atlantic cod (COD)",
+      commodityCode: "03025110",
+      weightOnDoc: 100,
+      weightOnAllDocs: 150,
+      weightOnFCC: 200,
+      isOverAllocated: false,
+      overUsedInfo: [],
+      isMismatch: false,
+      overAllocatedByWeight: 0,
+      da: null,
+      extended: { id: 'catch-1' }
+    }];
+
+    mockGetCertificate.mockResolvedValue(null);
+
+    await SUT.sendSdToTrade(sdpsValidationData);
+
+    expect(mockLogInfo).toHaveBeenCalledWith('[DATA-HUB][REPORT-SD-SUBMITTED][SD-001]');
+    expect(mockLogInfo).toHaveBeenCalledWith('[DATA-HUB][REPORT-SD-SUBMITTED][SD-001][NOT-FOUND]');
+    expect(mockReportSdToTrade).not.toHaveBeenCalled();
+  });
+});
+
+describe('reportSdToTrade', () => {
+  let mockPersistence;
+  let mockLogError;
+  let mockLogInfo;
+  let mockToDefraTradeSd;
+
+  const baseStorageDocument: any = {
+    documentNumber: 'GBR-SD-2023-12345',
+    __t: 'storageDocument',
+    status: 'COMPLETE',
+    documentUri: '_test-document.pdf',
+    userReference: 'test-reference',
+    exportData: {
+      exporterDetails: {
+        postcode: 'NE1 1AA',
+        exporterCompanyName: 'Test Fish Ltd',
+        contactId: 'contact-123',
+        accountId: 'account-456'
+      },
+      exportedTo: {
+        officialCountryName: 'France',
+        isoCodeAlpha2: 'FR',
+        isoCodeAlpha3: 'FRA'
+      },
+      transportation: {
+        vehicle: 'truck',
+        cmr: true,
+        exportDate: '01/01/2023'
+      },
+      catches: [
+        {
+          id: 'catch-1',
+          certificateNumber: 'CC-001',
+          certificateType: 'uk',
+          product: 'COD',
+          productWeight: '100',
+          weightOnCC: '100'
+        }
+      ]
+    }
+  };
+
+  const baseStorageDocumentCase: any = {
+    exporter: {
+      contactId: 'contact-123',
+      accountId: 'account-456',
+      companyName: 'Test Fish Ltd',
+      address: {
+        line1: '123 Test Street',
+        city: 'Newcastle',
+        postCode: 'NE1 1AA',
+        country: 'UK'
+      },
+      dynamicsAddress: {
+        defra_postcode: 'NE1 1AA',
+        defra_towntext: 'Newcastle'
+      }
+    },
+    documentUrl: 'http://test.gov.uk/document.pdf',
+    documentDate: '2023-01-01',
+    caseType1: 'SD',
+    caseType2: SdPsCaseTwoType.RealTimeValidation_Success,
+    numberOfFailedSubmissions: 0,
+    documentNumber: 'GBR-SD-2023-12345',
+    companyName: 'Test Fish Ltd',
+    exportedTo: {
+      officialCountryName: 'France',
+      isoCodeAlpha2: 'FR',
+      isoCodeAlpha3: 'FRA'
+    },
+    products: [
+      {
+        id: 'product-1',
+        foreignCatchCertificateNumber: 'CC-001',
+        isDocumentIssuedInUK: true,
+        species: 'COD',
+        cnCode: '03025110',
+        scientificName: 'Gadus morhua',
+        importedWeight: 100,
+        exportedWeight: 100,
+        validation: {
+          status: SdPsStatus.Success,
+          totalWeightExported: 100
+        },
+        issuingCountry: 'UK'
+      }
+    ],
+    da: 'England',
+    _correlationId: 'test-correlation-id',
+    requestedByAdmin: false,
+    clonedFrom: 'some-cloned-doc',
+    parentDocumentVoid: false,
+    placeOfUnloading: 'Dover',
+    pointOfDestination: 'Calais'
+  };
+
+  const baseSdQueryResults: ISdPsQueryResult[] = [{
+    documentNumber: 'GBR-SD-2023-12345',
+    catchCertificateNumber: 'CC-001',
+    catchCertificateType: 'uk',
+    documentType: 'storageDocument',
+    createdAt: '2023-01-01',
+    status: 'COMPLETE',
+    species: 'Atlantic cod (COD)',
+    commodityCode: '03025110',
+    weightOnDoc: 100,
+    weightOnAllDocs: 100,
+    weightOnFCC: 100,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: 'England',
+    extended: { id: 'catch-1' }
+  }];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLogError = jest.spyOn(logger, 'error');
+    mockLogInfo = jest.spyOn(logger, 'info');
+    mockPersistence = jest.spyOn(shared, 'addToReportQueue');
+    mockPersistence.mockResolvedValue(null);
+    mockToDefraTradeSd = jest.spyOn(defraTradeValidation, 'toDefraTradeSd');
+    uuid.mockImplementation(() => 'test-uuid');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('when azureTradeQueueEnabled is false', () => {
+    beforeEach(() => {
+      ApplicationConfig.prototype.azureTradeQueueEnabled = false;
+    });
+
+    afterEach(() => {
+      ApplicationConfig.prototype.azureTradeQueueEnabled = true;
+    });
+
+    it('should send message to queue with CHIP-DISABLED and delete sensitive fields from products', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      expect(mockLogInfo).toHaveBeenCalledWith(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${baseStorageDocument.documentNumber}][CHIP-DISABLED]`);
+      expect(mockPersistence).toHaveBeenCalled();
+      expect(storageDocumentCase.clonedFrom).toBeUndefined();
+      expect(storageDocumentCase.parentDocumentVoid).toBeUndefined();
+      expect(storageDocumentCase.placeOfUnloading).toBeUndefined();
+      expect(storageDocumentCase.pointOfDestination).toBeUndefined();
+    });
+
+    it('should handle products with undefined products array', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase, products: undefined };
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      expect(mockLogInfo).toHaveBeenCalledWith(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${baseStorageDocument.documentNumber}][CHIP-DISABLED]`);
+      expect(mockPersistence).toHaveBeenCalled();
+    });
+
+    it('should delete isDocumentIssuedInUK from products when CHIP is disabled', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.products).toBeDefined();
+      message.body.products.forEach(product => {
+        expect(product.isDocumentIssuedInUK).toBeUndefined();
+      });
+    });
+  });
+
+  describe('when azureTradeQueueEnabled is true', () => {
+    beforeEach(() => {
+      ApplicationConfig.prototype.azureTradeQueueEnabled = true;
+    });
+
+    const validSdDefraTrade = {
+      version: "2",
+      _correlationId: 'test-correlation-id',
+      documentNumber: 'GBR-SD-2023-12345',
+      documentUrl: 'http://test.gov.uk/document.pdf',
+      documentDate: '2023-01-01',
+      caseType1: 'SD',
+      caseType2: 'Real Time Validation - Successful',
+      numberOfFailedSubmissions: 0,
+      companyName: 'Test Fish Ltd',
+      exporter: {
+        contactId: 'contact-123',
+        accountId: 'account-456',
+        companyName: 'Test Fish Ltd',
+        address: {
+          building_number: '123',
+          sub_building_name: 'Unit 1',
+          building_name: 'Test Building',
+          street_name: '17 Old Edinburgh Road',
+          county: 'Tyne and Wear',
+          country: 'England',
+          line1: '123 Test Street',
+          city: 'Newcastle',
+          postCode: 'NE1 1AA'
+        },
+        dynamicsAddress: {
+          defra_addressid: '00185463-69c2-e911-a97a-000d3a2cbad9',
+          defra_buildingname: 'Lancaster House',
+          defra_fromcompanieshouse: false,
+          defra_fromcompanieshouse_OData_Community_Display_V1_FormattedValue: 'No',
+          defra_postcode: 'NE4 7YJ',
+          defra_premises: '23',
+          defra_street: 'Newcastle upon Tyne',
+          defra_towntext: 'Newcastle upon Tyne',
+          _defra_country_value: 'f49cf73a-fa9c-e811-a950-000d3a3a2566',
+          _defra_country_value_Microsoft_Dynamics_CRM_associatednavigationproperty: 'defra_Country',
+          _defra_country_value_Microsoft_Dynamics_CRM_lookuplogicalname: 'defra_country',
+          _defra_country_value_OData_Community_Display_V1_FormattedValue: 'United Kingdom of Great Britain and Northern Ireland'
+        }
+      },
+      exportedTo: {
+        officialCountryName: 'France',
+        isoCodeAlpha2: 'FR',
+        isoCodeAlpha3: 'FRA',
+        isoNumericCode: '250'
+      },
+      authority: {
+        name: 'Illegal Unreported and Unregulated (IUU) Fishing Team',
+        companyName: 'Marine Management Organisation',
+        address: {
+          line1: 'Tyneside House',
+          street_name: 'Skinnerburn Rd',
+          city: 'Newcastle upon Tyne',
+          postCode: 'NE4 7AR',
+          country: 'United Kingdom'
+        },
+        tel: '0300 123 1032',
+        email: 'ukiuuslo@marinemanagement.org.uk',
+        dateIssued: '2023-01-01'
+      },
+      transportation: {
+        modeofTransport: 'truck',
+        hasRoadTransportDocument: true,
+        exportDate: '2023-01-01'
+      },
+      storageFacility: {
+        name: 'Test Facility',
+        address: {
+          line1: '456 Storage Lane',
+          city: 'Newcastle',
+          postCode: 'NE2 2BB',
+          country: 'UK'
+        }
+      },
+      products: [
+        {
+          id: 'product-1',
+          foreignCatchCertificateNumber: 'CC-001',
+          species: 'COD',
+          cnCode: '03025110',
+          scientificName: 'Gadus morhua',
+          importedWeight: 100,
+          exportedWeight: 100,
+          validation: {
+            status: 'Validation Success',
+            totalWeightExported: 100
+          },
+          issuingCountry: 'UK'
+        }
+      ],
+      da: 'England',
+      requestedByAdmin: false
+    };
+
+    it('should log INVALID-PAYLOAD and return early when validation fails', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      // Mock toDefraTradeSd to return an invalid payload
+      mockToDefraTradeSd.mockReturnValue({
+        // Invalid payload - missing required fields
+      });
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      expect(mockLogError).toHaveBeenCalledWith(expect.stringContaining('[DEFRA-TRADE-SD][DOCUMENT-NUMBER]'));
+      expect(mockLogError).toHaveBeenCalledWith(expect.stringContaining('[INVALID-PAYLOAD]'));
+    });
+
+    it('should set status to VOID when sdQueryResults is not an array', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      mockToDefraTradeSd.mockReturnValue(validSdDefraTrade);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, null);
+      
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.applicationProperties.Status).toBe('VOID');
+    });
+
+    it('should set status to BLOCKED when any sdQueryResult has BLOCKED status', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const blockedSdQueryResults: ISdPsQueryResult[] = [{
+        ...baseSdQueryResults[0],
+        status: 'BLOCKED'
+      }];
+
+      mockToDefraTradeSd.mockReturnValue(validSdDefraTrade);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, blockedSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.applicationProperties.Status).toBe('BLOCKED');
+    });
+
+    it('should set status to COMPLETE when all sdQueryResults have non-BLOCKED status', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      mockToDefraTradeSd.mockReturnValue(validSdDefraTrade);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.applicationProperties.Status).toBe('COMPLETE');
+    });
+
+    it('should include all required application properties in the message', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      mockToDefraTradeSd.mockReturnValue(validSdDefraTrade);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+
+      expect(message.applicationProperties.EntityKey).toBe('GBR-SD-2023-12345');
+      expect(message.applicationProperties.PublisherId).toBe('FES');
+      expect(message.applicationProperties.OrganisationId).toBe('account-456');
+      expect(message.applicationProperties.UserId).toBe('contact-123');
+      expect(message.applicationProperties.Type).toBe('Internal');
+      expect(message.applicationProperties.TimestampUtc).toBeDefined();
+    });
+
+    it('should handle undefined exporter accountId and contactId', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      // Create a payload without contactId and accountId (schema allows optional)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { contactId: _contactId, accountId: _accountId, ...exporterWithoutIds } = validSdDefraTrade.exporter;
+      const undefinedExporterPayload = {
+        ...validSdDefraTrade,
+        exporter: exporterWithoutIds
+      };
+
+      mockToDefraTradeSd.mockReturnValue(undefinedExporterPayload);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+
+      // When contactId/accountId are undefined, ?? null returns null
+      expect(message.applicationProperties.OrganisationId).toBeNull();
+      expect(message.applicationProperties.UserId).toBeNull();
+    });
+  });
+});
+
