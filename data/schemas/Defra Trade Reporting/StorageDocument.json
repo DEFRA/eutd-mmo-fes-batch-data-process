@@ -58,9 +58,12 @@
           "scientificName": "scientific name",
           "importedWeight": 500,
           "exportedWeight": 700,
-          "dateOfUnloading": "2023-08-25",
-          "placeOfUnloading": "Dover",
-          "transportUnloadedFrom": "Train",
+          "netWeightProductArrival": 9999999.99,
+          "netWeightFisheryProductArrival": 9999999.99,
+          "netWeightProductDeparture": 9999999.99,
+          "netWeightFisheryProductDeparture": 999999.99,
+          "supportingDocuments": "testDocument",
+          "productDescription": "Some Product Description",
           "validation": {
             "status": "Validation Failure - Overuse",
             "totalWeightExported": 700,
@@ -68,7 +71,8 @@
             "overuseInfo": [
               "GBR-SD-123234-123-234”,”GBR-SD-123234-123-234"
             ]
-          }
+          },
+          "issuingCountry": "Nigeria"
         },
         {
           "id": "some-product-id-2",
@@ -84,22 +88,23 @@
           }
         }
       ],
-      "storageFacilities": [
-        {
-          "name": "name",
-          "address": {
-            "line1": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
-            "city": "NEWCASTLE UPON TYNE",
-            "postCode": "NE4 7YH",
-            "sub_building_name": "MMO SUB",
-            "building_number": "",
-            "building_name": "LANCASTER HOUSE",
-            "street_name": "HAMPSHIRE COURT",
-            "county": "TYNESIDE",
-            "country": "ENGLAND"
-          }
-        }
-      ],
+      "storageFacility": {
+        "name": "name",
+        "address": {
+          "line1": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH",
+          "sub_building_name": "MMO SUB",
+          "building_number": "",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": "TYNESIDE",
+          "country": "ENGLAND"
+        },
+        "arrivalDate": "2025-08-12",
+        "approvalNumber": "UK/ABC",
+        "productHandling": "chilled"
+      },
       "transportation": {
         "modeofTransport": "vessel",
         "name": "consequat",
@@ -107,6 +112,14 @@
         "containerId": "velit quis commodo aliqua sint",
         "exportLocation": "DOVER",
         "exportDate": "2023-01-01"
+      },
+      "arrivalTransportation": {
+        "modeofTransport": "truck",
+        "name": "magna logistics",
+        "flag": "test flag",
+        "containerId": "TRK-4589",
+        "exportLocation": "UK",
+        "exportDate": "2023-01-10"
       },
       "da": "Northern Ireland",
       "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
@@ -176,22 +189,23 @@
         "isoNumericCode": "3166"
       },
       "products": null,
-      "storageFacilities": [
-        {
-          "name": "name",
-          "address": {
-            "line1": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
-            "city": "NEWCASTLE UPON TYNE",
-            "postCode": "NE4 7YH",
-            "sub_building_name": "MMO SUB",
-            "building_number": "",
-            "building_name": "LANCASTER HOUSE",
-            "street_name": "HAMPSHIRE COURT",
-            "county": "TYNESIDE",
-            "country": "ENGLAND"
-          }
-        }
-      ],
+      "storageFacility": {
+        "name": "name",
+        "address": {
+          "line1": "MMO SUB, LANCASTER HOUSE, HAMPSHIRE COURT",
+          "city": "NEWCASTLE UPON TYNE",
+          "postCode": "NE4 7YH",
+          "sub_building_name": "MMO SUB",
+          "building_number": "",
+          "building_name": "LANCASTER HOUSE",
+          "street_name": "HAMPSHIRE COURT",
+          "county": "TYNESIDE",
+          "country": "ENGLAND"
+        },
+        "arrivalDate": "2025-08-12",
+        "approvalNumber": "UK/ABC",
+        "productHandling": "chilled"
+      },
       "transportation": {
         "modeofTransport": "vessel",
         "name": "consequat",
@@ -199,6 +213,14 @@
         "containerId": "velit quis commodo aliqua sint",
         "exportLocation": "DOVER",
         "exportDate": "2023-01-01"
+      },
+      "arrivalTransportation": {
+        "modeofTransport": "truck",
+        "name": "magna logistics",
+        "flag": "test flag",
+        "containerId": "TRK-4589",
+        "exportLocation": "UK",
+        "exportDate": "2023-01-10"
       },
       "da": "Northern Ireland",
       "_correlationId": "c03483ba-86ed-49be-ba9d-695ea27b3951",
@@ -437,23 +459,36 @@
         "exportedWeight": {
           "type": "number"
         },
-        "dateOfUnloading": {
-          "description": "Date of Unloading",
-          "type": "string"
+        "netWeightProductArrival": {
+          "type": "string",
+          "description": "net weight of product on arrival provided on /add-product-to-this-consignments"
         },
-        "placeOfUnloading": {
-          "description": "Place of unloading",
-          "type": "string"
+        "netWeightFisheryProductArrival": {
+          "type": "string",
+          "description": "net weight of fishery products on arrival provided on /add-product-to-this-consignments"
         },
-        "transportUnloadedFrom": {
-          "description": "Details of transport (unloaded from)",
-          "type": "string"
+        "netWeightProductDeparture": {
+          "type": "string",
+          "description": "net weight of product on departure provided on /departure-product-summary"
+        },
+        "netWeightFisheryProductDeparture": {
+          "type": "string",
+          "description": "net weight of fishery products on departure provided on /departure-product-summary"
+        },
+        "supportingDocuments": {
+          "type": "string",
+          "description": "reference numbers for any supporting documents when a processing statement is provided as foreign document number"
+        },
+        "productDescription": {
+          "type": "string",
+          "description": "Description of the product added to the consignment"
         },
         "validation": {
-          "type": "object",
-          "items": {
-            "$ref": "#/definitions/productValidation"
-          }
+          "$ref": "#/definitions/productValidation"
+        },
+        "issuingCountry": {
+          "type": "string",
+          "description": "Name of the country issuing the catch certificate"
         }
       },
       "required": [
@@ -463,10 +498,8 @@
         "cnCode",
         "importedWeight",
         "exportedWeight",
-        "dateOfUnloading",
-        "placeOfUnloading",
-        "transportUnloadedFrom",
-        "validation"
+        "validation",
+        "issuingCountry"
       ],
       "additionalProperties": false
     },
@@ -517,6 +550,26 @@
         },
         "flag": {
           "type": "string"
+        },
+        "freightbillNumber": {
+          "type": "string"
+        },
+        "airwaybillNumber": {
+          "type": "string"
+        },
+        "countryofDeparture": {
+          "type": "string"
+        },
+        "whereDepartsFrom": {
+          "type": "string"
+        },
+        "departureDate": {
+          "type": "string"
+        }
+        ,
+        "pointOfDestination": {
+          "type": ["string", "null"],
+          "description": "Point of destination as provided by the user."
         }
       },
       "anyOf": [
@@ -568,6 +621,79 @@
         }
       ]
     },
+    "arrivalTransportation": {
+      "type": "object",
+      "description": "Details of Transport (Vessel / flight number / railway bill / truck registration)",
+      "required": [
+        "modeofTransport",
+        "placeOfUnloading"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "modeofTransport": {
+          "enum": [
+            "truck",
+            "train",
+            "plane",
+            "vessel"
+          ]
+        },
+        "exportDate": {
+          "description": "Date / Port of Place of Departure",
+          "type": "string"
+        },
+        "hasRoadTransportDocument": {
+          "type": "boolean"
+        },
+        "nationality": {
+          "type": "string"
+        },
+        "registration": {
+          "type": "string"
+        },
+        "exportLocation": {
+          "type": "string"
+        },
+        "containerId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "flag": {
+          "type": "string"
+        },
+        "freightbillNumber": {
+          "type": "string"
+        },
+        "airwaybillNumber": {
+          "type": "string"
+        },
+        "billNumber": {
+          "type": "string"
+        },
+        "flightNumber": {
+          "type": "string"
+        },
+        "countryofDeparture": {
+          "type": "string"
+        },
+        "whereDepartsFrom": {
+          "type": "string"
+        },
+        "departureDate": {
+          "type": "string"
+        },
+        "placeOfUnloading": {
+          "description": "Place of unloading",
+          "type": "string"
+        },
+        "pointOfDestination": {
+          "description": "Point of destination",
+          "type": "string"
+        }
+      }
+    },
     "storageFacility": {
       "type": "object",
       "description": "Storage facility details",
@@ -581,6 +707,18 @@
         },
         "address": {
           "$ref": "#/definitions/address"
+        },
+        "dateOfUnloading": {
+          "type": "string",
+          "description": "Consignments Arrival Date provided from /add-storage-facility-details"
+        },
+        "approvalNumber": {
+          "type": "string",
+          "description": "Storage facility approval number provided from add-storage-facility-approval"
+        },
+        "productHandling": {
+          "type": "string",
+          "description": "Product Handling provided from add-storage-facility-approval"
         }
       }
     },
@@ -618,8 +756,9 @@
     }
   },
   "properties": {
-    "version" : {
-      "type":"string", "const":"2"
+    "version": {
+      "type": "string",
+      "const": "2"
     },
     "exporter": {
       "type": "object",
@@ -680,8 +819,12 @@
     "companyName": {
       "type": "string"
     },
+    
     "products": {
-      "type": ["array", "null"],
+      "type": [
+        "array",
+        "null"
+      ],
       "items": {
         "$ref": "#/definitions/product"
       }
@@ -700,10 +843,16 @@
           "type": "string"
         },
         "isoCodeAlpha3": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "isoNumericCode": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -718,14 +867,14 @@
       "type": "boolean",
       "definition": "Flag to identify applications made by an EACC"
     },
-    "storageFacilities": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/storageFacility"
-      }
+    "storageFacility": {
+      "$ref": "#/definitions/storageFacility"
     },
     "transportation": {
       "$ref": "#/definitions/transportation"
+    },
+    "arrivalTransportation": {
+      "$ref": "#/definitions/arrivalTransportation"
     },
     "authority": {
       "$ref": "#/definitions/authority"
@@ -742,7 +891,7 @@
     "_correlationId",
     "requestedByAdmin",
     "products",
-    "storageFacilities",
+    "storageFacility",
     "transportation",
     "authority"
   ]

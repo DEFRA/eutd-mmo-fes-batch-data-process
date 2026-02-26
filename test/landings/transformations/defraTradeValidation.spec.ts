@@ -1744,7 +1744,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         },
       }
     }, dynamicsCatchCertificateCase, ccQueryResults);
-    const expected: IDefraTradeCatchCertificate = {
+    const expected = {
       documentNumber: "GBR-2023-CC-C58DF9A73",
       certStatus: CertificateStatus.COMPLETE,
       caseType1: CaseOneType.CatchCertificate,
@@ -1878,7 +1878,8 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         exportLocation: "qsd",
         nationality: "a",
         registration: "123",
-        hasRoadTransportDocument: false
+        hasRoadTransportDocument: false,
+        freightbillNumber: "12ws"
       },
     };
 
@@ -2476,6 +2477,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
         nationality: "",
         registration: "",
         hasRoadTransportDocument: false,
+        freightbillNumber: "0",
       },
     });
   })
@@ -3436,3 +3438,401 @@ describe('When mapping from an ISdPsQueryResult to a IDefraTradeProcessingStatem
   });
 });
 
+describe('When mapping from an ISdPsQueryResult to a IDefraTradeStorageDocumentProduct', () => {
+  const baseInput: ISdPsQueryResult = {
+    documentNumber: "SD1",
+    catchCertificateNumber: "CC1",
+    catchCertificateType: "uk",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    scientificName: "Gadus morhua",
+    commodityCode: "03025110",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: null,
+    extended: {
+      id: 'SD1-catch-1',
+    },
+    supportingDocuments: 'DOC1,DOC2',
+    productDescription: 'Fresh cod fillets',
+    netWeightProductArrival: '90',
+    netWeightFisheryProductArrival: '85',
+    netWeightProductDeparture: '80',
+    netWeightFisheryProductDeparture: '75'
+  };
+
+  it('will map status to Success when no issues', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Success);
+  });
+
+  it('will map status to Weight when isMismatch is true', () => {
+    const input = { ...baseInput, isMismatch: true };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Weight);
+  });
+
+  it('will map status to Overuse when isOverAllocated is true (takes precedence)', () => {
+    const input = { ...baseInput, isMismatch: true, isOverAllocated: true };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.validation.status).toEqual(IDefraTradeSdPsStatus.Overuse);
+  });
+
+  it('will map foreignCatchCertificateNumber correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.foreignCatchCertificateNumber).toEqual("CC1");
+  });
+
+  it('will map species correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.species).toEqual("Atlantic cod (COD)");
+  });
+
+  it('will map scientificName correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.scientificName).toEqual("Gadus morhua");
+  });
+
+  it('will map id from extended correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.id).toEqual("SD1-catch-1");
+  });
+
+  it('will map cnCode correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.cnCode).toEqual("03025110");
+  });
+
+  it('will map importedWeight from weightOnFCC', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.importedWeight).toEqual(200);
+  });
+
+  it('will map exportedWeight from weightOnDoc', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.exportedWeight).toEqual(100);
+  });
+
+  it('will map totalWeightExported from weightOnAllDocs', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.validation.totalWeightExported).toEqual(150);
+  });
+
+  it('will map weightExceededAmount from overAllocatedByWeight', () => {
+    const input = { ...baseInput, overAllocatedByWeight: 50 };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.validation.weightExceededAmount).toEqual(50);
+  });
+
+  it('will map issuingCountry as United Kingdom when catchCertificateType is uk', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.issuingCountry).toEqual("United Kingdom");
+  });
+
+  it('will map issuingCountry from officialCountryName when catchCertificateType is not uk', () => {
+    const input = { 
+      ...baseInput, 
+      catchCertificateType: 'non-uk',
+      issuingCountry: { officialCountryName: 'Norway' }
+    };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.issuingCountry).toEqual("Norway");
+  });
+
+  it('will return undefined issuingCountry when non-uk and issuingCountry is undefined', () => {
+    const input = { 
+      ...baseInput, 
+      catchCertificateType: 'non-uk',
+      issuingCountry: undefined
+    };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.issuingCountry).toBeUndefined();
+  });
+
+  it('will map supportingDocuments correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.supportingDocuments).toEqual('DOC1,DOC2');
+  });
+
+  it('will map productDescription correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.productDescription).toEqual('Fresh cod fillets');
+  });
+
+  it('will map net weight fields correctly', () => {
+    const result = SUT.toDefraTradeSdProduct(baseInput);
+    expect(result.netWeightProductArrival).toEqual('90');
+    expect(result.netWeightFisheryProductArrival).toEqual('85');
+    expect(result.netWeightProductDeparture).toEqual('80');
+    expect(result.netWeightFisheryProductDeparture).toEqual('75');
+  });
+
+  it('will filter overuseInfo to exclude current document', () => {
+    const input = { ...baseInput, overUsedInfo: ['SD1', 'SD2', 'SD3'] };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.validation.overuseInfo).toEqual(['SD2', 'SD3']);
+  });
+
+  it('will return undefined for overuseInfo when only current document is in list', () => {
+    const input = { ...baseInput, overUsedInfo: ['SD1'] };
+    const result = SUT.toDefraTradeSdProduct(input);
+    expect(result.validation.overuseInfo).toBeUndefined();
+  });
+});
+
+describe('When transforming Storage Document to IDefraTradeStorageDocument using toDefraTradeSd', () => {
+  const baseDocument = {
+    documentNumber: 'SD-001',
+    createdAt: '2021-01-01T00:00:00Z',
+    exportData: {
+      exportedTo: { officialCountryName: 'France' },
+      transportation: {
+        vehicle: 'truck',
+        cmr: true,
+        nationalityOfVehicle: 'UK',
+        registrationNumber: 'AB12 CDE',
+        departurePlace: 'Dover',
+        exportDate: '15/01/2021'
+      },
+      arrivalTransportation: {
+        vehicle: 'truck',
+        cmr: false,
+        nationalityOfVehicle: 'FR',
+        registrationNumber: 'FR-123',
+        departurePlace: 'Calais'
+      },
+      facilityName: 'Test Facility',
+      facilityAddress: '123 Test Street'
+    }
+  };
+
+  const baseDocumentCase = {
+    _correlationId: 'test-correlation-id',
+    exporter: { accountId: 'ACC1', contactId: 'CON1' }
+  };
+
+  const baseSdQueryResults: ISdPsQueryResult[] = [{
+    documentNumber: "SD-001",
+    catchCertificateNumber: "CC1",
+    catchCertificateType: "uk",
+    documentType: "SD",
+    createdAt: "2020-01-01",
+    status: "COMPLETE",
+    species: "Atlantic cod (COD)",
+    scientificName: "Gadus morhua",
+    commodityCode: "03025110",
+    weightOnDoc: 100,
+    weightOnAllDocs: 150,
+    weightOnFCC: 200,
+    isOverAllocated: false,
+    overUsedInfo: [],
+    isMismatch: false,
+    overAllocatedByWeight: 0,
+    da: null,
+    extended: { id: 'SD1-catch-1' }
+  }];
+
+  it('will transform document with valid products', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0].foreignCatchCertificateNumber).toEqual('CC1');
+  });
+
+  it('will set products to null when sdQueryResults is null', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, null);
+    
+    expect(result.products).toBeNull();
+  });
+
+  it('will format valid exportDate correctly', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation.exportDate).toEqual('2021-01-15');
+  });
+
+  it('will use current UTC date when exportDate is invalid', () => {
+    const docWithInvalidDate = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        transportation: {
+          ...baseDocument.exportData.transportation,
+          exportDate: 'invalid-date'
+        }
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithInvalidDate as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    // Should be today's date in YYYY-MM-DD format
+    expect(result.transportation.exportDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('will map transportation correctly', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation.modeofTransport).toEqual('truck');
+    expect((result.transportation as any).hasRoadTransportDocument).toEqual(true);
+  });
+
+  it('will map arrivalTransportation correctly', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.arrivalTransportation.modeofTransport).toEqual('truck');
+    expect((result.arrivalTransportation as any).hasRoadTransportDocument).toEqual(false);
+  });
+
+  it('will map exportedTo correctly', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.exportedTo).toEqual({ officialCountryName: 'France' });
+  });
+
+  it('will include authority in the result', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.authority).toBeDefined();
+  });
+
+  it('will spread document case properties', () => {
+    const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result._correlationId).toEqual('test-correlation-id');
+    expect(result.exporter).toEqual({ accountId: 'ACC1', contactId: 'CON1' });
+  });
+
+  it('will map plane transportation correctly', () => {
+    const docWithPlane = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        transportation: {
+          vehicle: 'plane',
+          flightNumber: 'BA123',
+          containerNumbers: 'CONT123',
+          departurePlace: 'Heathrow',
+          exportDate: '15/01/2021',
+          freightBillNumber: 'FB123',
+          airwayBillNumber: 'AWB456',
+          departureCountry: 'UK',
+          departurePort: 'London',
+          departureDate: '2021-01-15',
+          placeOfUnloading: 'Paris',
+          pointOfDestination: 'Paris CDG'
+        }
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithPlane as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation.modeofTransport).toEqual('plane');
+    expect((result.transportation as any).flightNumber).toEqual('BA123');
+    expect((result.transportation as any).containerId).toEqual('CONT123');
+    expect((result.transportation as any).airwaybillNumber).toEqual('AWB456');
+  });
+
+  it('will map containerVessel transportation correctly', () => {
+    const docWithVessel = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        transportation: {
+          vehicle: 'containerVessel',
+          vesselName: 'SS Test Ship',
+          flagState: 'GBR',
+          containerNumbers: 'CONT456',
+          departurePlace: 'Southampton',
+          exportDate: '15/01/2021',
+          freightBillNumber: 'FB789',
+          departureCountry: 'UK',
+          departurePort: 'Southampton Port',
+          departureDate: '2021-01-15',
+          placeOfUnloading: 'Rotterdam',
+          pointOfDestination: 'Rotterdam Port'
+        }
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithVessel as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation.modeofTransport).toEqual('vessel');
+    expect((result.transportation as any).name).toEqual('SS Test Ship');
+    expect((result.transportation as any).flag).toEqual('GBR');
+    expect((result.transportation as any).containerId).toEqual('CONT456');
+  });
+
+  it('will map default transportation when vehicle type is not recognized', () => {
+    const docWithUnknownVehicle = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        transportation: {
+          vehicle: 'bicycle',
+          departurePlace: 'Dover',
+          exportDate: '15/01/2021',
+          freightBillNumber: '',
+          countryofDeparture: 'UK',
+          departurePort: 'Dover Port',
+          departureDate: '2021-01-15',
+          placeOfUnloading: 'Calais',
+          pointOfDestination: 'Calais Port'
+        }
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithUnknownVehicle as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation.modeofTransport).toEqual('bicycle');
+    expect(result.transportation.exportLocation).toEqual('Dover');
+  });
+
+  it('will handle undefined arrivalTransportation', () => {
+    const docWithoutArrival = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        arrivalTransportation: undefined
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutArrival as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    // When arrivalTransportation is undefined, toTransportation returns undefined
+    expect(result.arrivalTransportation).toBeUndefined();
+  });
+
+  it('will handle undefined exportedTo', () => {
+    const docWithoutExportedTo = {
+      ...baseDocument,
+      exportData: {
+        ...baseDocument.exportData,
+        exportedTo: undefined
+      }
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutExportedTo as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.exportedTo).toBeUndefined();
+  });
+
+  it('will handle undefined exportData by returning undefined for transportation fields', () => {
+    const docWithoutExportData = {
+      ...baseDocument,
+      exportData: undefined
+    };
+    
+    const result = SUT.toDefraTradeSd(docWithoutExportData as any, baseDocumentCase as any, baseSdQueryResults);
+    
+    expect(result.transportation).toBeUndefined();
+    expect(result.arrivalTransportation).toBeUndefined();
+    expect(result.exportedTo).toBeUndefined();
+  });
+});

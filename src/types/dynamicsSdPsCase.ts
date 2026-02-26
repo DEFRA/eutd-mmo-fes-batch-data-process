@@ -33,6 +33,52 @@ export interface IDynamicsProcessingStatementCatch {
     validation: IDynamicsProcessingStatementValidation;
 }
 
+export interface IDynamicsStorageDocumentCase {
+    exporter: CertificateCompany;
+    documentUrl: string | undefined;
+    documentDate: string;
+    caseType1: string;
+    caseType2: SdPsCaseTwoType;
+    numberOfFailedSubmissions: number;
+    documentNumber: string;
+    companyName: string;
+    exportedTo: ICountry;
+    products?: IDynamicsStorageDocumentProduct[];
+    _correlationId: string;
+    da: string;
+    requestedByAdmin: boolean;
+    clonedFrom?: string;
+    parentDocumentVoid?: boolean;
+    placeOfUnloading?: string;
+    pointOfDestination?: string;
+}
+
+export interface IDynamicsStorageDocumentProduct {
+    foreignCatchCertificateNumber: string;
+    isDocumentIssuedInUK?: boolean;
+    species: string;
+    id: string;
+    cnCode: string;
+    scientificName: string;
+    importedWeight: number;
+    exportedWeight: number;
+    supportingDocuments?: string,
+    productDescription?: string,
+    netWeightProductArrival?: number,
+    netWeightFisheryProductArrival?: number,
+    netWeightProductDeparture?: number,
+    netWeightFisheryProductDeparture?: number,
+    validation: IDynamicsStorageDocumentValidation;
+    issuingCountry: string;
+}
+
+export interface IDynamicsStorageDocumentValidation {
+    status: SdPsStatus;
+    totalWeightExported: number;
+    weightExceededAmount?: number;
+    overuseInfo?: string[];
+}
+
 export interface IDynamicsProcessingStatementValidation {
     status: SdPsStatus;
     totalUsedWeightAgainstCertificate: number;
