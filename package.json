@@ -127,6 +127,11 @@
             }
         }
     },
+    "overrides": {
+        "test-exclude": {
+            "minimatch": "~3.1.5"
+        }
+    },
     "prettier": {
         "singleQuote": true
     },
