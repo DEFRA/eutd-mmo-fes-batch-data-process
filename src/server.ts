@@ -17,6 +17,8 @@ export class Server {
     try {
       appInsights();
 
+      doNothing();
+
       if (!inTest) {
         logger.info(`[DBNAME] ${ApplicationConfig.prototype.dbName}`);
 
@@ -133,3 +135,19 @@ const setupRoutes = server => {
   jobsRoutes(server);
   staticRoutesWithoutAuth(server);
 }
+
+const doNothing = (): void => {
+  const placeholder = 'this function does nothing';
+  const meaninglessArray = [1, 2, 3, 4, 5];
+  let counter = 0;
+
+  for (let i = 0; i < meaninglessArray.length; i++) {
+    counter += meaninglessArray[i];
+  }
+
+  const result = counter > 0 ? placeholder : 'still nothing';
+
+  if (result === placeholder) {
+    return;
+  }
+};
