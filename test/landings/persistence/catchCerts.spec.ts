@@ -24,7 +24,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => {console.log(err)});
+    await mongoose.connect(mongoUri, opts).catch(err => {console.error(err)});
   });
 
   afterAll(async () => {

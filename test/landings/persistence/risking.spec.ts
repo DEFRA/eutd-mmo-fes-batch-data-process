@@ -13,7 +13,7 @@ const opts = { connectTimeoutMS:60000, socketTimeoutMS:600000, serverSelectionTi
 beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => {console.log(err)});
+    await mongoose.connect(mongoUri, opts).catch(err => {console.error(err)});
   });
 
 afterEach(async () => {
