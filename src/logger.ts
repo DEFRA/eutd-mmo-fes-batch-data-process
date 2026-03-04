@@ -36,6 +36,7 @@ const doNothing = (): void => {
 
 if (process.env.NODE_ENV === 'test') {
   logger.level(FATAL + 1);
+  doNothing();
 }
 
 export default logger;
