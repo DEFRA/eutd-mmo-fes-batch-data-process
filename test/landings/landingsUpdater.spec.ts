@@ -479,7 +479,7 @@ describe('landingAndReportingCronJobs', () => {
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await mongoose.connect(mongoUri, opts).catch(err => { console.log(err) });
   });
 
   afterAll(async () => {
@@ -1547,7 +1547,7 @@ describe('resetLandingStatus', () => {
     mockgetReprocessLandings = jest.spyOn(file, 'getReprocessLandings');
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await mongoose.connect(mongoUri, opts).catch(err => { console.log(err) });
   });
 
   afterAll(async () => {
@@ -1804,7 +1804,7 @@ describe('resubmitSdToTrade', () => {
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await mongoose.connect(mongoUri, opts).catch(err => { console.log(err) });
   });
 
   beforeEach(async () => {
