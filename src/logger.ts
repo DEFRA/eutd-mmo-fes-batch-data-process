@@ -18,6 +18,7 @@ const logger: Logger = createLogger({
     }
 });
 
+
 if (process.env.NODE_ENV === 'test') {
   logger.level(FATAL + 1);
 }
