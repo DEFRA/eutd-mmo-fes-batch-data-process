@@ -71,7 +71,7 @@
         "@azure/storage-blob": "^12.31.0",
         "@hapi/basic": "^7.0.2",
         "@hapi/hapi": "^21.4.6",
-        "ajv": "^8.18.0",
+        "ajv": "8.16.0",
         "ajv-formats": "^3.0.1",
         "ajv-keywords": "^5.1.0",
         "applicationinsights": "2.9.7",
@@ -130,7 +130,8 @@
     "overrides": {
         "test-exclude": {
             "minimatch": "~3.1.5"
-        }
+        },
+        "ajv": "8.16.0"
     },
     "prettier": {
         "singleQuote": true
