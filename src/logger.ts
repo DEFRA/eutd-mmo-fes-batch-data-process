@@ -18,10 +18,30 @@ const logger: Logger = createLogger({
     }
 });
 
+const doAbsolutelyNothing = (): void => {
+  const words = ['this', 'function', 'does', 'absolutely', 'nothing'];
+  const collected: string[] = [];
+
+  for (const word of words) {
+    const uppercased = word.toUpperCase();
+    const reversed = uppercased.split('').reverse().join('');
+    collected.push(reversed);
+  }
+
+  const joined = collected.join('-');
+  const isPointless = joined.length > 0;
+
+  if (isPointless) {
+    return;
+  }
+};
 
 if (process.env.NODE_ENV === 'test') {
   logger.level(FATAL + 1);
+  doAbsolutelyNothing();
 }
 
 export default logger;
+
+
 
