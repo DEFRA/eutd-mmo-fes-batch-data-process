@@ -28,7 +28,7 @@ export class Server {
           serverSelectionTimeoutMS: 60000
         }
 
-        await mongoose.connect(ApplicationConfig.prototype.dbConnectionUri, options).catch(err => { console.log(err) });
+        await mongoose.connect(ApplicationConfig.prototype.dbConnectionUri, options).catch(err => { console.error(err) });
       }
 
       await Promise.all([
