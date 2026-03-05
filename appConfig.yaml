@@ -5,7 +5,7 @@ appSettings:
   
   - key: AZURE_BLOB_URL
     value: '#{{ SR_AZURE_BLOB_URL }}'
-    # type: config
+    type: config
   
   - key: AZURE_SAS
     value: 'SR-AZURE-BLOB-SAS'
@@ -39,7 +39,7 @@ appSettings:
     value: '#{{ externalFrontendBaseUrl }}'
     type: config
     stagingValue: '#{{ externalFrontendStgBaseUrl }}'
-      slotSetting: true
+    slotSetting: true
   
   - key: INTERNAL_ADMIN_URL
     value: '#{{ internalAdminFrontendBaseUrl }}'
