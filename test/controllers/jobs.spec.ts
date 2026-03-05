@@ -1,6 +1,7 @@
 import * as SUT from '../../src/controllers/jobs';
 import * as cache from '../../src/data/cache';
 import * as landingsUpdater from '../../src/landings/landingsUpdater';
+import * as catchCertsPersistence from '../../src/persistence/catchCerts';
 import logger from '../../src/logger';
 
 describe('scheduled jobs controller', () => {
@@ -225,6 +226,157 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
       expect(mockLoggerError).toHaveBeenCalledWith('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-SD][ERROR][Error: testing 123]')
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
+    });
+
+  });
+
+  describe('runCatchSubmissionStats', () => {
+
+    let mockGetCatchSubmissionStats: jest.SpyInstance;
+
+    beforeEach(() => {
+      mockGetCatchSubmissionStats = jest.spyOn(catchCertsPersistence, 'getCatchSubmissionStats');
+    });
+
+    afterEach(() => {
+      mockGetCatchSubmissionStats.mockRestore();
+    });
+
+    it('returns correct counts and empty failures when there are only successes', async () => {
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [{ documentNumber: 'GBR-2025-CC-001' }, { documentNumber: 'GBR-2025-CC-002' }],
+        failures: []
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result).toEqual({
+        documentType: 'catchCert',
+        dateFrom: '2025-01-01',
+        dateTo: '2025-03-01',
+        successCount: 2,
+        failureCount: 0,
+        failures: []
+      });
+      expect(mockGetCatchSubmissionStats).toHaveBeenCalledWith('catchCert', '2025-01-01', '2025-03-01');
+    });
+
+    it('returns correct counts and mapped failures with all fields populated', async () => {
+      const failureDoc = {
+        documentNumber: 'GBR-2025-CC-ABC123',
+        catchSubmission: {
+          timestamp: '2025-02-14T10:23:00Z',
+          code: '400',
+          message: 'Validation failed',
+          validationErrors: [{ id: 'err1', field: 'weight', message: 'Weight must be greater than 0' }]
+        }
+      };
+
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [],
+        failures: [failureDoc]
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result).toEqual({
+        documentType: 'catchCert',
+        dateFrom: '2025-01-01',
+        dateTo: '2025-03-01',
+        successCount: 0,
+        failureCount: 1,
+        failures: [
+          {
+            documentNumber: 'GBR-2025-CC-ABC123',
+            timestamp: '2025-02-14T10:23:00Z',
+            code: '400',
+            message: 'Validation failed',
+            validationErrors: [{ id: 'err1', field: 'weight', message: 'Weight must be greater than 0' }]
+          }
+        ]
+      });
+    });
+
+    it('returns validationErrors as empty array when not present on catchSubmission', async () => {
+      const failureDoc = {
+        documentNumber: 'GBR-2025-CC-XYZ',
+        catchSubmission: {
+          timestamp: '2025-02-01T08:00:00Z',
+          code: '500',
+          message: 'Internal server error'
+        }
+      };
+
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [],
+        failures: [failureDoc]
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result.failures[0].validationErrors).toEqual([]);
+    });
+
+    it('returns undefined for optional fields when catchSubmission fields are absent', async () => {
+      const failureDoc = {
+        documentNumber: 'GBR-2025-CC-NODATA',
+        catchSubmission: {}
+      };
+
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [],
+        failures: [failureDoc]
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result.failures[0]).toEqual({
+        documentNumber: 'GBR-2025-CC-NODATA',
+        timestamp: undefined,
+        code: undefined,
+        message: undefined,
+        validationErrors: []
+      });
+    });
+
+    it('returns correct successCount and failureCount with mixed results', async () => {
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [
+          { documentNumber: 'GBR-2025-CC-001' },
+          { documentNumber: 'GBR-2025-CC-002' },
+          { documentNumber: 'GBR-2025-CC-003' }
+        ],
+        failures: [
+          { documentNumber: 'GBR-2025-CC-F01', catchSubmission: { timestamp: '2025-01-15T00:00:00Z', code: '422', message: 'Unprocessable', validationErrors: [] } },
+          { documentNumber: 'GBR-2025-CC-F02', catchSubmission: { timestamp: '2025-01-20T00:00:00Z', code: '400', message: 'Bad request', validationErrors: [] } }
+        ]
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result.successCount).toBe(3);
+      expect(result.failureCount).toBe(2);
+      expect(result.failures).toHaveLength(2);
+    });
+
+    it('returns incomplete catch submissions', async () => {
+      mockGetCatchSubmissionStats.mockResolvedValue({
+        successes: [
+          { documentNumber: 'GBR-2025-CC-001' },
+          { documentNumber: 'GBR-2025-CC-002' },
+          { documentNumber: 'GBR-2025-CC-003' }
+        ],
+        failures: [
+          { documentNumber: 'GBR-2025-CC-F01', catchSubmission: undefined },
+          { documentNumber: 'GBR-2025-CC-F02', catchSubmission: { timestamp: '2025-01-20T00:00:00Z', code: '400', message: 'Bad request', validationErrors: [] } }
+        ]
+      });
+
+      const result = await SUT.runCatchSubmissionStats('catchCert', '2025-01-01', '2025-03-01');
+
+      expect(result.successCount).toBe(3);
+      expect(result.failureCount).toBe(2);
+      expect(result.failures).toHaveLength(2);
     });
 
   });
