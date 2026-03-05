@@ -1,5 +1,5 @@
 import { type IGetCatchCerts, DocumentStatuses, IDocument, getCertificateByDocumentNumberWithNumberOfFailedAttemptsQuery } from "mmo-shared-reference-data";
-import { DocumentModel } from "../types/document";
+import { DocumentModel, IDocumentModel } from "../types/document";
 import logger from "../logger";
 
 export const getCatchCerts = async (
@@ -90,6 +90,34 @@ export const getCertificateByDocumentNumberWithNumberOfFailedAttempts = async (d
 export const getCertificateByDocumentNumber = async (documentNumber: string): Promise<IDocument> => {
   return await DocumentModel.findOne({ documentNumber: documentNumber }).lean()
 }
+
+export const getCatchSubmissionStats = async (
+  documentType: string,
+  dateFrom: string,
+  dateTo: string
+): Promise<{ successes: IDocumentModel[]; failures: IDocumentModel[] }> => {
+  const dateFilter = {
+    createdAt: {
+      $gte: new Date(dateFrom),
+      $lte: new Date(dateTo)
+    }
+  };
+
+  const [successes, failures] = await Promise.all([
+    DocumentModel.find({
+      __t: documentType,
+      ...dateFilter,
+      'catchSubmission.status': 'SUCCESS'
+    }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean(),
+    DocumentModel.find({
+      __t: documentType,
+      ...dateFilter,
+      'catchSubmission.status': 'FAILURE'
+    }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean()
+  ]);
+
+  return { successes, failures };
+};
 
 export const upsertCertificate = async (documentNumber: string, parametersToUpdate: Object) => {
   const certificate: any = await DocumentModel.findOne({
