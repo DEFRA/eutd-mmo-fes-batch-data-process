@@ -176,13 +176,3 @@ appSettings:
   - key: WEBSITES_PORT
     value: '9000'
     type: config
-
-  - key: slotSetting
-    value: 'prodValue'
-    type : config
-    stagingValue: 'stagingValue'
-    slotSetting: true
-  
-  - key: commonSetting
-    value: 'commonValue'
-    type: config
