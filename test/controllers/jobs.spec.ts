@@ -204,7 +204,7 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-        it('will invoke the Resubmit SD to Trade', async () => {
+    it('will invoke the Resubmit SD to Trade', async () => {
       await SUT.runLandingsAndReportingJob();
 
       expect(mockresubmitSdToTrade).toHaveBeenCalled();
@@ -244,7 +244,7 @@ describe('scheduled jobs controller', () => {
 
     it('returns correct counts and empty failures when there are only successes', async () => {
       mockGetCatchSubmissionStats.mockResolvedValue({
-        successes: [{ documentNumber: 'GBR-2025-CC-001' }, { documentNumber: 'GBR-2025-CC-002' }],
+        successes: [{ documentNumber: 'GBR-2025-CC-001' }, { documentNumber: 'GBR-2025-CC-002', catchSubmission: { timestamp: '2025-02-01T08:00:00Z' }}],
         failures: []
       });
 
@@ -264,10 +264,10 @@ describe('scheduled jobs controller', () => {
     it('returns correct counts and mapped failures with all fields populated', async () => {
       const failureDoc = {
         documentNumber: 'GBR-2025-CC-ABC123',
+        createdAt: new Date('2025-02-14T10:23:00Z'),
         catchSubmission: {
-          timestamp: '2025-02-14T10:23:00Z',
-          code: '400',
-          message: 'Validation failed',
+          faultCode: '400',
+          faultString: 'Validation failed',
           validationErrors: [{ id: 'err1', field: 'weight', message: 'Weight must be greater than 0' }]
         }
       };
@@ -288,7 +288,7 @@ describe('scheduled jobs controller', () => {
         failures: [
           {
             documentNumber: 'GBR-2025-CC-ABC123',
-            timestamp: '2025-02-14T10:23:00Z',
+            timestamp: '2025-02-14T10:23:00.000Z',
             code: '400',
             message: 'Validation failed',
             validationErrors: [{ id: 'err1', field: 'weight', message: 'Weight must be greater than 0' }]
