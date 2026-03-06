@@ -255,15 +255,6 @@ describe('scheduled jobs controller', () => {
         dateFrom: '2025-01-01',
         dateTo: '2025-03-01',
         successCount: 2,
-        successes: [
-          {
-            documentNumber: "GBR-2025-CC-001"
-          },
-          {
-            documentNumber: "GBR-2025-CC-002",
-            timestamp: "2025-02-01T08:00:00Z"
-          }
-        ],
         failureCount: 0,
         failures: []
       });
@@ -293,7 +284,6 @@ describe('scheduled jobs controller', () => {
         dateFrom: '2025-01-01',
         dateTo: '2025-03-01',
         successCount: 0,
-        successes: [],
         failureCount: 1,
         failures: [
           {
