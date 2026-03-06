@@ -40,11 +40,15 @@ export const runCatchSubmissionStats = async (documentType: string, dateFrom: st
     dateTo,
     successCount: successes.length,
     failureCount: failures.length,
-    failures: failures.map((doc: IDocumentModel) => ({
+    successes: successes.map((doc: IDocumentModel) => ({
       documentNumber: doc.documentNumber,
       timestamp: doc.catchSubmission?.timestamp,
-      code: doc.catchSubmission?.code,
-      message: doc.catchSubmission?.message,
+    })),
+    failures: failures.map((doc: IDocumentModel) => ({
+      documentNumber: doc.documentNumber,
+      timestamp: doc.createdAt?.toISOString(),
+      code: doc.catchSubmission?.faultCode,
+      message: doc.catchSubmission?.faultString,
       validationErrors: doc.catchSubmission?.validationErrors ?? []
     }))
   };

@@ -4,6 +4,11 @@ interface ICatchSubmissionValidationError {
   message: string;
 }
 
+interface ICatchSubmissionSuccess {
+  documentNumber: string;
+  timestamp?: string;
+}
+
 interface ICatchSubmissionFailure {
   documentNumber: string;
   timestamp?: string;
@@ -18,5 +23,6 @@ export interface ICatchSubmissionStatsResult {
   dateTo: string;
   successCount: number;
   failureCount: number;
+  successes: ICatchSubmissionSuccess[];
   failures: ICatchSubmissionFailure[];
 }
