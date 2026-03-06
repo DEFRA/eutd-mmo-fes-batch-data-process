@@ -96,10 +96,13 @@ export const getCatchSubmissionStats = async (
   dateFrom: string,
   dateTo: string
 ): Promise<{ successes: IDocumentModel[]; failures: IDocumentModel[] }> => {
+  const dateToEndOfDay = new Date(dateTo);
+  dateToEndOfDay.setUTCHours(23, 59, 59, 999);
+
   const dateFilter = {
     createdAt: {
       $gte: new Date(dateFrom),
-      $lte: new Date(dateTo)
+      $lte: dateToEndOfDay
     }
   };
 

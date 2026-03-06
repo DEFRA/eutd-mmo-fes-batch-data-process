@@ -1924,6 +1924,22 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       expect((result.successes[0] as any).documentNumber).toBe('CC-RIGHT-TYPE');
     });
 
+    it('includes documents created later in the day on dateTo (not just midnight)', async () => {
+      await makeDoc('CC-DATETO-MIDNIGHT', 'SUCCESS', '2024-08-31T00:00:00.000Z').save();
+      await makeDoc('CC-DATETO-MIDDAY', 'SUCCESS', '2024-08-31T12:30:00.000Z').save();
+      await makeDoc('CC-DATETO-END-OF-DAY', 'SUCCESS', '2024-08-31T23:59:59.999Z').save();
+      await makeDoc('CC-DATETO-AFTER', 'SUCCESS', '2024-09-01T00:00:00.000Z').save();
+
+      const result = await getCatchSubmissionStats('catchCert', '2024-08-01', '2024-08-31');
+
+      expect(result.successes).toHaveLength(3);
+      const successNumbers = result.successes.map((d: any) => d.documentNumber);
+      expect(successNumbers).toContain('CC-DATETO-MIDNIGHT');
+      expect(successNumbers).toContain('CC-DATETO-MIDDAY');
+      expect(successNumbers).toContain('CC-DATETO-END-OF-DAY');
+      expect(successNumbers).not.toContain('CC-DATETO-AFTER');
+    });
+
   });
 
 });
