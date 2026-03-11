@@ -45,6 +45,7 @@ describe('scheduled jobs handler', () => {
 		let mockRunLandingsAndReporting;
     let mockLoadFishCountriesAndSpecies;
     let mockLoadExporterBehaviour;
+    let mockRunCatchSubmissionStats;
 
     beforeEach(() => {
       mockLoggerInfo = jest.spyOn(logger, 'info');
@@ -54,6 +55,7 @@ describe('scheduled jobs handler', () => {
       mockLoadFishCountriesAndSpecies.mockResolvedValue(undefined);
       mockLoadExporterBehaviour = jest.spyOn(Cache, 'loadExporterBehaviour');
       mockLoadExporterBehaviour.mockResolvedValue(undefined);
+      mockRunCatchSubmissionStats = jest.spyOn(Controller, 'runCatchSubmissionStats');
     });
 
     afterEach(() => {
@@ -182,6 +184,147 @@ describe('scheduled jobs handler', () => {
         expect(response.statusCode).toBe(500);
       });
     
+    });
+
+    describe('GET /v1/jobs/eu-submission-report', () => {
+
+      const validQuery = 'documentType=catchCert&dateFrom=2025-01-01&dateTo=2025-03-01';
+
+      it('returns 200 and the result from runCatchSubmissionStats on a valid request', async () => {
+        const mockResult = { documentType: 'catchCert', successCount: 42, failureCount: 0, failures: [] };
+        mockRunCatchSubmissionStats.mockResolvedValue(mockResult);
+
+        const response = await server.inject({ method: 'GET', url: `/v1/jobs/eu-submission-report?${validQuery}` });
+
+        expect(response.statusCode).toBe(200);
+        expect(JSON.parse(response.payload)).toEqual(mockResult);
+      });
+
+      it('calls runCatchSubmissionStats with the correct arguments', async () => {
+        mockRunCatchSubmissionStats.mockResolvedValue({});
+
+        await server.inject({ method: 'GET', url: `/v1/jobs/eu-submission-report?${validQuery}` });
+
+        expect(mockRunCatchSubmissionStats).toHaveBeenCalledWith('catchCert', '2025-01-01T00:00:00.000Z', '2025-03-01T00:00:00.000Z');
+      });
+
+      it('logs start and success info messages on a valid request', async () => {
+        mockRunCatchSubmissionStats.mockResolvedValue({});
+
+        await server.inject({ method: 'GET', url: `/v1/jobs/eu-submission-report?${validQuery}` });
+
+        expect(mockLoggerInfo).toHaveBeenCalledWith('[EU-SUBMISSION-REPORT][GET][START] documentType=catchCert dateFrom=2025-01-01T00:00:00.000Z dateTo=2025-03-01T00:00:00.000Z');
+        expect(mockLoggerInfo).toHaveBeenCalledWith('[EU-SUBMISSION-REPORT][GET][SUCCESS]');
+      });
+
+      it('returns 500 and logs an error when runCatchSubmissionStats throws', async () => {
+        const error = new Error('db failure');
+        mockRunCatchSubmissionStats.mockRejectedValue(error);
+
+        const response = await server.inject({ method: 'GET', url: `/v1/jobs/eu-submission-report?${validQuery}` });
+
+        expect(response.statusCode).toBe(500);
+        expect(mockLoggerError).toHaveBeenCalledWith({ err: error }, `[EU-SUBMISSION-REPORT][GET][ERROR] ${error}`);
+      });
+
+      it('returns 400 when documentType is not one of the allowed values', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=invalidType&dateFrom=2025-01-01&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when documentType is missing', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?dateFrom=2025-01-01&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when dateFrom is not a valid ISO date', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=not-a-date&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when dateFrom is missing', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when dateTo is not a valid ISO date', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-01-01&dateTo=not-a-date',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when dateTo is missing', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-01-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 when dateTo is earlier than dateFrom', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-03-01&dateTo=2025-01-01',
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('accepts processingStatement as a valid documentType', async () => {
+        mockRunCatchSubmissionStats.mockResolvedValue({});
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=processingStatement&dateFrom=2025-01-01&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(mockRunCatchSubmissionStats).toHaveBeenCalledWith('processingStatement', '2025-01-01T00:00:00.000Z', '2025-03-01T00:00:00.000Z');
+      });
+
+      it('accepts storageDocument as a valid documentType', async () => {
+        mockRunCatchSubmissionStats.mockResolvedValue({});
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=storageDocument&dateFrom=2025-01-01&dateTo=2025-03-01',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(mockRunCatchSubmissionStats).toHaveBeenCalledWith('storageDocument', '2025-01-01T00:00:00.000Z', '2025-03-01T00:00:00.000Z');
+      });
+
+      it('accepts dateTo equal to dateFrom', async () => {
+        mockRunCatchSubmissionStats.mockResolvedValue({});
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-01-01&dateTo=2025-01-01',
+        });
+
+        expect(response.statusCode).toBe(200);
+      });
+
     });
 
 	});

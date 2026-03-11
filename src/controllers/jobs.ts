@@ -1,6 +1,9 @@
 import { refreshRiskingData } from '../data/cache';
 import { landingsAndReportingCron, exceeding14DayLandingsAndReportingCron, resetLandingStatusJob, resubmitSdToTrade } from "../landings/landingsUpdater";
+import { getCatchSubmissionStats } from '../persistence/catchCerts';
 import logger from "../logger";
+import { ICatchSubmissionStatsResult } from '../types/euCatchReport';
+import { IDocumentModel } from '../types/document';
 
 export const runLandingsAndReportingJob = async (): Promise<void> => {
   logger.info('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
@@ -26,4 +29,23 @@ export const runLandingsAndReportingJob = async (): Promise<void> => {
     .catch(e => logger.error(`[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-SD][ERROR][${e}]`));
 
   logger.info('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
+}
+
+export const runCatchSubmissionStats = async (documentType: string, dateFrom: string, dateTo: string): Promise<ICatchSubmissionStatsResult> => {
+  const { successes, failures } = await getCatchSubmissionStats(documentType, dateFrom, dateTo);
+
+  return {
+    documentType,
+    dateFrom,
+    dateTo,
+    successCount: successes.length,
+    failureCount: failures.length,
+    failures: failures.map((doc: IDocumentModel) => ({
+      documentNumber: doc.documentNumber,
+      timestamp: doc.createdAt?.toISOString(),
+      code: doc.catchSubmission?.faultCode,
+      message: doc.catchSubmission?.faultString,
+      validationErrors: doc.catchSubmission?.validationErrors ?? []
+    }))
+  };
 }
