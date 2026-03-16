@@ -1832,7 +1832,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       await DocumentModel.deleteMany({});
     });
 
-    const makeDoc = (documentNumber: string, catchSubmissionStatus: string, createdAt: string, documentType = 'catchCert', extra: object = {}, documentStatus = DocumentStatuses.Complete) =>
+    const makeDoc = (documentNumber: string, catchSubmissionStatus: string, createdAt: string, documentType = 'catchCert', extra: object = {}, documentStatus: string = DocumentStatuses.Complete) =>
       new DocumentModel({
         __t: documentType,
         documentNumber,
