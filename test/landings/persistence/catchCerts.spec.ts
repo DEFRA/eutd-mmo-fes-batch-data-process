@@ -1832,15 +1832,15 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       await DocumentModel.deleteMany({});
     });
 
-    const makeDoc = (documentNumber: string, status: string, createdAt: string, documentType = 'catchCert', extra: object = {}) =>
+    const makeDoc = (documentNumber: string, catchSubmissionStatus: string, createdAt: string, documentType = 'catchCert', extra: object = {}, documentStatus: string = DocumentStatuses.Complete) =>
       new DocumentModel({
         __t: documentType,
         documentNumber,
-        status: 'COMPLETE',
+        status: documentStatus,
         createdAt,
         createdBy: 'Test',
         createdByEmail: 'test@test.com',
-        catchSubmission: { status, ...extra },
+        catchSubmission: { status: catchSubmissionStatus, ...extra },
         exportData: { products: [] },
       });
 
@@ -1912,6 +1912,18 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       expect(result.successes).toHaveLength(0);
       expect(result.failures).toHaveLength(1);
       expect((result.failures[0] as any).documentNumber).toBe('CC-FAIL-ONLY');
+    });
+
+    it('excludes documents with non-COMPLETE document status', async () => {
+      await makeDoc('CC-DRAFT', 'SUCCESS', '2024-07-10T10:00:00.000Z', 'catchCert', {}, DocumentStatuses.Draft).save();
+      await makeDoc('CC-PENDING', 'SUCCESS', '2024-07-10T10:00:00.000Z', 'catchCert', {}, DocumentStatuses.Pending).save();
+      await makeDoc('CC-VOID', 'SUCCESS', '2024-07-10T10:00:00.000Z', 'catchCert', {}, DocumentStatuses.Void).save();
+      await makeDoc('CC-COMPLETE', 'SUCCESS', '2024-07-10T10:00:00.000Z', 'catchCert', {}, DocumentStatuses.Complete).save();
+
+      const result = await getCatchSubmissionStats('catchCert', '2024-07-01', '2024-07-31');
+
+      expect(result.successes).toHaveLength(1);
+      expect((result.successes[0] as any).documentNumber).toBe('CC-COMPLETE');
     });
 
     it('excludes documents of a different documentType', async () => {

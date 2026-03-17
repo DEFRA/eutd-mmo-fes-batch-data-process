@@ -109,11 +109,13 @@ export const getCatchSubmissionStats = async (
   const [successes, failures] = await Promise.all([
     DocumentModel.find({
       __t: documentType,
+      status: DocumentStatuses.Complete,
       ...dateFilter,
       'catchSubmission.status': 'SUCCESS'
     }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean(),
     DocumentModel.find({
       __t: documentType,
+      status: DocumentStatuses.Complete,
       ...dateFilter,
       'catchSubmission.status': 'FAILURE'
     }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean()
