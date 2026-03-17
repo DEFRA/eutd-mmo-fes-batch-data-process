@@ -22,11 +22,17 @@ trigger:
       - 'hotfix/*'
       - 'feature/*'
       - 'epic/*'
+  paths:
+    exclude:
+      - '.github/**'
 pr:
   branches:
     include:
       - 'main'
       - 'develop'
+  paths:
+    exclude:
+      - '.github/**'
 
 resources:
   repositories:
