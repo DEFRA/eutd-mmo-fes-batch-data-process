@@ -272,9 +272,9 @@ export const updateCache = (
         species: factorData.species,
         state: factorData.state,
         presentation: factorData.presentation,
-        toLiveWeightFactor: Number.isNaN(factorData.toLiveWeightFactor) ? undefined : Number(factorData.toLiveWeightFactor),
+        toLiveWeightFactor: Number.isNaN(Number(factorData.toLiveWeightFactor)) ? undefined : Number(factorData.toLiveWeightFactor),
         quotaStatus: factorData.quotaStatus,
-        riskScore: Number.isNaN(factorData.riskScore) ? undefined : Number(factorData.riskScore)
+        riskScore: Number.isNaN(Number(factorData.riskScore)) ? undefined : Number(factorData.riskScore)
       }
     });
   }
