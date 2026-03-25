@@ -174,23 +174,27 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]): Pro
   }
 };
 
+async function fetchSalesNotes(ccValidationData, logPrefix: string) {
+  for (const landing of ccValidationData) {
+    const requestedDate = moment.utc(landing.dateLanded);
+    const requestedDateISO = requestedDate.format('YYYY-MM-DD')
+
+    if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
+      logger.info(`[${logPrefix}][${landing.extended.landingId}][NO-SALES-NOTE]`);
+      continue;
+    }
+
+    const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
+    const _hasSaveNote = !_.isEmpty(salesNote);
+    logger.info(`[${logPrefix}][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
+    landing.hasSalesNote = _hasSaveNote;
+  }
+}
+
 async function sendReport(catchCertificate, ccValidationData, correlationId, certificateId) {
   if (Object.hasOwn(catchCertificate, 'exportData') && catchCertificate.exportData.exporterDetails !== undefined) {
 
-    for (const landing of ccValidationData) {
-      const requestedDate = moment.utc(landing.dateLanded);
-      const requestedDateISO = requestedDate.format('YYYY-MM-DD')
-
-      if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
-        logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][${landing.extended.landingId}][NO-SALES-NOTE]`);
-        continue;
-      }
-
-      const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
-      const _hasSaveNote = !_.isEmpty(salesNote);
-      logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
-      landing.hasSalesNote = _hasSaveNote;
-    }
+    await fetchSalesNotes(ccValidationData, 'RUN-LANDINGS-AND-REPORTING-JOB');
 
     await reportCc(ccValidationData, catchCertificate, correlationId, MessageLabel.NEW_LANDING);
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS][${certificateId}]`);
@@ -211,20 +215,7 @@ export const reportCc14DayLimitReached = async (ccValidationData: ICcQueryResult
 
     if (Object.hasOwn(catchCertificate, 'exportData') && catchCertificate.exportData.exporterDetails !== undefined) {
 
-      for (const landing of ccValidationData) {
-        const requestedDate = moment.utc(landing.dateLanded);
-        const requestedDateISO = requestedDate.format('YYYY-MM-DD')
-
-        if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
-          logger.info(`[REPORT-CC-14-DAY-LIMIT-REACHED][${landing.extended.landingId}][NO-SALES-NOTE]`);
-          continue;
-        }
-
-        const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
-        const _hasSaveNote = !_.isEmpty(salesNote);
-        logger.info(`[REPORT-CC-14-DAY-LIMIT-REACHED][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
-        landing.hasSalesNote = _hasSaveNote;
-      }
+      await fetchSalesNotes(ccValidationData, 'REPORT-CC-14-DAY-LIMIT-REACHED');
 
       const correlationId = uuidv4();
       await report14DayLimitReached(ccValidationData, catchCertificate, correlationId, MessageLabel.EXCEEDED_LANDING);
