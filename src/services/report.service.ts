@@ -296,7 +296,7 @@ export const reportCcToTrade = async (
       PublisherId: 'FES',
       OrganisationId: ccDefraTrade.exporter.accountId ?? null,
       UserId: ccDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_cc_defra_trade.schema.properties.version.const, 10),
+      SchemaVersion: Number.parseInt(validate_cc_defra_trade.schema.properties.version.const, 10),
       Type: Type.INTERNAL,
       Status: ccDefraTrade.certStatus,
       TimestampUtc: moment.utc().toISOString()
@@ -507,7 +507,7 @@ export const reportPsToTrade = async (processingStatement: IDocument, caselabel:
       PublisherId: 'FES',
       OrganisationId: psDefraTrade.exporter.accountId ?? null,
       UserId: psDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_ps_defra_trade.schema.properties.version.const),
+      SchemaVersion: Number.parseInt(validate_ps_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
       TimestampUtc: moment.utc().toISOString()
@@ -647,7 +647,7 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
       PublisherId: 'FES',
       OrganisationId: sdDefraTrade.exporter.accountId ?? null,
       UserId: sdDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_sd_defra_trade.schema.properties.version.const),
+      SchemaVersion: Number.parseInt(validate_sd_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
       TimestampUtc: moment.utc().toISOString()

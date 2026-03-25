@@ -141,7 +141,7 @@ export const unwindAndMapCatches = (doc: any, daLookup): IFlattenedCatch[] => {
         issuingCountry: cat.issuingCountry,
         species: cat.product,
         commodityCode: cat.commodityCode,
-        weight: parseFloat(cat.productWeight),
+        weight: Number.parseFloat(cat.productWeight),
         weightOnCC: getWeightOnCC(cat.weightOnCC),
         scientificName: cat.scientificName,
         netWeightProductArrival: cat.netWeightProductArrival,
@@ -162,8 +162,8 @@ export const unwindAndMapCatches = (doc: any, daLookup): IFlattenedCatch[] => {
         species: cat.species,
         scientificName: cat.scientificName,
         commodityCode: cat.productCommodityCode,
-        weight: parseFloat(cat.exportWeightBeforeProcessing),
-        weightOnCC: parseFloat(cat.totalWeightLanded),
+        weight: Number.parseFloat(cat.exportWeightBeforeProcessing),
+        weightOnCC: Number.parseFloat(cat.totalWeightLanded),
         weightAfterProcessing: getWeightAfterProcess(cat.exportWeightAfterProcessing),
       }
     }
@@ -186,9 +186,9 @@ const getDocStatus = (status) => !status ? 'COMPLETE' : status;
 
 const getDALookupDetails = (exporterDetails, daLookup) => exporterDetails ? daLookup(exporterDetails.postcode) : 'England';
 
-const getWeightOnCC = (weightOnCC) => weightOnCC ? parseFloat(weightOnCC) : 0;
+const getWeightOnCC = (weightOnCC) => weightOnCC ? Number.parseFloat(weightOnCC) : 0;
 
-const getWeightAfterProcess = (exportWeightAfterProcessing) => exportWeightAfterProcessing !== undefined ? parseFloat(exportWeightAfterProcessing) : undefined;
+const getWeightAfterProcess = (exportWeightAfterProcessing) => exportWeightAfterProcessing !== undefined ? Number.parseFloat(exportWeightAfterProcessing) : undefined;
 
 const getValidData = (value) => !value ? undefined : value;
 

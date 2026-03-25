@@ -80,7 +80,7 @@ export class ApplicationConfig {
     ApplicationConfig.prototype.vesselNotFoundPln = env.VESSEL_NOT_FOUND_PLN || 'N/A';
 
     // blob storage
-    ApplicationConfig.prototype.maximumDefraValidationReportBatchSize = parseInt(env.MAXIMUM_DEFRA_VALIDATION_REPORT_BATCH_SIZE, 10) || 1000;
+    ApplicationConfig.prototype.maximumDefraValidationReportBatchSize = Number.parseInt(env.MAXIMUM_DEFRA_VALIDATION_REPORT_BATCH_SIZE, 10) || 1000;
 
     //Landing Reprocessing
     ApplicationConfig.prototype.runLandingReprocessingJob = env.RUN_LANDING_REPROCESSING_JOB;
