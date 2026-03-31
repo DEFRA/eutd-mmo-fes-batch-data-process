@@ -94,7 +94,7 @@ export function toLandings(queryRes: ICcQueryResult[]): CertificateLanding[] {
          landingDataExpectedDate: rawValidatedLanding.extended.landingDataExpectedDate,
          landingDataEndDate: rawValidatedLanding.extended.landingDataEndDate,
          landingDataExpectedAtSubmission: (rawValidatedLanding.createdAt !== undefined && rawValidatedLanding.extended.landingDataExpectedDate !== undefined) ? moment.utc(rawValidatedLanding.createdAt).isSameOrAfter(moment.utc(rawValidatedLanding.extended.landingDataExpectedDate), 'day') : undefined,
-         isLate: !isDataNeverExpected ? isLandingDataLate(rawValidatedLanding.firstDateTimeLandingDataRetrieved, rawValidatedLanding.extended.landingDataExpectedDate) : undefined,
+         isLate: isDataNeverExpected ? undefined : isLandingDataLate(rawValidatedLanding.firstDateTimeLandingDataRetrieved, rawValidatedLanding.extended.landingDataExpectedDate),
          dateDataReceived: rawValidatedLanding.firstDateTimeLandingDataRetrieved,
          adminSpecies: rawValidatedLanding.extended.speciesAdmin,
          adminPresentation: rawValidatedLanding.extended.presentationAdmin,
@@ -130,7 +130,7 @@ export function toDefraSdStorageFacility(sdStorageFacility): CertificateStorageF
          postCode: sdStorageFacility.facilityPostcode
       },
       dateOfUnloading: moment(sdStorageFacility.facilityArrivalDate, 'DD/MM/YYYY').format('YYYY-MM-DD'),
-      approvalNumber: !isEmpty(sdStorageFacility.facilityApprovalNumber) ? sdStorageFacility.facilityApprovalNumber : undefined,
-      productHandling: !isEmpty(sdStorageFacility.facilityStorage) ? sdStorageFacility.facilityStorage : undefined,
+      approvalNumber: isEmpty(sdStorageFacility.facilityApprovalNumber) ? undefined : sdStorageFacility.facilityApprovalNumber,
+      productHandling: isEmpty(sdStorageFacility.facilityStorage) ? undefined : sdStorageFacility.facilityStorage,
    } : undefined;
 }

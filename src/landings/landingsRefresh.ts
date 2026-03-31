@@ -36,7 +36,7 @@ export const fetchLandings = async (rssNumber: string, dateLanded: string): Prom
   logger.info(`[LANDINGS][FETCH-LANDING][${rssNumber}-${dateLanded}][GET-VESSEL-DETAILS]`);
   const vesselDetails = getVesselDetails(rssNumber);
 
-  if (vesselDetails && vesselDetails.vesselLength !== undefined) {
+  if (vesselDetails?.vesselLength !== undefined) {
     logger.info(`[LANDINGS][FETCH-LANDING][${rssNumber}-${dateLanded}][VESSELLENGTH:${vesselDetails.vesselLength}]`)
 
     let landings : ILanding[] = [];
@@ -78,7 +78,7 @@ export const _fetchLandingsVesselsOver10Meters = async (rssNumber: string, dateL
      */
 
     let landings: any[] = await BoomiService.getLandingData(dateLanded, rssNumber, 'landing');
-    let domainLandings = _.flatten((landings.map(landing => cefasToLandings(landing, getToLiveWeightFactor))));
+    let domainLandings = (landings.flatMap(landing => cefasToLandings(landing, getToLiveWeightFactor)));
 
     logger.info(`[LANDINGS][FETCH-LANDING-OVER10][${rssNumber}-${dateLanded}][${domainLandings.length}-LANDING-DECS-RETRIEVED]`);
 
@@ -88,7 +88,7 @@ export const _fetchLandingsVesselsOver10Meters = async (rssNumber: string, dateL
 
     if (domainLandings.length === 0) {
       landings = await BoomiService.getLandingData(dateLanded, rssNumber, 'eLogs');
-      domainLandings = _.flatten(landings.map(eLog => eLogToLandings(eLog)));
+      domainLandings = landings.flatMap(eLog => eLogToLandings(eLog));
 
       logger.info(`[LANDINGS][FETCH-LANDING-OVER10][${rssNumber}-${dateLanded}][${domainLandings.length}-ELOGS-RETRIEVED]`);
     }
@@ -143,51 +143,55 @@ export const _fetchLandingsVesselsUnder10Meters = async (rssNumber: string, date
 }
 
 export const _saveRawLandingData = async (landings, typeOfTransaction, rssNumber, dateLanded): Promise<void> => {
-  if (!_.isEmpty(landings)) {
-    logger.info(`[LANDINGS][FETCH-LANDING-${typeOfTransaction}][RETRIEVED][${rssNumber}-${dateLanded}]`);
-    await updateExtendedValidationData({rssNumber, dateLanded, data: landings}, 'rawLandings');
+  if (_.isEmpty(landings)) {
+    logger.info(`[LANDINGS][FETCH-LANDING-${typeOfTransaction}][NO-DATA][${rssNumber}-${dateLanded}]`);
   }
   else {
-    logger.info(`[LANDINGS][FETCH-LANDING-${typeOfTransaction}][NO-DATA][${rssNumber}-${dateLanded}]`);
+    logger.info(`[LANDINGS][FETCH-LANDING-${typeOfTransaction}][RETRIEVED][${rssNumber}-${dateLanded}]`);
+    await updateExtendedValidationData({rssNumber, dateLanded, data: landings}, 'rawLandings');
   }
 }
 
 export const _saveSalesNoteData = async (salesNotes, typeOfTransaction, rssNumber, dateLanded): Promise<void> => {
-  if (!_.isEmpty(salesNotes)) {
+  if (_.isEmpty(salesNotes)) {
+    logger.info(`[LANDINGS][FETCH-SALESNOTES-${typeOfTransaction}][NO-DATA][${rssNumber}-${dateLanded}]`);
+  }
+  else {
     logger.info(`[LANDINGS][FETCH-SALESNOTES-${typeOfTransaction}][RETRIEVED][${rssNumber}-${dateLanded}]`);
     await updateExtendedValidationData({rssNumber, dateLanded, data: salesNotes}, 'salesNotes');
   }
-  else {
-    logger.info(`[LANDINGS][FETCH-SALESNOTES-${typeOfTransaction}][NO-DATA][${rssNumber}-${dateLanded}]`);
+}
+
+
+function isSameLanding(systemLanding: ILanding, landing: ILanding): boolean {
+  if (!moment(systemLanding.dateTimeLanded).isSame(moment(landing.dateTimeLanded), 'day')) return false;
+  if (systemLanding.source !== landing.source) return false;
+  if (systemLanding.items.length !== landing.items.length) return false;
+  for (const item of systemLanding.items) {
+    const match = landing.items.some(_ => (
+      item.species === _.species &&
+      item.weight === _.weight &&
+      item.factor === _.factor &&
+      item.state === _.state &&
+      item.presentation === _.presentation
+    ));
+    if (!match) return false;
   }
+  return true;
 }
 
 export const _ignoreUnchangedLandings = async (rssNumber: string, dateLanded: string, landings: ILanding[]): Promise<ILanding[]> => {
-    logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][LANDINGS: ${landings.length}]`);
-    const systemLandings = await getLandings(rssNumber, dateLanded);
-    logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][FETCHED-SYSTEM-LANDINGS: ${systemLandings.length}]`);
+  logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][LANDINGS: ${landings.length}]`);
+  const systemLandings = await getLandings(rssNumber, dateLanded);
+  logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][FETCHED-SYSTEM-LANDINGS: ${systemLandings.length}]`);
 
-    if (systemLandings.length) {
-      return landings.reduce((acc, landing) => {
-        const hasLanding = systemLandings.some(systemLanding => (
-          moment(systemLanding.dateTimeLanded).isSame(moment(landing.dateTimeLanded),'day') &&
-            systemLanding.source === landing.source &&
-            systemLanding.items.length === landing.items.length &&
-            systemLanding.items.every(item => (
-              landing.items.find(_ => (
-                item.species === _.species &&
-                item.weight === _.weight &&
-                item.factor === _.factor &&
-                item.state === _.state &&
-                item.presentation === _.presentation
-                )) !== undefined
-            ))
-        ));
-
-        logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][HAS-LANDING][${hasLanding}]`);
-        return hasLanding ? [{...landing, _ignore: true}, ...acc] : [landing, ...acc];
-      }, []);
-    } else {
-      return landings;
-    }
+  if (systemLandings.length) {
+    return landings.reduce((acc, landing) => {
+      const hasLanding = systemLandings.some(systemLanding => isSameLanding(systemLanding, landing));
+      logger.info(`[IGNORE-UNCHANGED-LANDINGS][${rssNumber}-${dateLanded}][HAS-LANDING][${hasLanding}]`);
+      return hasLanding ? [{ ...landing, _ignore: true }, ...acc] : [landing, ...acc];
+    }, []);
+  } else {
+    return landings;
+  }
 }

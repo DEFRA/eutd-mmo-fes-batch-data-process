@@ -94,9 +94,11 @@ export class Server {
       const permissions =
         'accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), camera=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), layout-animations=(), legacy-image-formats=*, magnetometer=(), microphone=(), midi=(), oversized-images=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), sync-xhr=*, usb=(), vr=(), screen-wake-lock=(), web-share=(), xr-spatial-tracking=()';
 
-      Object.prototype.hasOwnProperty.call(response, "isBoom")
-        ? ((response as Boom).output.headers['Permissions-Policy'] = permissions)
-        : (response as Hapi.ResponseObject).header('Permissions-Policy', permissions);
+      if (Object.prototype.hasOwnProperty.call(response, "isBoom")) {
+        (response as Boom).output.headers['Permissions-Policy'] = permissions;
+      } else {
+        (response as Hapi.ResponseObject).header('Permissions-Policy', permissions);
+      }
 
       return h.continue;
     });

@@ -1,7 +1,7 @@
 import * as appInsights from 'applicationinsights';
 import config from './config';
 
-export default () => {
+const appInsights_ = () => {
   const instrumentationKey = config.instrumentationKey;
 
   if (instrumentationKey) {
@@ -16,9 +16,8 @@ export default () => {
     appInsights.defaultClient.context.tags[appInsights.defaultClient.context.keys.cloudRole] = config.cloudRoleName;  
     appInsights.start();
     console.info(`Application Insights for batch data process service enabled for key: ${instrumentationKey}`);
-  } else {
-    if (process.env.NODE_ENV !== "test") {
+  } else if (process.env.NODE_ENV !== "test") {
       console.info('Application Insights for batch data process service disabled');
-    }
   }
 };
+export default appInsights_;
