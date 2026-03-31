@@ -43,7 +43,7 @@ export class Server {
       }
 
       Server.instance = new Hapi.Server({
-        port: parseInt(config.port)
+        port: Number.parseInt(config.port)
       });
       Server.onRequest();
       Server.onPreResponse();

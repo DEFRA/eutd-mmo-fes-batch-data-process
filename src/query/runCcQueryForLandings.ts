@@ -18,7 +18,7 @@ export const runCcQueryForLandings = async (landings: ILanding[]): Promise<Itera
     logger.info(`[RUN-CC-QUERY-FOR-LANDINGS][CERTS][LENGTH: ${certsToUpdate.length}]`);
 
     if (certsToUpdate.length) {
-      const landingsByPln = _.flatten(certsToUpdate.map(cert => getLandingsFromCatchCertificate(cert, true) || []));
+      const landingsByPln = certsToUpdate.flatMap(cert => getLandingsFromCatchCertificate(cert, true) || []);
       logger.info(`[RUN-CC-QUERY-FOR-LANDINGS][LANDINGS-BY-PLN][LENGTH: ${landingsByPln.length}]`);
 
       if (landingsByPln.length) {

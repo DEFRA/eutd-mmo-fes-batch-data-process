@@ -33,8 +33,8 @@ import { IDynamicsCatchCertificateCase } from '../types/dynamicsValidation';
 import { Type } from '../types/defraTradeValidation';
 import { toDefraTradeCc, toDefraTradePs, toDefraTradeSd } from '../landings/transformations/defraTradeValidation';
 import config from "../config";
-import { readFileSync } from 'fs';
-import path from 'path';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { getTotalRiskScore, isHighRisk } from '../data/risking';
 import { ISdPsQueryResult } from '../types/query';
 import { IDefraTradeProcessingStatement, IDefraTradeStorageDocument } from '../types/defraTradeSdPsCase';
@@ -333,7 +333,9 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
     throw e;
   }
 
-  if (catchCertificate.exportData?.exporterDetails !== undefined) {
+  if (catchCertificate.exportData?.exporterDetails === undefined) {
+    logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
+  } else {
     const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = toDynamicsCcCase(
       ccValidationData,
       catchCertificate,
@@ -349,8 +351,6 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
     logger.info(`[REREPORT-CC-SUBMITTED][GENERATED-CC][${certificateId}][${JSON.stringify(catchCertificate)}]`);
     await reportCcToTrade(catchCertificate, MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, getUpdatedValidationData(ccValidationData));
 
-  } else {
-    logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
   }
 }
 
@@ -481,10 +481,10 @@ export const reportPsToTrade = async (processingStatement: IDocument, caselabel:
   }
 
   let status: CertificateStatus;
-  if (!Array.isArray(psQueryResults)) {
-    status = CertificateStatus.VOID
-  } else {
+  if (Array.isArray(psQueryResults)) {
     status = psQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
+  } else {
+    status = CertificateStatus.VOID
   }
 
   const messageId = uuidv4();
@@ -622,10 +622,10 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
     return;
   }
   let status: CertificateStatus;
-  if (!Array.isArray(sdQueryResults)) {  
-    status = CertificateStatus.VOID
-  } else {    
+  if (Array.isArray(sdQueryResults)) {    
     status = sdQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
+  } else {  
+    status = CertificateStatus.VOID
   }
   const messageId = uuidv4();
   const message: ServiceBusMessage = {
