@@ -1,4 +1,3 @@
-const _ = require('lodash');
 import moment from "moment";
 import { type ILanding, type ICcQueryResult, getLandingsFromCatchCertificate, ccQuery } from "mmo-shared-reference-data";
 import { getPlnsForLandings } from "../data/vessel";
