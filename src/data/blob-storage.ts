@@ -1,6 +1,6 @@
 import moment from 'moment';
 import csv from 'csvtojson';
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 import { BlobServiceClient, BlockBlobClient, ContainerClient, BlobUploadCommonResponse, BlobClient } from "@azure/storage-blob";
 import { IConversionFactor, IExporterBehaviour, IVessel } from 'mmo-shared-reference-data';
 import config from '../config';

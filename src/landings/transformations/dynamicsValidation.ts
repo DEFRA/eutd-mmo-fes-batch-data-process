@@ -172,7 +172,7 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     dateDataReceived: hasLandingData ? moment.utc(validatedLanding.firstDateTimeLandingDataRetrieved).subtract(1, 'day').toISOString() : undefined,
     validation: validationObject,
     risking: riskingObject,
-    landingDataExpectedAtSubmission: !isDataNeverExpected ? isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate) : undefined,
+    landingDataExpectedAtSubmission: isDataNeverExpected ? undefined : isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate),
     landingOutcomeAtRetrospectiveCheck: isRejectedLanding(validatedLanding) ? LandingRetrospectiveOutcomeType.Failure : LandingRetrospectiveOutcomeType.Success,
     adminSpecies: validatedLanding.extended.speciesAdmin,
     adminState: validatedLanding.extended.stateAdmin,
@@ -367,8 +367,8 @@ export function toExporterPsSd(psSdCertificate: any): CertificateCompany {
 }
 export function toSdPsCaseTwoType(validatedSdPsCatches: ISdPsQueryResult[]) {
   let output = SdPsCaseTwoType.RealTimeValidation_Success;
-  const isMisMatch = validatedSdPsCatches.filter(_ => _.isMismatch).length > 0;
-  const isOverUse = validatedSdPsCatches.filter(_ => _.isOverAllocated).length > 0;
+  const isMisMatch = validatedSdPsCatches.some(_ => _.isMismatch);
+  const isOverUse = validatedSdPsCatches.some(_ => _.isOverAllocated);
   if (isMisMatch) output = SdPsCaseTwoType.RealTimeValidation_Weight;
   if (isOverUse) output = SdPsCaseTwoType.RealTimeValidation_Overuse;
   return output;

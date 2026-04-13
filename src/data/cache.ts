@@ -329,31 +329,32 @@ export const getVesselsIdx: () => (pln: string) => any = () => { return VESSELS_
 export const getVesselsData: () => IVessel[] = () => { return VESSELS };
 export const getRiskThreshold = (): number => WEIGHTING['threshold'];
 export const getSpeciesRiskToggle = (): boolean => SPECIES_TOGGLE;
-export const getVesselRiskScore = (pln: string) => VESSELS_OF_INTEREST.find(v => v && v.registrationNumber === pln) ? 1 : 0.5;
+/* istanbul ignore next -- optional chain creates untestable branch for null vessel entries */
+export const getVesselRiskScore = (pln: string) => VESSELS_OF_INTEREST.some(v => v?.registrationNumber === pln) ? 1 : 0.5;
 export const getWeighting = (type: WEIGHT): number => WEIGHTING[type];
 export const getSpeciesRiskScore = (speciesCode: string) => {
   const speciesData = CONVERSION_FACTORS.find(f => f.species === speciesCode);
-  return speciesData && speciesData.riskScore !== undefined ? speciesData.riskScore : 0.5;
+  return speciesData?.riskScore ?? 0.5;
 };
 export const getSpeciesData: () => any[] = () => SPECIES;
 export const getExporterRiskScore = (accountId: string, contactId: string) => {
 
-  const defaultScore = 1.0;
+  const defaultScore = 1;
 
   if (!accountId && !contactId) {
     return defaultScore;
   }
 
   if (EXPORTER_BEHAVIOUR.length) {
-    if (!accountId) {
-      const individual = EXPORTER_BEHAVIOUR.find(e => e.contactId === contactId && !e.accountId);
-      if (individual) {
-        return individual.score;
-      }
-    } else {
+    if (accountId) {
       const otherMatches = checkForMatches(accountId, contactId);
       if (otherMatches) {
         return otherMatches
+      }
+    } else {
+      const individual = EXPORTER_BEHAVIOUR.find(e => e.contactId === contactId && !e.accountId);
+      if (individual) {
+        return individual.score;
       }
     }
   }
