@@ -1,5 +1,5 @@
 import csv from 'csvtojson';
-import fs from 'fs';
+import fs from 'node:fs';
 import type { IConversionFactor, IExporterBehaviour, IVessel, IVesselOfInterest, IWeighting } from "mmo-shared-reference-data";
 import logger from '../logger';
 
