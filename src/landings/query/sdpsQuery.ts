@@ -30,7 +30,7 @@ export const TOLERANCE_IN_KG = 50;
 
 export function getLastAuditEvent(events: IAuditEvent[], eventType: string) {
   const matches = events.filter(_ => _.eventType === eventType);
-  return matches[matches.length - 1];
+  return matches.at(-1);
 }
 
 export function* sdpsQuery (documents: any[], postCodeToDa: any):
@@ -66,10 +66,8 @@ export function* sdpsQuery (documents: any[], postCodeToDa: any):
 
     const fcc = fccIdx[`${item.certificateNumber}${item.species}`]
 
-    /* istanbul ignore if -- defensive code: fcc is always found since both are derived from the same unwoundCatches data */
-    if (!fcc) {
-      logger.error(`[FOREIGN-CATCH-CERTS][ERROR]Unable to find [${item.certificateNumber}${item.species}] in fccIdx`)
-    } else {
+    /* istanbul ignore else -- defensive code: fcc is always found since both are derived from the same unwoundCatches data */
+    if (fcc) {
 
       r.documentNumber = item.documentNumber
       r.status = item.status
@@ -96,6 +94,8 @@ export function* sdpsQuery (documents: any[], postCodeToDa: any):
       linkedSdPs.push(item.documentNumber);
       yield r
 
+    } else {
+      logger.error(`[FOREIGN-CATCH-CERTS][ERROR]Unable to find [${item.certificateNumber}${item.species}] in fccIdx`)
     }
   }
 }
@@ -182,15 +182,15 @@ export const unwindAndMapCatches = (doc: any, daLookup): IFlattenedCatch[] => {
   })
 }
 
-const getDocStatus = (status) => !status ? 'COMPLETE' : status;
+const getDocStatus = (status) => status || 'COMPLETE';
 
 const getDALookupDetails = (exporterDetails, daLookup) => exporterDetails ? daLookup(exporterDetails.postcode) : 'England';
 
 const getWeightOnCC = (weightOnCC) => weightOnCC ? Number.parseFloat(weightOnCC) : 0;
 
-const getWeightAfterProcess = (exportWeightAfterProcessing) => exportWeightAfterProcessing !== undefined ? Number.parseFloat(exportWeightAfterProcessing) : undefined;
+const getWeightAfterProcess = (exportWeightAfterProcessing) => exportWeightAfterProcessing === undefined ? undefined : Number.parseFloat(exportWeightAfterProcessing);
 
-const getValidData = (value) => !value ? undefined : value;
+const getValidData = (value) => value || undefined;
 
 const getExporterCompanyName = (exporterDetails) => exporterDetails ? exporterDetails.exporterCompanyName : undefined;
 
