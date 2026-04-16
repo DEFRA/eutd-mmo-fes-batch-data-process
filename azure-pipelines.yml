@@ -13,7 +13,11 @@ parameters:
     displayName: 'Skip PRE1 Deployment'
     type: boolean
     default: false
-
+  - name: deployAppConfigOnly
+    displayName: "Deploy App Settings Only"
+    type: boolean
+    default: false 
+    
 trigger:
   branches:
     include:
@@ -22,11 +26,17 @@ trigger:
       - 'hotfix/*'
       - 'feature/*'
       - 'epic/*'
+  paths:
+    exclude:
+      - '.github/**'
 pr:
   branches:
     include:
       - 'main'
       - 'develop'
+  paths:
+    exclude:
+      - '.github/**'
 
 resources:
   repositories:
@@ -43,3 +53,4 @@ extends:
     deployFromFeature: ${{ parameters.deployFromFeature }}
     deployToSecondaryRegion: ${{ parameters.deployToSecondaryRegion }}
     skipPRE1: ${{ parameters.skipPRE1 }}
+    deployAppConfigOnly: ${{ parameters.deployAppConfigOnly }}

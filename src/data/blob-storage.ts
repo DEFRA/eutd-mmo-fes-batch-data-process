@@ -1,6 +1,6 @@
 import moment from 'moment';
 import csv from 'csvtojson';
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 import { BlobServiceClient, BlockBlobClient, ContainerClient, BlobUploadCommonResponse, BlobClient } from "@azure/storage-blob";
 import { IConversionFactor, IExporterBehaviour, IVessel } from 'mmo-shared-reference-data';
 import config from '../config';
@@ -180,9 +180,9 @@ export const saveReportingValidation = async (data: any, docType: string): Promi
 
     const environment = getEnvironment(config.externalAppUrl);
     const fileNameWithDateAndTime = moment.utc(Date.now()).toISOString()
-      .replace(/T/gi, '_')
-      .replace(/[-Z]/gi, '')
-      .replace(/[:.]/gi, '-');
+      .replaceAll(/T/gi, '_')
+      .replaceAll(/[-Z]/gi, '')
+      .replaceAll(/[:.]/gi, '-');
 
     const blob = `_${docType}_${environment}_${fileNameWithDateAndTime}.json`;
     const blockBlobClient: BlockBlobClient = containerClient.getBlockBlobClient(blob);

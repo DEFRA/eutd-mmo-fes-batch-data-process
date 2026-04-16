@@ -172,7 +172,7 @@ export function toLanding(validatedLanding: ICcQueryResult): IDynamicsLanding {
     dateDataReceived: hasLandingData ? moment.utc(validatedLanding.firstDateTimeLandingDataRetrieved).subtract(1, 'day').toISOString() : undefined,
     validation: validationObject,
     risking: riskingObject,
-    landingDataExpectedAtSubmission: !isDataNeverExpected ? isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate) : undefined,
+    landingDataExpectedAtSubmission: isDataNeverExpected ? undefined : isLandingDataExpectedAtSubmission(validatedLanding.createdAt, validatedLanding.extended.landingDataExpectedDate),
     landingOutcomeAtRetrospectiveCheck: isRejectedLanding(validatedLanding) ? LandingRetrospectiveOutcomeType.Failure : LandingRetrospectiveOutcomeType.Success,
     adminSpecies: validatedLanding.extended.speciesAdmin,
     adminState: validatedLanding.extended.stateAdmin,
@@ -367,8 +367,8 @@ export function toExporterPsSd(psSdCertificate: any): CertificateCompany {
 }
 export function toSdPsCaseTwoType(validatedSdPsCatches: ISdPsQueryResult[]) {
   let output = SdPsCaseTwoType.RealTimeValidation_Success;
-  const isMisMatch = validatedSdPsCatches.filter(_ => _.isMismatch).length > 0;
-  const isOverUse = validatedSdPsCatches.filter(_ => _.isOverAllocated).length > 0;
+  const isMisMatch = validatedSdPsCatches.some(_ => _.isMismatch);
+  const isOverUse = validatedSdPsCatches.some(_ => _.isOverAllocated);
   if (isMisMatch) output = SdPsCaseTwoType.RealTimeValidation_Weight;
   if (isOverUse) output = SdPsCaseTwoType.RealTimeValidation_Overuse;
   return output;
@@ -488,10 +488,10 @@ export function toSdProduct(validatedSdProducts: ISdPsQueryResult): IDynamicsSto
     exportedWeight: validatedSdProducts.weightOnDoc,
     productDescription: validatedSdProducts.productDescription,
     supportingDocuments: validatedSdProducts.supportingDocuments,
-    netWeightProductArrival: validatedSdProducts.netWeightProductArrival ? parseInt(validatedSdProducts.netWeightProductArrival, 10) : undefined,
-    netWeightFisheryProductArrival: validatedSdProducts.netWeightFisheryProductArrival ? parseInt(validatedSdProducts.netWeightFisheryProductArrival, 10) : undefined,
-    netWeightProductDeparture: validatedSdProducts.netWeightProductDeparture ? parseInt(validatedSdProducts.netWeightProductDeparture, 10) : undefined,
-    netWeightFisheryProductDeparture: validatedSdProducts.netWeightFisheryProductDeparture ? parseInt(validatedSdProducts.netWeightFisheryProductDeparture, 10) : undefined,
+    netWeightProductArrival: validatedSdProducts.netWeightProductArrival ? Number.parseInt(validatedSdProducts.netWeightProductArrival, 10) : undefined,
+    netWeightFisheryProductArrival: validatedSdProducts.netWeightFisheryProductArrival ? Number.parseInt(validatedSdProducts.netWeightFisheryProductArrival, 10) : undefined,
+    netWeightProductDeparture: validatedSdProducts.netWeightProductDeparture ? Number.parseInt(validatedSdProducts.netWeightProductDeparture, 10) : undefined,
+    netWeightFisheryProductDeparture: validatedSdProducts.netWeightFisheryProductDeparture ? Number.parseInt(validatedSdProducts.netWeightFisheryProductDeparture, 10) : undefined,
     validation: {
       totalWeightExported: validatedSdProducts.weightOnAllDocs,
       status: status,

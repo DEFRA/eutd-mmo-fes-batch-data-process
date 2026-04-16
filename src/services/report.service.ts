@@ -33,8 +33,8 @@ import { IDynamicsCatchCertificateCase } from '../types/dynamicsValidation';
 import { Type } from '../types/defraTradeValidation';
 import { toDefraTradeCc, toDefraTradePs, toDefraTradeSd } from '../landings/transformations/defraTradeValidation';
 import config from "../config";
-import { readFileSync } from 'fs';
-import path from 'path';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { getTotalRiskScore, isHighRisk } from '../data/risking';
 import { ISdPsQueryResult } from '../types/query';
 import { IDefraTradeProcessingStatement, IDefraTradeStorageDocument } from '../types/defraTradeSdPsCase';
@@ -174,23 +174,27 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]): Pro
   }
 };
 
+async function fetchSalesNotes(ccValidationData, logPrefix: string) {
+  for (const landing of ccValidationData) {
+    const requestedDate = moment.utc(landing.dateLanded);
+    const requestedDateISO = requestedDate.format('YYYY-MM-DD')
+
+    if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
+      logger.info(`[${logPrefix}][${landing.extended.landingId}][NO-SALES-NOTE]`);
+      continue;
+    }
+
+    const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
+    const _hasSaveNote = !_.isEmpty(salesNote);
+    logger.info(`[${logPrefix}][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
+    landing.hasSalesNote = _hasSaveNote;
+  }
+}
+
 async function sendReport(catchCertificate, ccValidationData, correlationId, certificateId) {
   if (Object.hasOwn(catchCertificate, 'exportData') && catchCertificate.exportData.exporterDetails !== undefined) {
 
-    for (const landing of ccValidationData) {
-      const requestedDate = moment.utc(landing.dateLanded);
-      const requestedDateISO = requestedDate.format('YYYY-MM-DD')
-
-      if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
-        logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][${landing.extended.landingId}][NO-SALES-NOTE]`);
-        continue;
-      }
-
-      const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
-      const _hasSaveNote = !_.isEmpty(salesNote);
-      logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
-      landing.hasSalesNote = _hasSaveNote;
-    }
+    await fetchSalesNotes(ccValidationData, 'RUN-LANDINGS-AND-REPORTING-JOB');
 
     await reportCc(ccValidationData, catchCertificate, correlationId, MessageLabel.NEW_LANDING);
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS][${certificateId}]`);
@@ -211,20 +215,7 @@ export const reportCc14DayLimitReached = async (ccValidationData: ICcQueryResult
 
     if (Object.hasOwn(catchCertificate, 'exportData') && catchCertificate.exportData.exporterDetails !== undefined) {
 
-      for (const landing of ccValidationData) {
-        const requestedDate = moment.utc(landing.dateLanded);
-        const requestedDateISO = requestedDate.format('YYYY-MM-DD')
-
-        if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
-          logger.info(`[REPORT-CC-14-DAY-LIMIT-REACHED][${landing.extended.landingId}][NO-SALES-NOTE]`);
-          continue;
-        }
-
-        const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
-        const _hasSaveNote = !_.isEmpty(salesNote);
-        logger.info(`[REPORT-CC-14-DAY-LIMIT-REACHED][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
-        landing.hasSalesNote = _hasSaveNote;
-      }
+      await fetchSalesNotes(ccValidationData, 'REPORT-CC-14-DAY-LIMIT-REACHED');
 
       const correlationId = uuidv4();
       await report14DayLimitReached(ccValidationData, catchCertificate, correlationId, MessageLabel.EXCEEDED_LANDING);
@@ -296,7 +287,7 @@ export const reportCcToTrade = async (
       PublisherId: 'FES',
       OrganisationId: ccDefraTrade.exporter.accountId ?? null,
       UserId: ccDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_cc_defra_trade.schema.properties.version.const, 10),
+      SchemaVersion: Number.parseInt(validate_cc_defra_trade.schema.properties.version.const, 10),
       Type: Type.INTERNAL,
       Status: ccDefraTrade.certStatus,
       TimestampUtc: moment.utc().toISOString()
@@ -342,7 +333,9 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
     throw e;
   }
 
-  if (catchCertificate.exportData?.exporterDetails !== undefined) {
+  if (catchCertificate.exportData?.exporterDetails === undefined) {
+    logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
+  } else {
     const dynamicsCatchCertificateCase: IDynamicsCatchCertificateCase = toDynamicsCcCase(
       ccValidationData,
       catchCertificate,
@@ -358,8 +351,6 @@ const sendCctoTrade = async (ccValidationData: ICcQueryResult[]): Promise<void> 
     logger.info(`[REREPORT-CC-SUBMITTED][GENERATED-CC][${certificateId}][${JSON.stringify(catchCertificate)}]`);
     await reportCcToTrade(catchCertificate, MessageLabel.CATCH_CERTIFICATE_SUBMITTED, dynamicsCatchCertificateCase, getUpdatedValidationData(ccValidationData));
 
-  } else {
-    logger.error(`[REREPORT-CC-SUBMITTED][FAIL][${certificateId}][NO-EXPORTER-DETAILS]`);
   }
 }
 
@@ -490,10 +481,10 @@ export const reportPsToTrade = async (processingStatement: IDocument, caselabel:
   }
 
   let status: CertificateStatus;
-  if (!Array.isArray(psQueryResults)) {
-    status = CertificateStatus.VOID
-  } else {
+  if (Array.isArray(psQueryResults)) {
     status = psQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
+  } else {
+    status = CertificateStatus.VOID
   }
 
   const messageId = uuidv4();
@@ -507,7 +498,7 @@ export const reportPsToTrade = async (processingStatement: IDocument, caselabel:
       PublisherId: 'FES',
       OrganisationId: psDefraTrade.exporter.accountId ?? null,
       UserId: psDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_ps_defra_trade.schema.properties.version.const),
+      SchemaVersion: Number.parseInt(validate_ps_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
       TimestampUtc: moment.utc().toISOString()
@@ -631,10 +622,10 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
     return;
   }
   let status: CertificateStatus;
-  if (!Array.isArray(sdQueryResults)) {  
-    status = CertificateStatus.VOID
-  } else {    
+  if (Array.isArray(sdQueryResults)) {    
     status = sdQueryResults.some((_: ISdPsQueryResult) => _.status === CertificateStatus.BLOCKED) ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE
+  } else {  
+    status = CertificateStatus.VOID
   }
   const messageId = uuidv4();
   const message: ServiceBusMessage = {
@@ -647,7 +638,7 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
       PublisherId: 'FES',
       OrganisationId: sdDefraTrade.exporter.accountId ?? null,
       UserId: sdDefraTrade.exporter.contactId ?? null,
-      SchemaVersion: parseInt(validate_sd_defra_trade.schema.properties.version.const),
+      SchemaVersion: Number.parseInt(validate_sd_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
       TimestampUtc: moment.utc().toISOString()

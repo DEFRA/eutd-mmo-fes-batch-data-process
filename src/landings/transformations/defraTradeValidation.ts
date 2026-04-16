@@ -98,10 +98,10 @@ export const toDefraTradeCc = (document: IDocument, certificateCase: IDynamicsCa
   }
 
   let status: CertificateStatus;
-  if (!Array.isArray(ccQueryResults)) {
-    status = CertificateStatus.VOID
-  } else {
+  if (Array.isArray(ccQueryResults)) {
     status = ccQueryResults.some((_: ICcQueryResult) => _.status === "BLOCKED") ? CertificateStatus.BLOCKED : CertificateStatus.COMPLETE;
+  } else {
+    status = CertificateStatus.VOID
   }
 
   return {
