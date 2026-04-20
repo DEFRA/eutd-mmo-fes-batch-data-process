@@ -30,7 +30,7 @@ export const isInWithinRetrospectiveWindow: (queryTime: moment.Moment, item: ICc
 }
 
 export const retrospectiveValidationRequired = (queryTime: moment.Moment, item: ICcQueryResult) =>
-  isInWithinRetrospectiveWindow(queryTime, item) && (item.extended.landingStatus === LandingStatus.Pending || item.extended.landingStatus === undefined) && typeof item.rssNumber !== 'undefined'
+  isInWithinRetrospectiveWindow(queryTime, item) && (item.extended.landingStatus === LandingStatus.Pending || item.extended.landingStatus === undefined) && item.rssNumber !== undefined
 
 export const missingLandingRefreshQuery = (catchCerts: IDocument[], queryTime: moment.Moment): ILandingQuery[] => 
   Array.from(ifilter(
