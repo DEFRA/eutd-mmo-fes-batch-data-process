@@ -45,7 +45,7 @@
         "@types/bunyan": "1.8.11",
         "@types/hapi": "^18.0.14",
         "@types/jest": "^29.5.12",
-        "@types/lodash": "^4.17.1",
+        "@types/lodash": "^4.17.24",
         "@types/node": "20.14.2",
         "@typescript-eslint/eslint-plugin": "7.13.0",
         "@typescript-eslint/parser": "7.13.0",
