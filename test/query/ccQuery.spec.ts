@@ -369,7 +369,7 @@ describe('the query for refreshing missing landings', () => {
     expect(results[0]).toEqual({ rssNumber: 'rssWA1', dateLanded: '2019-07-11' });
   });
 
-  it('will include landing(s) that have a later query date than the landing end date as an exceeding landing', () => {
+  it('will exclude landing(s) where query date is after midnight of endDate+1 (window already closed)', () => {
 
     const queryTime = moment.utc('2019-08-13T12:00:00');
     const certificateDate = moment.utc('2019-08-01T12:00:00');
@@ -396,7 +396,7 @@ describe('the query for refreshing missing landings', () => {
 
     const results: ILandingQuery[] = Array.from(missingLandingRefreshQuery(documents, queryTime));
 
-    expect(results).toHaveLength(1);
+    expect(results).toHaveLength(0);
 
   });
 
