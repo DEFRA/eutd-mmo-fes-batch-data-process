@@ -614,6 +614,22 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
     return;
   }
   const sdDefraTrade: IDefraTradeStorageDocument = toDefraTradeSd(storageDocument, storageDocumentCase, sdQueryResults);
+  if (sdDefraTrade.transportation) {
+    sdDefraTrade.transportation.whereDepartsFrom = sdDefraTrade.transportation.whereDepartsFrom ?? '';
+    sdDefraTrade.transportation.countryofDeparture = sdDefraTrade.transportation.countryofDeparture ?? '';
+    sdDefraTrade.transportation.departureDate = sdDefraTrade.transportation.departureDate ?? '';
+  }
+  if (sdDefraTrade.arrivalTransportation) {
+    sdDefraTrade.arrivalTransportation.whereDepartsFrom = sdDefraTrade.arrivalTransportation.whereDepartsFrom ?? '';
+    sdDefraTrade.arrivalTransportation.countryofDeparture = sdDefraTrade.arrivalTransportation.countryofDeparture ?? '';
+    sdDefraTrade.arrivalTransportation.departureDate = sdDefraTrade.arrivalTransportation.departureDate ?? '';
+  }
+  if (Array.isArray(sdDefraTrade.products)) {
+    sdDefraTrade.products = sdDefraTrade.products.map(product => ({
+      ...product,
+      issuingCountry: product.issuingCountry ?? ''
+    }));
+  }
   logger.info(`[DEFRA-TRADE-SD][DOCUMENT-NUMBER][${storageDocument.documentNumber}][PAYLOAD][${JSON.stringify(sdDefraTrade)}]`);
   const validate_sd_defra_trade = getValidator('StorageDocument.json')
   const valid: boolean = validate_sd_defra_trade(sdDefraTrade);
