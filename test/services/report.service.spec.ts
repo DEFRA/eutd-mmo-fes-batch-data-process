@@ -7914,6 +7914,138 @@ describe('reportSdToTrade', () => {
       expect(message.applicationProperties.OrganisationId).toBeNull();
       expect(message.applicationProperties.UserId).toBeNull();
     });
+
+    it('should default transportation whereDepartsFrom, countryofDeparture and departureDate to empty string when null', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const payloadWithNullTransportFields = {
+        ...validSdDefraTrade,
+        transportation: {
+          modeofTransport: 'truck',
+          hasRoadTransportDocument: true,
+          exportDate: '2023-01-01',
+          whereDepartsFrom: null,
+          countryofDeparture: null,
+          departureDate: null
+        }
+      };
+
+      mockToDefraTradeSd.mockReturnValue(payloadWithNullTransportFields);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.transportation.whereDepartsFrom).toBe('');
+      expect(message.body.transportation.countryofDeparture).toBe('');
+      expect(message.body.transportation.departureDate).toBe('');
+    });
+
+    it('should preserve existing transportation whereDepartsFrom, countryofDeparture and departureDate when set', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const payloadWithTransportFields = {
+        ...validSdDefraTrade,
+        transportation: {
+          modeofTransport: 'truck',
+          hasRoadTransportDocument: true,
+          exportDate: '2023-01-01',
+          whereDepartsFrom: 'DOVER',
+          countryofDeparture: 'GB',
+          departureDate: '2023-01-01'
+        }
+      };
+
+      mockToDefraTradeSd.mockReturnValue(payloadWithTransportFields);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.transportation.whereDepartsFrom).toBe('DOVER');
+      expect(message.body.transportation.countryofDeparture).toBe('GB');
+      expect(message.body.transportation.departureDate).toBe('2023-01-01');
+    });
+
+    it('should default arrivalTransportation whereDepartsFrom, countryofDeparture and departureDate to empty string when null', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const payloadWithNullArrivalTransportFields = {
+        ...validSdDefraTrade,
+        arrivalTransportation: {
+          modeofTransport: 'truck',
+          hasRoadTransportDocument: true,
+          exportDate: '2023-01-10',
+          placeOfUnloading: 'Calais',
+          whereDepartsFrom: null,
+          countryofDeparture: null,
+          departureDate: null
+        }
+      };
+
+      mockToDefraTradeSd.mockReturnValue(payloadWithNullArrivalTransportFields);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.arrivalTransportation.whereDepartsFrom).toBe('');
+      expect(message.body.arrivalTransportation.countryofDeparture).toBe('');
+      expect(message.body.arrivalTransportation.departureDate).toBe('');
+    });
+
+    it('should preserve existing arrivalTransportation whereDepartsFrom, countryofDeparture and departureDate when set', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const payloadWithArrivalTransportFields = {
+        ...validSdDefraTrade,
+        arrivalTransportation: {
+          modeofTransport: 'truck',
+          hasRoadTransportDocument: true,
+          exportDate: '2023-01-10',
+          placeOfUnloading: 'Calais',
+          whereDepartsFrom: 'DOVER',
+          countryofDeparture: 'GB',
+          departureDate: '2023-01-09'
+        }
+      };
+
+      mockToDefraTradeSd.mockReturnValue(payloadWithArrivalTransportFields);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.arrivalTransportation.whereDepartsFrom).toBe('DOVER');
+      expect(message.body.arrivalTransportation.countryofDeparture).toBe('GB');
+      expect(message.body.arrivalTransportation.departureDate).toBe('2023-01-09');
+    });
+
+    it('should default product issuingCountry to empty string when null', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+      const payloadWithNullIssuingCountry = {
+        ...validSdDefraTrade,
+        products: [
+          { ...validSdDefraTrade.products[0], issuingCountry: null }
+        ]
+      };
+
+      mockToDefraTradeSd.mockReturnValue(payloadWithNullIssuingCountry);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.products[0].issuingCountry).toBe('');
+    });
+
+    it('should preserve existing product issuingCountry when set', async () => {
+      const storageDocumentCase = { ...baseStorageDocumentCase };
+
+      mockToDefraTradeSd.mockReturnValue(validSdDefraTrade);
+
+      await SUT.reportSdToTrade(baseStorageDocument, 'SD' as any, storageDocumentCase, baseSdQueryResults);
+
+      const callArgs = mockPersistence.mock.calls[0];
+      const message = callArgs[1];
+      expect(message.body.products[0].issuingCountry).toBe('UK');
+    });
   });
 });
 
