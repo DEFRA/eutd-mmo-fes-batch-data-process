@@ -4,7 +4,8 @@ import { getCatchCerts, getCertificateByDocumentNumber, upsertCertificate } from
 import { reportExceeding14DaysLandings, reportNewLandings, processReports, resendSdToTrade } from "../services/report.service";
 import { fetchRefereshLandings, updateConsolidateLandings } from '../services/landingConsolidate.service';
 import { fetchAndProcessNewLandings } from './landingsRefresh';
-import { getToLiveWeightFactor, loadLandingReprocessData, updateLandingReprocessData } from "../data/cache";
+import { runCcQueryForLandings } from '../query/runCcQueryForLandings';
+import { getToLiveWeightFactor, loadLandingReprocessData, updateLandingReprocessData, getVesselsIdx } from "../data/cache";
 import {
   type ILanding,
   type ICcQueryResult,
@@ -14,7 +15,10 @@ import {
   ILandingQuery,
   IDocument,
   DocumentStatuses,
-  postCodeToDa
+  postCodeToDa,
+  mapCatchCerts,
+  unwindCatchCerts,
+  vesselLookup
 } from 'mmo-shared-reference-data';
 import logger from '../logger';
 import appConfig from '../config';
@@ -43,6 +47,21 @@ export const getExceedingLandingsArray = async (queryTime: moment.Moment): Promi
   logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][NUMBER-CERTIFICATES-WITH-PENDING-LANDING: FOR-EXCEEDING-14-DAY-LIMIT-LANDINGS][${catchCerts.length}]`);
 
   return exceedingLimitLandingQuery(catchCerts, queryTime);
+}
+
+export const getElogExceedingLandingQueries = async (queryTime: moment.Moment): Promise<ILandingQuery[]> => {
+  const landingStatuses: LandingStatus[] = [LandingStatus.Elog];
+  const catchCerts = await getCatchCerts({ landingStatuses });
+  logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][NUMBER-CERTIFICATES-WITH-ELOG-LANDING: FOR-EXCEEDING-14-DAY-LIMIT-LANDINGS][${catchCerts.length}]`);
+  return Array.from(mapCatchCerts(unwindCatchCerts(catchCerts), vesselLookup(getVesselsIdx())))
+    .filter((item) =>
+      item.rssNumber &&
+      item.extended.landingDataEndDate &&
+      queryTime.isAfter(moment.utc(item.extended.landingDataEndDate), 'day')
+    )
+    .map((item) => ({ rssNumber: item.rssNumber, dateLanded: item.dateLanded }))
+    .reduce((l: ILandingQuery[], cur: ILandingQuery) =>
+      l.some(landing => landing.dateLanded === cur.dateLanded && landing.rssNumber === cur.rssNumber) ? l : [...l, cur], []);
 }
 
 export const landingsAndReportingCron = async (): Promise<void> => {
@@ -96,12 +115,30 @@ export function uniquifyLandings(landingQuery: ILandingQueryWithIsLegallyDue[]):
 
 export const exceeding14DayLandingsAndReportingCron = async (): Promise<void> => {
   try {
-    const exceeding14DayLimitLandings: ICcQueryResult[] = await getExceedingLandingsArray(moment.utc());
+    const queryTime = moment.utc();
 
+    // Existing path: PENDING certs where no landing ever arrived
+    const exceeding14DayLimitLandings = await getExceedingLandingsArray(queryTime);
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-LANDINGS][${exceeding14DayLimitLandings.length}]`);
-
     if (exceeding14DayLimitLandings.length) {
       await reportExceeding14DaysLandings(exceeding14DayLimitLandings);
+    }
+
+    // New path: ELOG certs past their landingDataEndDate window
+    // Fetch real Boomi landings so isLandingExists=true + isExceeding14DayLimit=true → Species Failure
+    const elogExceedingQueries = await getElogExceedingLandingQueries(queryTime);
+    logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-QUERIES][${elogExceedingQueries.length}]`);
+    if (elogExceedingQueries.length) {
+      const elogBoomiLandings = await fetchAndProcessNewLandings(elogExceedingQueries);
+      logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-BOOMI-LANDINGS][${elogBoomiLandings?.length}]`);
+      if (elogBoomiLandings?.length) {
+        const elogValidations = Array.from(await runCcQueryForLandings(elogBoomiLandings))
+          .filter((item) => item.isExceeding14DayLimit);
+        logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-VALIDATIONS][${elogValidations.length}]`);
+        if (elogValidations.length) {
+          await reportExceeding14DaysLandings(elogValidations);
+        }
+      }
     }
 
   } catch (e) {

@@ -11,6 +11,7 @@ import * as catchCerts from '../../src/persistence/catchCerts';
 import * as landingRefresher from '../../src/landings/landingsRefresh';
 import * as landingConsolidation from '../../src/services/landingConsolidate.service';
 import * as report from '../../src/services/report.service';
+import * as runCcQueryModule from '../../src/query/runCcQueryForLandings';
 import * as risking from '../../src/data/risking';
 import * as file from '../../src/data/local-file';
 import logger from '../../src/logger';
@@ -1153,6 +1154,143 @@ describe('landingAndReportingCronJobs', () => {
       expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-LANDINGS][3]');
       expect(loggerErrorMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-LANDINGS][ERROR][Error: error]');
     });
+
+    describe('for the Elog path in exceeding14DayLandingsAndReportingCron', () => {
+      let mockCatchCertsSpy;
+      let mockFetchAndProcess;
+      let mockRunCcQuery;
+
+      const elogDocumentWithinWindow = {
+        documentNumber: 'CC_ELOG_1',
+        createdAt: '2020-08-28T08:00:00.000Z',
+        exportData: {
+          products: [{
+            speciesCode: 'LBE',
+            caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2026-06-15' }]  // future date: queryTime (now ~2026-05-13) is NOT after it
+          }]
+        }
+      };
+
+      const elogDocumentPastWindow = {
+        documentNumber: 'CC_ELOG_2',
+        createdAt: '2020-08-28T08:00:00.000Z',
+        exportData: {
+          products: [{
+            speciesCode: 'LBE',
+            caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }]  // past date: queryTime is after it
+          }]
+        }
+      };
+
+      beforeEach(() => {
+        mockCatchCertsSpy = jest.spyOn(catchCerts, 'getCatchCerts');
+        mockCatchCertsSpy.mockResolvedValue([]);
+        mockFetchAndProcess = jest.spyOn(landingRefresher, 'fetchAndProcessNewLandings');
+        mockRunCcQuery = jest.spyOn(runCcQueryModule, 'runCcQueryForLandings');
+      });
+
+      afterEach(() => {
+        mockCatchCertsSpy.mockRestore();
+        mockFetchAndProcess.mockRestore();
+        mockRunCcQuery.mockRestore();
+      });
+
+      it('should log Elog query count and skip fetchAndProcess when no Elog certs are past window', async () => {
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentWithinWindow])
+            : Promise.resolve([])
+        );
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-QUERIES][0]');
+        expect(mockFetchAndProcess).not.toHaveBeenCalled();
+        expect(reportExceeding14DaysLandings).not.toHaveBeenCalled();
+      });
+
+      it('should fetch Boomi landings for Elog certs past their landingDataEndDate', async () => {
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentPastWindow])
+            : Promise.resolve([])
+        );
+        mockFetchAndProcess.mockResolvedValue([]);
+        mockRunCcQuery.mockResolvedValue([][Symbol.iterator]());
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-QUERIES][1]');
+        expect(mockFetchAndProcess).toHaveBeenCalledTimes(1);
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-BOOMI-LANDINGS][0]');
+      });
+
+      it('should not call runCcQueryForLandings when no Boomi landings are returned', async () => {
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentPastWindow])
+            : Promise.resolve([])
+        );
+        mockFetchAndProcess.mockResolvedValue([]);
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(mockRunCcQuery).not.toHaveBeenCalled();
+        expect(reportExceeding14DaysLandings).not.toHaveBeenCalled();
+      });
+
+      it('should not call runCcQueryForLandings when fetchAndProcessNewLandings returns undefined', async () => {
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentPastWindow])
+            : Promise.resolve([])
+        );
+        mockFetchAndProcess.mockResolvedValue(undefined);
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(mockRunCcQuery).not.toHaveBeenCalled();
+        expect(reportExceeding14DaysLandings).not.toHaveBeenCalled();
+      });
+
+      it('should not call reportExceeding14DaysLandings when no ccQuery results have isExceeding14DayLimit', async () => {
+        const boomiLandings = [{ rssNumber: 'rssWA1', dateTimeLanded: moment.utc().subtract(5, 'days').toISOString(), source: 'ELOG', items: [] }];
+        const ccQueryResult = [{ documentNumber: 'CC_ELOG_2', isExceeding14DayLimit: false }];
+
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentPastWindow])
+            : Promise.resolve([])
+        );
+        mockFetchAndProcess.mockResolvedValue(boomiLandings);
+        mockRunCcQuery.mockResolvedValue(ccQueryResult[Symbol.iterator]());
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-VALIDATIONS][0]');
+        expect(reportExceeding14DaysLandings).not.toHaveBeenCalled();
+      });
+
+      it('should call reportExceeding14DaysLandings with only certs where isExceeding14DayLimit is true', async () => {
+        const boomiLandings = [{ rssNumber: 'rssWA1', dateTimeLanded: moment.utc().subtract(5, 'days').toISOString(), source: 'ELOG', items: [] }];
+        const exceedingResult = { documentNumber: 'CC_ELOG_2', isExceeding14DayLimit: true };
+        const nonExceedingResult = { documentNumber: 'CC_ELOG_3', isExceeding14DayLimit: false };
+
+        mockCatchCertsSpy.mockImplementation(({ landingStatuses }: any) =>
+          landingStatuses?.includes(LandingStatus.Elog)
+            ? Promise.resolve([elogDocumentPastWindow])
+            : Promise.resolve([])
+        );
+        mockFetchAndProcess.mockResolvedValue(boomiLandings);
+        mockRunCcQuery.mockResolvedValue([exceedingResult, nonExceedingResult][Symbol.iterator]());
+
+        await SUT.exceeding14DayLandingsAndReportingCron();
+
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-BOOMI-LANDINGS][1]');
+        expect(loggerMock).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][EXCEEDING-14-DAYS-ELOG-VALIDATIONS][1]');
+        expect(reportExceeding14DaysLandings).toHaveBeenCalledWith([exceedingResult]);
+      });
+    });
   });
 
 });
@@ -1963,6 +2101,121 @@ describe('resubmitSdToTrade', () => {
     
     expect(mockresendSdToTrade).toHaveBeenCalled();
     expect(loggerInfoMock).toHaveBeenCalledWith('[RUN-RESUBMIT-SD-TRADE-DOCUMENT][CERT][GBR-2026-SD-TEST789]');
+  });
+});
+
+describe('getElogExceedingLandingQueries', () => {
+  let mockGetCatchCerts;
+  let mockVesselsIdx;
+
+  beforeEach(() => {
+    mockGetCatchCerts = jest.spyOn(catchCerts, 'getCatchCerts');
+    mockVesselsIdx = jest.spyOn(cache, 'getVesselsIdx');
+    mockVesselsIdx.mockReturnValue(vesselsIdx);
+  });
+
+  afterEach(() => {
+    mockGetCatchCerts.mockRestore();
+    mockVesselsIdx.mockRestore();
+  });
+
+  it('should return empty array when no Elog certs exist', async () => {
+    mockGetCatchCerts.mockResolvedValue([]);
+    const result = await SUT.getElogExceedingLandingQueries(moment.utc());
+    expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Elog] });
+    expect(result).toHaveLength(0);
+  });
+
+  it('should return empty array when Elog cert is within its landingDataEndDate window', async () => {
+    const queryTime = moment.utc('2020-09-12T01:15:00Z');
+    mockGetCatchCerts.mockResolvedValue([{
+      documentNumber: 'CC1',
+      createdAt: '2020-08-28T08:00:00.000Z',
+      exportData: {
+        products: [{
+          speciesCode: 'LBE',
+          caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }]
+        }]
+      }
+    }]);
+    const result = await SUT.getElogExceedingLandingQueries(queryTime);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should return landing queries for Elog certs past their landingDataEndDate', async () => {
+    const queryTime = moment.utc('2020-09-13T01:15:00Z');
+    mockGetCatchCerts.mockResolvedValue([{
+      documentNumber: 'CC1',
+      createdAt: '2020-08-28T08:00:00.000Z',
+      exportData: {
+        products: [{
+          speciesCode: 'LBE',
+          caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }]
+        }]
+      }
+    }]);
+    const result = await SUT.getElogExceedingLandingQueries(queryTime);
+    expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Elog] });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ rssNumber: 'rssWA1', dateLanded: '2020-08-25' });
+  });
+
+  it('should return empty array when Elog cert has no landingDataEndDate', async () => {
+    const queryTime = moment.utc('2020-09-13T01:15:00Z');
+    mockGetCatchCerts.mockResolvedValue([{
+      documentNumber: 'CC1',
+      createdAt: '2020-08-28T08:00:00.000Z',
+      exportData: {
+        products: [{
+          speciesCode: 'LBE',
+          caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH' }]
+        }]
+      }
+    }]);
+    const result = await SUT.getElogExceedingLandingQueries(queryTime);
+    expect(result).toHaveLength(0);
+  });
+
+  it('should deduplicate landing queries with same rssNumber and dateLanded', async () => {
+    const queryTime = moment.utc('2020-09-13T01:15:00Z');
+    mockGetCatchCerts.mockResolvedValue([{
+      documentNumber: 'CC1',
+      createdAt: '2020-08-28T08:00:00.000Z',
+      exportData: {
+        products: [
+          {
+            speciesCode: 'LBE',
+            caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }]
+          },
+          {
+            speciesCode: 'COD',
+            caughtBy: [{ vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 20, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }]
+          }
+        ]
+      }
+    }]);
+    const result = await SUT.getElogExceedingLandingQueries(queryTime);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ rssNumber: 'rssWA1', dateLanded: '2020-08-25' });
+  });
+
+  it('should return multiple unique landing queries for different dates', async () => {
+    const queryTime = moment.utc('2020-09-13T01:15:00Z');
+    mockGetCatchCerts.mockResolvedValue([{
+      documentNumber: 'CC1',
+      createdAt: '2020-08-28T08:00:00.000Z',
+      exportData: {
+        products: [{
+          speciesCode: 'LBE',
+          caughtBy: [
+            { vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-25', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' },
+            { vessel: 'DAYBREAK', pln: 'WA1', date: '2020-08-26', weight: 30, _status: 'ELOG_SPECIES_MISMATCH', landingDataEndDate: '2020-09-12' }
+          ]
+        }]
+      }
+    }]);
+    const result = await SUT.getElogExceedingLandingQueries(queryTime);
+    expect(result).toHaveLength(2);
   });
 });
 
