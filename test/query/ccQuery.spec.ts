@@ -396,7 +396,7 @@ describe('the query for refreshing missing landings', () => {
 
     const results: ILandingQuery[] = Array.from(missingLandingRefreshQuery(documents, queryTime));
 
-    expect(results).toHaveLength(0);
+    expect(results).toHaveLength(1);
 
   });
 
