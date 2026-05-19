@@ -26,7 +26,7 @@ export const isInWithinRetrospectiveWindow: (queryTime: moment.Moment, item: ICc
 
   return item.extended.landingDataEndDate === undefined ?
     moment.duration(durationSinceCertCreation) <= moment.duration(14, 'days') :
-    queryTime.isSameOrBefore(moment.utc(item.extended.landingDataEndDate).add(1, 'day').startOf('day'))
+    queryTime.isSameOrBefore(moment.utc(item.extended.landingDataEndDate).add(1, 'day'), 'day')
 }
 
 export const retrospectiveValidationRequired = (queryTime: moment.Moment, item: ICcQueryResult) =>
