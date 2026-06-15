@@ -44,6 +44,13 @@ export class ApplicationConfig {
   public runResubmitCcToTrade: boolean;
   public runResubmitCcToTradeStartDate: string;
 
+  /**
+    * Server-side time limit (ms) for the getCatchCerts query.
+    * Raised above the default to avoid premature termination when MongoDB is
+    * processing concurrent transactions on the same documents.
+  */
+  public getCatchCertsMaxTimeMs: number;
+
   public static loadEnv(env: any): void {
     ApplicationConfig.prototype.basicAuthUser = env.REF_SERVICE_BASIC_AUTH_USER;
     ApplicationConfig.prototype.basicAuthPassword = env.REF_SERVICE_BASIC_AUTH_PASSWORD;
@@ -91,7 +98,7 @@ export class ApplicationConfig {
 
     //Resubmit CC to trade startDate
     ApplicationConfig.prototype.runResubmitCcToTradeStartDate = env.RUN_RESUBMIT_CC_TO_TRADE_START_DATE || '2025-01-01T00:00:00.000Z';
-    
+    ApplicationConfig.prototype.getCatchCertsMaxTimeMs = Number(env.GET_CATCH_CERTS_MAX_TIME_MS) || 60000;
   }
 
 }
