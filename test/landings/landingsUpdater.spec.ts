@@ -109,7 +109,7 @@ describe('getMissingLandingsArray', () => {
 
     const results = await SUT.getMissingLandingsArray(queryTime)
 
-    expect(results.length).toEqual(0);
+    expect(results).toHaveLength(0);
 
   })
 
@@ -140,7 +140,7 @@ describe('getMissingLandingsArray', () => {
     generateIndex(cache.getVesselsData());
 
     const results = await SUT.getMissingLandingsArray(queryTime);
-    expect(results.length).toEqual(2);
+    expect(results).toHaveLength(2);
 
   })
 
@@ -171,7 +171,7 @@ describe('getMissingLandingsArray', () => {
     generateIndex(cache.getVesselsData());
 
     const results = await SUT.getMissingLandingsArray(queryTime);
-    expect(results.length).toEqual(0);
+    expect(results).toHaveLength(0);
 
   })
 
@@ -262,7 +262,7 @@ describe('getMissingLandingsArray', () => {
 
       expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
       expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results.length).toEqual(0);
+      expect(results).toHaveLength(0);
     });
 
     it('should not return a list if all landings are beyond 14 days and are Real Time Validation successful', async () => {
@@ -330,7 +330,7 @@ describe('getMissingLandingsArray', () => {
 
       expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
       expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results.length).toEqual(3);
+      expect(results).toHaveLength(3);
     });
   })
 
@@ -380,7 +380,7 @@ describe('getMissingLandingsArray', () => {
 
       expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
       expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results.length).toEqual(0);
+      expect(results).toHaveLength(0);
     });
 
     it('should return a list of all landings without a _status within their retrospective window', async () => {
@@ -410,7 +410,7 @@ describe('getMissingLandingsArray', () => {
 
       expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
       expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results.length).toEqual(0);
+      expect(results).toHaveLength(0);
     });
 
   })
