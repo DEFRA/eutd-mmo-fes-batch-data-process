@@ -190,6 +190,7 @@ describe('calcRiskScore', () => {
   
     it('should return false', () => {
       mockGetSpeciesRiskToggle.mockReturnValue(defaultSpeciesRiskToggle);
+      expect(SUT.isRiskEnabled()).toBeFalsy();
     });
   
     it('should return true', () => {

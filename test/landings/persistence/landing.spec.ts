@@ -64,7 +64,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       })
 
       const results = await SUT.getLandings('101', '2019-01-01')
-      expect(results.length).toBe(1)
+      expect(results).toHaveLength(1)
       expect(results[0].rssNumber).toBe('101')
 
     })
@@ -80,9 +80,9 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       })
 
       const results = await SUT.getLandings('101', '2019-01-01')
-      expect(results.length).toBe(1)
+      expect(results).toHaveLength(1)
       expect(results[0].rssNumber).toBe('101')
-      expect(results[0].items.length).toBe(1);
+      expect(results[0].items).toHaveLength(1);
       expect(results[0].items[0]).toMatchObject(fullLanding);
     });
 
@@ -119,16 +119,16 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       let results
 
       results = await SUT.getLandings('101', '2019-01-01')
-      expect(results.length).toBe(2)
+      expect(results).toHaveLength(2)
 
       results = await SUT.getLandings('102', '2019-01-01')
-      expect(results.length).toBe(1)
+      expect(results).toHaveLength(1)
 
       results = await SUT.getLandings('101', '2019-01-02')
-      expect(results.length).toBe(1)
+      expect(results).toHaveLength(1)
 
       results = await SUT.getLandings('101', '2019-01-03')
-      expect(results.length).toBe(0)
+      expect(results).toHaveLength(0)
     });
 
     it('can get all landings', async () => {
@@ -162,7 +162,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       })
 
       const results = await SUT.getAllLandings()
-      expect(results.length).toBe(4)
+      expect(results).toHaveLength(4)
 
     })
 
@@ -190,7 +190,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       })
 
       const results = await SUT.getAllLandings()
-      expect(results.length).toBe(3)
+      expect(results).toHaveLength(3)
     })
 
     it('can handle multiple landings with the same timestamp: FI0-395', async () => {
@@ -217,7 +217,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const results = await SUT.getLandings(rssNumber, theDay)
 
-      expect(results.length).toBe(2)
+      expect(results).toHaveLength(2)
 
     })
 
@@ -274,7 +274,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await SUT.getLandings('rssNumber', '2019-07-01')
 
-      expect(res.length).toBe(3)
+      expect(res).toHaveLength(3)
 
       expect(res.map(r => moment(r.dateTimeLanded).toISOString())).toEqual([
         moment('2019-07-01T00:00:00Z').toISOString(),
@@ -321,7 +321,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       expect(mockLoggerInfo).toHaveBeenNthCalledWith(2, '[LANDINGS][GET-MULTIPLE-LANDINGS][LANDING][RSS-NUMBER][100]');
 
-      expect(res.length).toBe(2)
+      expect(res).toHaveLength(2)
     })
 
     it('will match correctly on both attributes', async () => {
@@ -351,7 +351,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await SUT.getLandingsMultiple([{ rssNumber: '100', dateLanded: '2019-08-01' }])
 
-      expect(res.length).toBe(1)
+      expect(res).toHaveLength(1)
 
     })
 
@@ -385,7 +385,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         { rssNumber: '200', dateLanded: '2019-08-01' },
       ])
 
-      expect(res.length).toBe(2)
+      expect(res).toHaveLength(2)
 
     })
 
@@ -419,7 +419,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         { rssNumber: '100', dateLanded: '2019-08-01' },
       ])
 
-      expect(res.length).toBe(1)
+      expect(res).toHaveLength(1)
 
     })
 
@@ -450,7 +450,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await SUT.getLandingsMultiple([])
 
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
 
     })
 
@@ -474,7 +474,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       let results
       results = await SUT.getLandings(rssNumber, theDay)
 
-      expect(results.length).toBe(1)
+      expect(results).toHaveLength(1)
 
       // Save the dateTimeRetrived so we can check that it is not overwritten
       // after replacing these landings with a new set
@@ -493,7 +493,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       results = await SUT.getLandings(rssNumber, theDay)
 
-      expect(results.length).toBe(2)
+      expect(results).toHaveLength(2)
 
       const firstRecordedLanding = results.find(_ => (_.dateTimeLanded.toISOString() == '2019-01-01T10:00:00.000Z'))
 
@@ -507,7 +507,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       results = await SUT.getLandings(rssNumber, theDay)
 
-      expect(results.length).toBe(2)
+      expect(results).toHaveLength(2)
 
       expect(timesRetrieved.sort()).toEqual(results.map(_ => [_.dateTimeLanded, _.dateTimeRetrieved]).sort())
 
