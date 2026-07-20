@@ -68,32 +68,18 @@ describe('filterReports', () => {
     expect(mockReportEvents).not.toHaveBeenCalled();
   });
 
-  it('will all report unprocessed processing statement events', async () => {
-    const unprocessed = [{ _id: '123', documentType: 'ProcessingStatement' }];
+    it.each([
+      { documentType: 'ProcessingStatement', expectedType: 'PS' },
+      { documentType: 'StorageDocument', expectedType: 'SD' },
+      { documentType: 'CatchCertificate', expectedType: 'CC' },
+    ])('will report unprocessed $documentType events', async ({ documentType, expectedType }) => {
+      const unprocessed = [{ _id: '123', documentType }];
 
-    await SUT.filterReports(unprocessed);
+      await SUT.filterReports(unprocessed);
 
-    expect(mockReportEvents).toHaveBeenCalledTimes(1);
-    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'PS');
-  });
-
-  it('will all report unprocessed storage documents events', async () => {
-    const unprocessed = [{ _id: '123', documentType: 'StorageDocument' }];
-
-    await SUT.filterReports(unprocessed);
-
-    expect(mockReportEvents).toHaveBeenCalledTimes(1);
-    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'SD');
-  });
-
-  it('will all report unprocessed catch certificate events', async () => {
-    const unprocessed = [{ _id: '123', documentType: 'CatchCertificate' }];
-
-    await SUT.filterReports(unprocessed);
-
-    expect(mockReportEvents).toHaveBeenCalledTimes(1);
-    expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, 'CC');
-  });
+      expect(mockReportEvents).toHaveBeenCalledTimes(1);
+      expect(mockReportEvents).toHaveBeenCalledWith(unprocessed, expectedType);
+    });
 
   it('will all report unprocessed events', async () => {
     const unprocessed = [
@@ -216,56 +202,33 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenNthCalledWith(3, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][END]');
   });
 
-  it('if there is no Processing Statements, it will not attempt to push to blob', async () => {
-    const unprocessed = [{ _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }];
+    it.each([
+      {
+        missingType: 'Processing Statements',
+        unprocessed: [{ _id: '456', documentType: 'StorageDocument' }, { _id: '789', documentType: 'CatchCertificate' }],
+      },
+      {
+        missingType: 'Storage Documents',
+        unprocessed: [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'CatchCertificate' }],
+      },
+      {
+        missingType: 'Catch Certificates',
+        unprocessed: [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'StorageDocument' }],
+      },
+    ])('if there is no $missingType, it will not attempt to push to blob', async ({ unprocessed }) => {
+      mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
+      mockWriteToBlob.mockResolvedValue({});
+      mockMarkAsProcessed.mockResolvedValue(null);
 
-    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockWriteToBlob.mockResolvedValue({});
-    mockMarkAsProcessed.mockResolvedValue(null);
+      await SUT.processReports();
 
-    await SUT.processReports();
-
-    expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
-    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
-    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
-  });
-
-  it('if there is no Storage Documents, it will not attempt to push to blob', async () => {
-    const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'CatchCertificate' }];
-
-    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockWriteToBlob.mockResolvedValue({});
-    mockMarkAsProcessed.mockResolvedValue(null);
-
-    await SUT.processReports();
-
-    expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
-    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
-    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
-  });
-
-  it('if there is no Catch Certificates, it will not attempt to push to blob', async () => {
-    const unprocessed = [{ _id: '456', documentType: 'ProcessingStatement' }, { _id: '789', documentType: 'StorageDocument' }];
-
-    mockGetUnprocessed.mockResolvedValueOnce(unprocessed).mockResolvedValue([]);
-    mockWriteToBlob.mockResolvedValue({});
-    mockMarkAsProcessed.mockResolvedValue(null);
-
-    await SUT.processReports();
-
-    expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
-    expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
-    expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
-    expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
-    expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
-  });
+      expect(mockGetUnprocessed).toHaveBeenCalled();
+      expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 2]');
+      expect(mockLogInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 0]');
+      expect(mockWriteToBlob).toHaveBeenCalledTimes(2);
+      expect(mockWriteToBlob.mock.calls[0][1]).toEqual(JSON.stringify([unprocessed[0]]));
+      expect(mockWriteToBlob.mock.calls[1][1]).toEqual(JSON.stringify([unprocessed[1]]));
+    });
 
   it('will stop processing records and record the error if an error get thrown', async () => {
     const error = new Error('something bad happened');

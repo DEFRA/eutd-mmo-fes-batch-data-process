@@ -281,7 +281,6 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         moment('2019-07-01T10:00:00Z').toISOString(),
         moment('2019-07-01T23:00:00Z').toISOString()
       ]);
-      expect(true).toBeTruthy();
 
     })
 

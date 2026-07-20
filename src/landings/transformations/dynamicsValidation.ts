@@ -375,10 +375,9 @@ export function toSdPsCaseTwoType(validatedSdPsCatches: ISdPsQueryResult[]) {
 }
 export function toSpeciesCode(speciesWithCode: string | undefined): string | undefined {
   if (speciesWithCode) {
-    const regex = /(.*) \((.*)\)/g;
-    const matches = regex.exec(speciesWithCode);
-    if (matches && matches.length >= 3) {
-      return matches[2];
+    const match = speciesWithCode.match(/\(([^()]*)\)$/);
+    if (match && match.length >= 2) {
+      return match[1];
     }
   }
 }
