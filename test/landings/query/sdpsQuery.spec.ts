@@ -156,7 +156,7 @@ describe('sdpsQuery', () => {
   });
 
   describe('getForeignCatchCertificatesFromDocuments', () => {
-    it('should return unique certificate numbers from documents', () => {
+    it('should return deduplicated uppercase certificate numbers in insertion order', () => {
       const documents = [
         {
           documentNumber: 'SD-001',
@@ -177,7 +177,8 @@ describe('sdpsQuery', () => {
           exportData: {
             exporterDetails: { postcode: 'NE1 1AA' },
             catches: [
-              { id: '3', certificateNumber: 'CC-002', product: 'COD', productWeight: '75', weightOnCC: '75' }
+              { id: '3', certificateNumber: 'CC-002', product: 'COD', productWeight: '75', weightOnCC: '75' },
+              { id: '4', certificateNumber: 'cc-002', product: 'HKE', productWeight: '10', weightOnCC: '10' }
             ]
           }
         }
@@ -185,9 +186,7 @@ describe('sdpsQuery', () => {
 
       const result = SUT.getForeignCatchCertificatesFromDocuments(documents);
 
-      expect(result).toHaveLength(2);
-      expect(result).toContain('CC-001');
-      expect(result).toContain('CC-002');
+      expect(result).toEqual(['CC-001', 'CC-002']);
     });
 
     it('should return empty array when no documents provided', () => {
