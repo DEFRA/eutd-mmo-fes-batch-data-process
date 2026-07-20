@@ -156,7 +156,7 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: undefined]');
     expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockWriteToBlob.mock.calls.length).toEqual(0);
+    expect(mockWriteToBlob.mock.calls).toHaveLength(0);
   });
 
   it('will get all unprocessed reports and write them to the blob storage, per type', async () => {
@@ -171,7 +171,7 @@ describe('processReports', () => {
     expect(mockLogInfo).toHaveBeenNthCalledWith(1, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][START]');
     expect(mockLogInfo).toHaveBeenNthCalledWith(2, '[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: 3]');
     expect(mockGetUnprocessed).toHaveBeenCalled();
-    expect(mockWriteToBlob.mock.calls.length).toEqual(3);
+    expect(mockWriteToBlob.mock.calls).toHaveLength(3);
     expect(mockWriteToBlob.mock.calls[0][1]).toEqual("[{\"_id\":\"123\",\"documentType\":\"ProcessingStatement\"}]");
   });
 

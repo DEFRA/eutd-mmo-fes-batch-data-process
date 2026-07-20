@@ -331,7 +331,7 @@ describe("When mapping from an ICcQueryResult to a IDynamicsLanding", () => {
 
     const result: Shared.IDynamicsLanding = SUT.toLanding(input);
 
-    expect(result.source).toEqual(undefined)
+    expect(result.source).toBeUndefined()
   });
 
   it('will include a vessel overridden flag if the vessel has been overridden', () => {
@@ -7771,7 +7771,7 @@ describe("When mapping from an ICcQueryResult to a IDynamicsCatchCertificateCase
 
     const result = SUT.toDynamicsCcCase([input], uncompleteCc, correlationId);
 
-    expect(result.documentUrl).toEqual(undefined);
+    expect(result.documentUrl).toBeUndefined();
   });
 
   it('will map the number of failed submissions', () => {
@@ -7809,7 +7809,7 @@ describe("When mapping from an ICcQueryResult to a IDynamicsCatchCertificateCase
     }];
 
     expect(result.audits).toStrictEqual(expected);
-    expect(result.audits?.length).toBe(2);
+    expect(result.audits).toHaveLength(2);
   });
 
   it('will contain a flag to indicate an application via a direct mode of transport', () => {

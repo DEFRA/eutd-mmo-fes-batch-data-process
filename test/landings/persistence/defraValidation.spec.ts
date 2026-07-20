@@ -57,7 +57,7 @@ describe('getUnprocessedReports', () => {
     const all = await SUT.getAllDefraValidationReports();
     const unprocessed = await SUT.getUnprocessedReports();
 
-    expect(unprocessed.length).toBe(all.length);
+    expect(unprocessed).toHaveLength(all.length);
 
   });
 
@@ -80,8 +80,8 @@ describe('getUnprocessedReports', () => {
     const all = await SUT.getAllDefraValidationReports();
     const unprocessed = await SUT.getUnprocessedReports();
 
-    expect(all.length).toBe(1);
-    expect(unprocessed.length).toBe(0);
+    expect(all).toHaveLength(1);
+    expect(unprocessed).toHaveLength(0);
 
   });
 
@@ -111,8 +111,8 @@ describe('getUnprocessedReports', () => {
     ApplicationConfig.prototype.maximumDefraValidationReportBatchSize = backup_maximumDefraValidationReportBatchSize;
 
 
-    expect(all.length).toBe(3);
-    expect(unprocessed.length).toBe(2);
+    expect(all).toHaveLength(3);
+    expect(unprocessed).toHaveLength(2);
 
   });
 
@@ -151,13 +151,13 @@ describe('getUnprocessedReports', () => {
 
     const res = await SUT.getUnprocessedReports();
 
-    expect(res.length).toBe(1);
+    expect(res).toHaveLength(1);
     expect(res[0]).toMatchObject(report);
 
     expect(res[0]._id).not.toBe(undefined);
-    expect(res[0].__v).toBe(undefined);
-    expect(res[0].__t).toBe(undefined);
-    expect(res[0]._processed).toBe(undefined);
+    expect(res[0].__v).toBeUndefined();
+    expect(res[0].__t).toBeUndefined();
+    expect(res[0]._processed).toBeUndefined();
   });
 
 });
@@ -183,13 +183,13 @@ describe('markAsProcessed', () => {
     const all = await SUT.getUnprocessedReports();
     const ids = all.map(_ => _._id);
 
-    expect(all.length).toBe(5);
+    expect(all).toHaveLength(5);
 
     await SUT.markAsProcessed([ids[0], ids[1]]);
 
     const unprocessed = await SUT.getUnprocessedReports();
 
-    expect(unprocessed.length).toBe(3);
+    expect(unprocessed).toHaveLength(3);
 
   });
 
