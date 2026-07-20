@@ -368,50 +368,33 @@ describe('getMissingLandingsArray', () => {
       },
     ];
 
-    it('should not return a list if all landings without a _status are before their landing data expected date', async () => {
-      mockGetCatchCerts.mockResolvedValue(documents);
+      it.each([
+        {
+          description: 'does not return a list if all landings without a _status are before their landing data expected date',
+          queryTime: '20200911T000000Z',
+          expectedLength: 0,
+        },
+        {
+          description: 'returns a list of all landings without a _status within their retrospective window',
+          queryTime: '20200912T000000Z',
+          expectedLength: 1,
+        },
+        {
+          description: 'does not return a list of all landings without a _status beyond their retrospective window',
+          queryTime: '20200916T000000Z',
+          expectedLength: 0,
+        },
+      ])('should $description', async ({ queryTime, expectedLength }) => {
+        mockGetCatchCerts.mockResolvedValue(documents);
 
-      // within 14 days
-      const queryTime = moment.utc('20200911T000000Z');
+        generateIndex(cache.getVesselsData());
 
-      generateIndex(cache.getVesselsData());
+        const results = await SUT.getMissingLandingsArray(moment.utc(queryTime));
 
-      const results = await SUT.getMissingLandingsArray(queryTime);
-
-      expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
-      expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results).toHaveLength(0);
-    });
-
-    it('should return a list of all landings without a _status within their retrospective window', async () => {
-      mockGetCatchCerts.mockResolvedValue(documents);
-
-      // within 14 days
-      const queryTime = moment.utc('20200912T000000Z');
-
-      generateIndex(cache.getVesselsData());
-
-      const results = await SUT.getMissingLandingsArray(queryTime);
-
-      expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
-      expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results).toHaveLength(1);
-    });
-
-    it('should not return a list of all landings without a _status beyond their retrospective window', async () => {
-      mockGetCatchCerts.mockResolvedValue(documents);
-
-      // beyond 14 days
-      const queryTime = moment.utc('20200916T000000Z');
-
-      generateIndex(cache.getVesselsData());
-
-      const results = await SUT.getMissingLandingsArray(queryTime);
-
-      expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
-      expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
-      expect(results).toHaveLength(0);
-    });
+        expect(mockGetCatchCerts).toHaveBeenCalledTimes(1);
+        expect(mockGetCatchCerts).toHaveBeenCalledWith({ landingStatuses: [LandingStatus.Pending] });
+        expect(results).toHaveLength(expectedLength);
+      });
 
   })
 
