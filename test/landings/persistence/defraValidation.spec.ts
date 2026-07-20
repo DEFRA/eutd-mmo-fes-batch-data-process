@@ -154,7 +154,7 @@ describe('getUnprocessedReports', () => {
     expect(res).toHaveLength(1);
     expect(res[0]).toMatchObject(report);
 
-    expect(res[0]._id).not.toBe(undefined);
+    expect(res[0]._id).toBeDefined();
     expect(res[0].__v).toBeUndefined();
     expect(res[0].__t).toBeUndefined();
     expect(res[0]._processed).toBeUndefined();
