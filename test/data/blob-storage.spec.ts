@@ -92,10 +92,16 @@ describe('saving validation reporting data to remote blob storage', () => {
         expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
     });
 
-    it('the filename of the file generated will be appended with the correct environment name when its tst', async () => {
+    it.each([
+        { appUrl: 'some-tst-url', environment: 'TST' },
+        { appUrl: 'some-preprod-url', environment: 'PRE' },
+        { appUrl: 'some-premo-url', environment: 'PREMO' },
+        { appUrl: 'some-other-gov.uk', environment: 'PRD' },
+        { appUrl: 'localhost:1234', environment: 'localhost' },
+    ])('the filename of the file generated will be appended with the correct environment name when app url is $appUrl', async ({ appUrl, environment }) => {
         mockWriteToBlob.mockResolvedValue({});
         config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'some-tst-url'
+        config.externalAppUrl = appUrl;
 
         const data = {
             certificateId: 'GBR-3434-3434-3434',
@@ -103,79 +109,6 @@ describe('saving validation reporting data to remote blob storage', () => {
         }
 
         const expected = "20191015_11-01-58-135";
-        const environment = "TST"
-
-        await blob.saveReportingValidation(data, 'CC');
-
-        expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-    });
-
-    it('the filename of the file generated will be appended with the correct environment name when its pre', async () => {
-        mockWriteToBlob.mockResolvedValue({});
-        config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'some-preprod-url'
-
-        const data = {
-            certificateId: 'GBR-3434-3434-3434',
-            status: "COMPLETE"
-        }
-
-        const expected = "20191015_11-01-58-135";
-        const environment = "PRE"
-
-        await blob.saveReportingValidation(data, 'CC');
-
-        expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-    });
-
-    it('the filename of the file generated will be appended with the correct environment name when its premo', async () => {
-        mockWriteToBlob.mockResolvedValue({});
-        config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'some-premo-url'
-
-        const data = {
-            certificateId: 'GBR-3434-3434-3434',
-            status: "COMPLETE"
-        }
-
-        const expected = "20191015_11-01-58-135";
-        const environment = "PREMO"
-
-        await blob.saveReportingValidation(data, 'CC');
-
-        expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-    });
-
-    it('the filename of the file generated will be appended with the correct environment name when its production', async () => {
-        mockWriteToBlob.mockResolvedValue({});
-        config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'some-other-gov.uk'
-
-        const data = {
-            certificateId: 'GBR-3434-3434-3434',
-            status: "COMPLETE"
-        }
-
-        const expected = "20191015_11-01-58-135";
-        const environment = "PRD"
-
-        await blob.saveReportingValidation(data, 'CC');
-
-        expect(mockLoggerInfo).toHaveBeenCalledWith(`[PUSHING-TO-BLOB][_CC_${environment}_${expected}.json]`);
-    });
-
-    it('the filename of the file generated will be appended with the correct environment name when its local host', async () => {
-        mockWriteToBlob.mockResolvedValue({});
-        config.azureContainer = "t1-catchcerts";
-        config.externalAppUrl = 'localhost:1234'
-
-        const data = {
-            certificateId: 'GBR-3434-3434-3434',
-            status: "COMPLETE"
-        }
-
-        const expected = "20191015_11-01-58-135";
-        const environment = "localhost"
 
         await blob.saveReportingValidation(data, 'CC');
 
@@ -457,7 +390,7 @@ describe('When getting vessels from a blob storage', () => {
         expect(mockLoggerInfo.mock.calls[1][0]).toEqual('reading notification file');
         expect(mockLoggerInfo.mock.calls[2][0]).toEqual('parsing notification file to json');
         expect(mockLoggerInfo.mock.calls[3][0]).toEqual('searching notification json');
-        expect(mockLoggerInfo.mock.calls[4]).toEqual(undefined);
+        expect(mockLoggerInfo.mock.calls[4]).toBeUndefined();
     });
 
     it('should throw an error if an error is thrown in the try block', async () => {
@@ -502,7 +435,7 @@ describe('writeToBlob', () => {
     it('will call the upload stream with corect data', async () => {
         mockBlobClient = {
             uploadStream: (data) => {
-                expect(data._readableState.length).toEqual(7);
+                expect(data._readableState).toHaveLength(7);
                 return true;
             }
         }

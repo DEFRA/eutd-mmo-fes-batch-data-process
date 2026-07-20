@@ -243,7 +243,7 @@ describe("When retrieving vessel details for landings refresh", () => {
 
     const output = SUT.getVesselDetails("test");
 
-    expect(output).toEqual(undefined);
+    expect(output).toBeUndefined();
   });
 
   it('should do an exact search on rssNumber and not pick up another rssNumber that happens to start with the rssNumber we are searching for', () => {
@@ -336,33 +336,17 @@ describe("When retrieving rssNumber", () => {
 
     const output = SUT.getRssNumber("OB956", "tarara");
 
-    expect(output).toEqual(undefined);
+    expect(output).toBeUndefined();
   })
 
-  it('search by registrationNumber and date', () => {
+  it.each([
+    { date: '2012-12-29', description: 'search by registrationNumber and date' },
+    { date: '2012-05-02', description: 'respect lower date boundaries' },
+    { date: '2017-12-', description: 'respect upper date boundaries' },
+    { date: '2012-08-02', description: 'only return the first occurrence' },
+  ])('should $description', ({ date }) => {
 
-    const output = SUT.getRssNumber("OB956", "2012-12-29");
-
-    expect(output).toEqual("rssNumber");
-  });
-
-  it('should respect lower date boundaries', () => {
-
-    const output = SUT.getRssNumber("OB956", "2012-05-02");
-
-    expect(output).toEqual("rssNumber");
-  });
-
-  it('should respect upper date boundaries', () => {
-
-    const output = SUT.getRssNumber("OB956", "2017-12-");
-
-    expect(output).toEqual("rssNumber");
-  });
-
-  it('should only return the first occurrence', () => {
-
-    const output = SUT.getRssNumber("OB956", "2012-08-02");
+    const output = SUT.getRssNumber("OB956", date);
 
     expect(output).toEqual("rssNumber");
   });
@@ -370,7 +354,7 @@ describe("When retrieving rssNumber", () => {
   it('should return undefined if vessel does not exist', () => {
     const output = SUT.getRssNumber("OB956", "2020-12-02");
 
-    expect(output).toEqual(undefined);
+    expect(output).toBeUndefined();
     expect(loggerMock).toHaveBeenNthCalledWith(1, '[VESSEL-SERVICE][RSS-NUMBER][NOT-FOUND]OB956:2020-12-02')
   });
 
