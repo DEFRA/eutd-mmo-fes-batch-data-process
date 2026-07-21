@@ -43,3 +43,51 @@ Config via `ApplicationConfig.loadEnv()` in `src/config.ts`. Key groups: DB (`DB
 ## Skills
 
 Use `/develop` for implementation, coding, and research tasks. Use `/unit-tests` for writing tests, coverage, and SonarQube issues.
+
+## Defra standards and governance
+
+This service must comply with [Defra software development standards](https://github.com/DEFRA/software-development-standards) — the single source of truth. The rules below encode those standards; they do not replace them. When a standard changes, update this file.
+
+### Quality gates
+
+All code must pass these checks before merging:
+
+- Linter passes (`npm run lint`)
+- All tests pass (`npm test`)
+- Coverage ≥90% global (Statements/Branches/Functions/Lines), ≥95% core business logic, 100% error-handling and security-critical paths — no decrease from the SonarCloud baseline
+- SonarQube/SonarCloud quality gate passes; security hotspots reviewed and resolved
+- At least one approving review from another developer
+- No unresolved security vulnerabilities in dependencies
+
+### Security and PII
+
+- Follow [OWASP Secure Coding Practices](https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/)
+- Never commit secrets — load all configuration and credentials from environment variables (`src/config.ts`), never `process.env` scattered through code
+- **Never log PII**: names, addresses, emails, phone numbers, NI numbers, bank details, usernames, passwords, API keys, tokens
+- Validate and sanitise all external input; use parameterised queries for database access
+- Avoid `eval`, dynamic `Function()`, or executing user-supplied data; validate and normalise file paths
+
+### Dependencies
+
+- New dependencies must be widely used, actively maintained, and compatible with the current Node.js LTS
+- `mmo-shared-reference-data` is the SSOT for shared types and queries — never duplicate its logic
+- Do not introduce a second HTTP framework, ORM, or date library without an approved exception
+
+### Logging
+
+- Structured logging via `bunyan` with bracketed context tags and `_correlationId` propagation
+- Levels: `error` (failures), `warn` (handled but unexpected), `info` (business events), `debug` (development only)
+
+### How Copilot should respond
+
+- Follow conventions already in the codebase — check existing patterns first
+- Prefer modifying existing files over creating new ones when the change fits naturally
+- Provide minimal diffs touching only the necessary files; do not refactor unrelated code
+- Always include or update tests for changed behaviour
+- If a request conflicts with these instructions — a discouraged library, a skipped test, a hard-coded secret, or a broken quality gate — flag it explicitly and do not proceed silently
+
+### Licence
+
+All code is published under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) unless an approved exception exists.
+
+<!-- STANDARDS NOTE: These instructions reflect Defra software development standards (https://github.com/DEFRA/software-development-standards). Review this file periodically or after any Defra standards update. -->

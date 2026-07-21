@@ -1,0 +1,36 @@
+# Files GitHub Copilot must not use as context.
+# Uses .gitignore syntax. On government projects, exclude anything containing
+# real credentials, secrets, private keys, or personal data (PII), and any
+# OFFICIAL-SENSITIVE material. See:
+# https://defra.github.io/defra-ai-config-examples/pages/copilotignore
+
+# Environment and secrets
+.env
+.env.*
+*.env
+**/secrets/**
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+cabundle.pem
+
+# Cloud / service credentials
+**/*credentials*
+**/*connection-string*
+.azure/
+.npmrc
+
+# Reference data / fixtures that may contain real vessel, landing, or personal data
+data/**/*.csv
+**/fixtures/**/*real*
+**/*OFFICIAL-SENSITIVE*
+
+# Build output, dependencies, coverage and logs
+node_modules/
+dist/
+build/
+coverage/
+test-results/
+*.log

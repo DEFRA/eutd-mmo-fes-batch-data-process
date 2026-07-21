@@ -72,9 +72,9 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
         const res = await getCatchCerts({})
 
-        expect(res.length).toBe(1)
+        expect(res).toHaveLength(1)
         const first: any = res[0]
-        expect(first.exportData.products.length).toBe(2)
+        expect(first.exportData.products).toHaveLength(2)
 
       })
 
@@ -123,7 +123,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
         const res = await getCatchCerts({})
 
-        expect(res.length).toBe(2)
+        expect(res).toHaveLength(2)
 
       })
 
@@ -149,7 +149,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         })
         await catchCert.save()
         const res = await getCatchCerts({})
-        expect(res.length).toBe(0)
+        expect(res).toHaveLength(0)
       })
 
       it('will handle duplicate documents', async () => {
@@ -195,7 +195,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         await duplicateCatchCert.save()
 
         const res = await getCatchCerts({})
-        expect(res.length).toBe(1)
+        expect(res).toHaveLength(1)
       })
 
       it('will only return certs after fromDate when fromDate is specified', async () => {
@@ -224,10 +224,10 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         let res
 
         res = await getCatchCerts({})
-        expect(res.length).toBe(1)
+        expect(res).toHaveLength(1)
 
         res = await getCatchCerts({ fromDate: moment.utc('2019-10-19').startOf('day') })
-        expect(res.length).toBe(0)
+        expect(res).toHaveLength(0)
 
       })
 
@@ -255,7 +255,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         await catchCert.save()
 
         const res = await getCatchCerts({ fromDate: moment.utc('2019-10-19').startOf('day') })
-        expect(res.length).toBe(1)
+        expect(res).toHaveLength(1)
 
       })
 
@@ -287,7 +287,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ documentNumber: 'CC1' })
 
-          expect(res.length).toBe(1)
+          expect(res).toHaveLength(1)
 
           expect(res[0].documentNumber).toBe('CC1')
 
@@ -315,7 +315,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ documentNumber: 'CC2' })
 
-          expect(res.length).toBe(0)
+          expect(res).toHaveLength(0)
 
         })
 
@@ -359,7 +359,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ documentNumber: 'CC1' })
 
-          expect(res.length).toBe(1)
+          expect(res).toHaveLength(1)
 
         })
 
@@ -390,7 +390,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ pln: 'WA1' })
 
-          expect(res.length).toBe(1)
+          expect(res).toHaveLength(1)
 
         })
 
@@ -416,7 +416,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ pln: 'NO WAY' })
 
-          expect(res.length).toBe(0)
+          expect(res).toHaveLength(0)
 
         })
 
@@ -488,7 +488,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ pln: 'WA1' })
 
-          expect(res.length).toBe(2)
+          expect(res).toHaveLength(2)
 
           expect(res[0].documentNumber).toBe('CC1')
           expect(res[1].documentNumber).toBe('CC2')
@@ -500,132 +500,135 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       describe('on exporter', () => {
 
-        it('can find a single document', async () => {
-
-          const catchCert = new DocumentModel({
-            status: "COMPLETE",
-            __t: "catchCert",
-            documentNumber: "CC1",
-            createdAt: "2019-10-19T00:00:00.000Z",
-            createdBy: "Bob",
-            createdByEmail: "foo@foo.com",
-            exportData: {
-              products: [
-                {
-                  speciesCode: "LBE",
-                  caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
-                },
-              ],
-              exporterDetails: { exporterCompanyName: "BOB" }
+          it.each([
+            {
+              description: 'find a single document',
+              queryExporter: 'BOB',
+              expectedLength: 1,
+              seed: async () => {
+                const catchCert = new DocumentModel({
+                  status: "COMPLETE",
+                  __t: "catchCert",
+                  documentNumber: "CC1",
+                  createdAt: "2019-10-19T00:00:00.000Z",
+                  createdBy: "Bob",
+                  createdByEmail: "foo@foo.com",
+                  exportData: {
+                    products: [
+                      {
+                        speciesCode: "LBE",
+                        caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
+                      },
+                    ],
+                    exporterDetails: { exporterCompanyName: "BOB" }
+                  },
+                });
+                await catchCert.save();
+              },
             },
-          })
-          await catchCert.save()
-
-          const res = await getCatchCerts({ exporter: 'BOB' })
-
-          expect(res.length).toBe(1)
-
-        })
-
-        it('will not find document that does not exist', async () => {
-
-          const catchCert = new DocumentModel({
-            status: "COMPLETE",
-            __t: "catchCert",
-            documentNumber: "CC1",
-            createdAt: "2019-10-19T00:00:00.000Z",
-            createdBy: "Bob",
-            createdByEmail: "foo@foo.com",
-            exportData: {
-              products: [
-                {
-                  speciesCode: "LBE",
-                  caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
-                },
-              ],
-              exporterDetails: { exporterCompanyName: "BOB" }
+            {
+              description: 'not find a document that does not exist',
+              queryExporter: 'NO WAY',
+              expectedLength: 0,
+              seed: async () => {
+                const catchCert = new DocumentModel({
+                  status: "COMPLETE",
+                  __t: "catchCert",
+                  documentNumber: "CC1",
+                  createdAt: "2019-10-19T00:00:00.000Z",
+                  createdBy: "Bob",
+                  createdByEmail: "foo@foo.com",
+                  exportData: {
+                    products: [
+                      {
+                        speciesCode: "LBE",
+                        caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
+                      },
+                    ],
+                    exporterDetails: { exporterCompanyName: "BOB" }
+                  },
+                });
+                await catchCert.save();
+              },
             },
-          })
-          await catchCert.save()
+            {
+              description: 'find multiple documents',
+              queryExporter: 'BOB',
+              expectedLength: 2,
+              seed: async () => {
+                let catchCert = new DocumentModel({
+                  status: "COMPLETE",
+                  __t: "catchCert",
+                  documentNumber: "CC1",
+                  createdAt: "2019-10-19T00:00:00.000Z",
+                  createdBy: "Bob",
+                  createdByEmail: "foo@foo.com",
+                  exportData: {
+                    products: [
+                      {
+                        speciesCode: "LBE",
+                        caughtBy: [
+                          { vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 },
+                        ]
+                      },
+                      {
+                        speciesCode: "BOB",
+                        caughtBy: [
+                          { vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 },
+                        ]
+                      },
+                    ],
+                    exporterDetails: { exporterCompanyName: "BOB" }
+                  },
+                });
+                await catchCert.save();
 
-          const res = await getCatchCerts({ exporter: 'NO WAY' })
+                catchCert = new DocumentModel({
+                  status: "COMPLETE",
+                  __t: "catchCert",
+                  documentNumber: "CC2",
+                  createdAt: "2019-10-19T00:00:00.000Z",
+                  createdBy: "Bob",
+                  createdByEmail: "foo@foo.com",
+                  exportData: {
+                    products: [
+                      {
+                        speciesCode: "LBE",
+                        caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
+                      },
+                    ],
+                    exporterDetails: { exporterCompanyName: "BOB" }
+                  },
+                });
+                await catchCert.save();
 
-          expect(res.length).toBe(0)
-
-        })
-
-        it('will find multiple documents', async () => {
-
-          let catchCert = new DocumentModel({
-            status: "COMPLETE",
-            __t: "catchCert",
-            documentNumber: "CC1",
-            createdAt: "2019-10-19T00:00:00.000Z",
-            createdBy: "Bob",
-            createdByEmail: "foo@foo.com",
-            exportData: {
-              products: [
-                {
-                  speciesCode: "LBE",
-                  caughtBy: [
-                    { vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 },
-                  ]
-                },
-                {
-                  speciesCode: "BOB",
-                  caughtBy: [
-                    { vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 },
-                  ]
-                },
-              ],
-              exporterDetails: { exporterCompanyName: "BOB" }
+                catchCert = new DocumentModel({
+                  status: "COMPLETE",
+                  __t: "catchCert",
+                  documentNumber: "CC2",
+                  createdAt: "2019-10-19T00:00:00.000Z",
+                  createdBy: "Bob",
+                  createdByEmail: "foo@foo.com",
+                  exportData: {
+                    products: [
+                      {
+                        speciesCode: "LBE",
+                        caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
+                      },
+                    ],
+                    exporterDetails: { exporterCompanyName: "FRED" }
+                  },
+                });
+                await catchCert.save();
+              },
             },
-          })
-          await catchCert.save()
+          ])('will $description', async ({ seed, queryExporter, expectedLength }) => {
+            await seed();
 
-          catchCert = new DocumentModel({
-            status: "COMPLETE",
-            __t: "catchCert",
-            documentNumber: "CC2",
-            createdAt: "2019-10-19T00:00:00.000Z",
-            createdBy: "Bob",
-            createdByEmail: "foo@foo.com",
-            exportData: {
-              products: [
-                {
-                  speciesCode: "LBE",
-                  caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
-                },
-              ],
-              exporterDetails: { exporterCompanyName: "BOB" }
-            },
-          })
-          await catchCert.save()
+            const res = await getCatchCerts({ exporter: queryExporter });
 
-          catchCert = new DocumentModel({
-            status: "COMPLETE",
-            __t: "catchCert",
-            documentNumber: "CC2",
-            createdAt: "2019-10-19T00:00:00.000Z",
-            createdBy: "Bob",
-            createdByEmail: "foo@foo.com",
-            exportData: {
-              products: [
-                {
-                  speciesCode: "LBE",
-                  caughtBy: [{ vessel: "DAYBREAK", pln: "WA1", date: "2019-07-10", weight: 100 }]
-                },
-              ],
-              exporterDetails: { exporterCompanyName: "FRED" }
-            },
-          })
-          await catchCert.save()
-
-          const res = await getCatchCerts({ exporter: 'BOB' })
-
-          expect(res.length).toBe(2)
-
-        })
+            expect(res).toHaveLength(expectedLength);
+          });
 
         it('will ignore case', async () => {
           const catchCert = new DocumentModel({
@@ -649,7 +652,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ exporter: 'the quick brown fox' })
 
-          expect(res.length).toBe(1)
+          expect(res).toHaveLength(1)
         });
 
       });
@@ -704,7 +707,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(1);
+          expect(res).toHaveLength(1);
 
         });
 
@@ -755,7 +758,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(0);
+          expect(res).toHaveLength(0);
         });
 
         it('will find all documents that have at least one landing that is pending landing data', async () => {
@@ -808,7 +811,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(1);
+          expect(res).toHaveLength(1);
 
         });
 
@@ -862,7 +865,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(2);
+          expect(res).toHaveLength(2);
 
         });
 
@@ -936,7 +939,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(2);
+          expect(res).toHaveLength(2);
         });
 
         it('will find all documents that have at least one landing that is pending landing OR has landing data', async () => {
@@ -1010,7 +1013,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
           const res = await getCatchCerts({ landingStatuses });
 
-          expect(res.length).toBe(2);
+          expect(res).toHaveLength(2);
         });
 
       });
@@ -1071,13 +1074,13 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       let res
 
       res = await getCatchCerts({})
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
 
       res = await getCatchCerts({ documentStatus: 'COMPLETE' })
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
 
       res = await getCatchCerts({ documentStatus: 'VOID' })
-      expect(res.length).toBe(2)
+      expect(res).toHaveLength(2)
 
     })
 
@@ -1518,7 +1521,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [] })
 
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
 
     })
 
@@ -1545,7 +1548,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA2', dateLanded: '2019-07-10' }, { pln: 'WA1', dateLanded: '2019-07-11' }] })
 
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
 
     })
 
@@ -1573,7 +1576,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA1', dateLanded: '2019-07-10' }] })
 
-      expect(res.length).toBe(1)
+      expect(res).toHaveLength(1)
 
     })
 
@@ -1623,7 +1626,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA1', dateLanded: '2019-07-10' }] })
 
-      expect(res.length).toBe(2)
+      expect(res).toHaveLength(2)
 
     })
 
@@ -1694,7 +1697,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
         ]
       })
 
-      expect(res.length).toBe(2)
+      expect(res).toHaveLength(2)
 
     })
 
@@ -1744,7 +1747,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA1', dateLanded: '2019-07-10' }] })
 
-      expect(res.length).toBe(1)
+      expect(res).toHaveLength(1)
 
     })
 
@@ -1795,7 +1798,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA1', dateLanded: '2019-07-10' }, { pln: 'WA1', dateLanded: '2019-07-10' }] })
 
-      expect(res.length).toBe(1)
+      expect(res).toHaveLength(1)
 
     })
 
@@ -1820,7 +1823,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
       await catchCert.save()
 
       const res = await getCatchCerts({ landings: [{ pln: 'WA1', dateLanded: '2019-07-10' }], pln: 'WA1' })
-      expect(res.length).toBe(0)
+      expect(res).toHaveLength(0)
     })
 
 

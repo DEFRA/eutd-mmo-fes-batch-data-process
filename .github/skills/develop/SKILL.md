@@ -1,6 +1,10 @@
 ---
 name: develop
 description: 'Expert Node.js/TypeScript/Hapi developer for MMO FES Batch Data Process. Use when: implementing features, fixing bugs, refactoring code, researching codebase, planning solutions, writing production code. Covers coding patterns, design patterns, best practices, project conventions.'
+license: OGL-UK-3.0
+metadata:
+  author: mmo-fes
+  version: "1.0"
 ---
 
 # Batch Data Process — Developer Skill
