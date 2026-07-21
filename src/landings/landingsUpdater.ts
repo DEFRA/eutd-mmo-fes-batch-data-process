@@ -18,7 +18,7 @@ import {
 } from 'mmo-shared-reference-data';
 import logger from '../logger';
 import appConfig from '../config';
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { DocumentModel, IDocumentModel } from '../types/document';
 import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
@@ -85,7 +85,7 @@ export const landingsAndReportingCron = async (): Promise<void> => {
 
 export function uniquifyLandings(landingQuery: ILandingQueryWithIsLegallyDue[]): ILandingQueryWithIsLegallyDue[] {
   return landingQuery.reduce((landings: ILandingQueryWithIsLegallyDue[], landing: ILandingQueryWithIsLegallyDue) => {
-    const hasLanding: ILandingQueryWithIsLegallyDue = landings.find((l: ILandingQueryWithIsLegallyDue) => _.isEqual(l, landing));
+    const hasLanding: ILandingQueryWithIsLegallyDue = landings.find((l: ILandingQueryWithIsLegallyDue) => isEqual(l, landing));
     if (hasLanding) {
       return landings;
     }
