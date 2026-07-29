@@ -132,68 +132,15 @@ describe('scheduled jobs controller', () => {
       expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
     });
 
-    it('will not invoke the mockRunUnreportedLandingsJob on a Monday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1693837775000); // Monday, September 4, 2023 2:29:35 PM
-
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockRefreshRisking).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will not invoke the mockRunUnreportedLandingsJob on a Tuesday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1693924175000); // Tuesday, September 5, 2023 2:29:35 PM
-
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockRefreshRisking).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will not invoke the mockRunUnreportedLandingsJob on a Wednesday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1694010575000); // Wednesday, September 6, 2023 2:29:35 PM
-
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockRefreshRisking).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will not invoke the mockRunUnreportedLandingsJob on a Thursday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1694096975000); // Thursday, September 7, 2023 2:29:35 PM
-
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockRefreshRisking).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will not invoke the mockRunUnreportedLandingsJob on a Friday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1694183375000); // Friday, September 8, 2023 2:29:35 PM
-
-      await SUT.runLandingsAndReportingJob();
-
-      expect(mockRefreshRisking).toHaveBeenCalled();
-      expect(mockRunJob).toHaveBeenCalled();
-      expect(mockRunExceeding14DayLandingsJob).toHaveBeenCalled();
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][START]');
-      expect(mockLoggerInfo).toHaveBeenCalledWith('[RUN-LANDINGS-AND-REPORTING-JOB][SUCCESS]');
-    });
-
-    it('will not invoke the mockRunUnreportedLandingsJob on a Saturday', async () => {
-      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => 1694269775000); // Saturday, September 9, 2023 2:29:35 PM
+    it.each([
+      { day: 'Monday', timestamp: 1693837775000 },
+      { day: 'Tuesday', timestamp: 1693924175000 },
+      { day: 'Wednesday', timestamp: 1694010575000 },
+      { day: 'Thursday', timestamp: 1694096975000 },
+      { day: 'Friday', timestamp: 1694183375000 },
+      { day: 'Saturday', timestamp: 1694269775000 },
+    ])('will not invoke the mockRunUnreportedLandingsJob on a $day', async ({ timestamp }) => {
+      mockCurrentTime = jest.spyOn(Date, 'now').mockImplementation(() => timestamp);
 
       await SUT.runLandingsAndReportingJob();
 
