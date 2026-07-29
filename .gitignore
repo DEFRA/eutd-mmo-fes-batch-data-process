@@ -2,7 +2,7 @@ node_modules
 .env
 .DS_Store
 coverage/
-.vscode/
+.vscode/mcp.json
 dist/
 service_bus
 .idea
