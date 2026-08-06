@@ -681,7 +681,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       multiVesselSchedule: false,
       transportation: {
         modeofTransport: "truck",
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
       },
     };
 
@@ -1352,7 +1352,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       multiVesselSchedule: false,
       transportation: {
         modeofTransport: "truck",
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
       }
     };
 
@@ -1424,7 +1424,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       multiVesselSchedule: false,
       transportation: {
         modeofTransport: "truck",
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
       },
     };
 
@@ -1564,7 +1564,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       multiVesselSchedule: false,
       transportation: {
         modeofTransport: "truck",
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
       },
     };
 
@@ -2416,7 +2416,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       failureIrrespectiveOfRisk: true,
       multiVesselSchedule: false,
       transportation: {
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
         modeofTransport: "truck",
       },
     });
@@ -2648,7 +2648,7 @@ describe('when transforming Catch Certificate data from IDocument, ICcQuery to I
       failureIrrespectiveOfRisk: true,
       multiVesselSchedule: false,
       transportation: {
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
         modeofTransport: "truck",
       },
     });
@@ -3270,7 +3270,7 @@ describe('When transforming Storage Document to IDefraTradeStorageDocument using
     const result = SUT.toDefraTradeSd(baseDocument as any, baseDocumentCase as any, baseSdQueryResults);
     
     expect(result.transportation.modeofTransport).toEqual('truck');
-    expect((result.transportation as any).hasRoadTransportDocument).toEqual(true);
+    expect((result.transportation as any).hasRoadTransportDocument).toEqual(false);
   });
 
   it('will map arrivalTransportation correctly', () => {

@@ -3976,7 +3976,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       "certStatus": shared.CertificateStatus.COMPLETE,
       "transportation": {
         "modeofTransport": "truck",
-        "hasRoadTransportDocument": true
+        "hasRoadTransportDocument": false
       },
       "multiVesselSchedule": false
     };
@@ -4437,7 +4437,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       "certStatus": shared.CertificateStatus.COMPLETE,
       "transportation": {
         "modeofTransport": "truck",
-        "hasRoadTransportDocument": true
+        "hasRoadTransportDocument": false
       },
       "multiVesselSchedule": false
     };
@@ -4730,7 +4730,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       "certStatus": shared.CertificateStatus.VOID,
       "transportation": {
         "modeofTransport": "truck",
-        "hasRoadTransportDocument": true
+        "hasRoadTransportDocument": false
       },
       "multiVesselSchedule": false
     };
@@ -4953,7 +4953,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       "certStatus": shared.CertificateStatus.VOID,
       "transportation": {
         "modeofTransport": "truck",
-        "hasRoadTransportDocument": true
+        "hasRoadTransportDocument": false
       },
       "multiVesselSchedule": false
     };
@@ -5062,7 +5062,7 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
         "transportations": [{
           "id": 0,
           "vehicle": "truck",
-          "cmr": true
+          "departurePlace": "Hull"
         }],
         "conservation": {
           "conservationReference": "UK Fisheries Policy"
@@ -5430,7 +5430,8 @@ describe('azureTradeQueueEnabled Feature flag turned on', () => {
       "certStatus": Shared.CertificateStatus.COMPLETE,
       "transportation": {
         "modeofTransport": "truck",
-        "hasRoadTransportDocument": true
+        "hasRoadTransportDocument": false,
+        "exportLocation": "Hull"
       },
       "multiVesselSchedule": false,
      
@@ -7752,7 +7753,7 @@ describe('reportSdToTrade', () => {
       },
       transportation: {
         modeofTransport: 'truck',
-        hasRoadTransportDocument: true,
+        hasRoadTransportDocument: false,
         exportDate: '2023-01-01'
       },
       storageFacility: {
@@ -7884,7 +7885,7 @@ describe('reportSdToTrade', () => {
         ...validSdDefraTrade,
         transportation: {
           modeofTransport: 'truck',
-          hasRoadTransportDocument: true,
+          hasRoadTransportDocument: false,
           exportDate: '2023-01-01',
           whereDepartsFrom: null,
           countryofDeparture: null,
@@ -7909,7 +7910,7 @@ describe('reportSdToTrade', () => {
         ...validSdDefraTrade,
         transportation: {
           modeofTransport: 'truck',
-          hasRoadTransportDocument: true,
+          hasRoadTransportDocument: false,
           exportDate: '2023-01-01',
           whereDepartsFrom: 'DOVER',
           countryofDeparture: 'GB',
@@ -7934,7 +7935,7 @@ describe('reportSdToTrade', () => {
         ...validSdDefraTrade,
         arrivalTransportation: {
           modeofTransport: 'truck',
-          hasRoadTransportDocument: true,
+          hasRoadTransportDocument: false,
           exportDate: '2023-01-10',
           placeOfUnloading: 'Calais',
           whereDepartsFrom: null,
@@ -7960,7 +7961,7 @@ describe('reportSdToTrade', () => {
         ...validSdDefraTrade,
         arrivalTransportation: {
           modeofTransport: 'truck',
-          hasRoadTransportDocument: true,
+          hasRoadTransportDocument: false,
           exportDate: '2023-01-10',
           placeOfUnloading: 'Calais',
           whereDepartsFrom: 'DOVER',
