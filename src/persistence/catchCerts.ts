@@ -1,5 +1,6 @@
 import { type IGetCatchCerts, DocumentStatuses, IDocument, getCertificateByDocumentNumberWithNumberOfFailedAttemptsQuery } from "mmo-shared-reference-data";
 import { DocumentModel, IDocumentModel } from "../types/document";
+import appConfig from '../config';
 import logger from "../logger";
 
 export const getCatchCerts = async (
@@ -79,8 +80,10 @@ export const getCatchCerts = async (
   logger.info(`[LANDINGS][PERSISTENCE][GET-ALL-CATCH-CERTS][QUERY]${JSON.stringify(query)}`)
 
   return await DocumentModel
-    .find(query, null, { timeout: true, lean: true })
+    .find(query, null, { lean: true })
     .sort({ createdAt: -1 })
+    .maxTimeMS(appConfig.getCatchCertsMaxTimeMs)
+    .read('secondaryPreferred')
 }
 
 export const getCertificateByDocumentNumberWithNumberOfFailedAttempts = async (documentNumber: string, discriminator: string): Promise<IDocument> => {
