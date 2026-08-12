@@ -1,6 +1,10 @@
 ---
 name: develop
 description: 'Expert Node.js/TypeScript/Hapi developer for MMO FES Batch Data Process. Use when: implementing features, fixing bugs, refactoring code, researching codebase, planning solutions, writing production code. Covers coding patterns, design patterns, best practices, project conventions.'
+license: OGL-UK-3.0
+metadata:
+  author: mmo-fes
+  version: "1.0"
 ---
 
 # Batch Data Process — Developer Skill
@@ -14,6 +18,21 @@ Expert software engineer for the MMO FES Batch Data Process service. Reads the c
 - Researching codebase patterns before making changes
 - Planning solutions for complex requirements
 - Any production code writing task
+
+## Working framework alignment
+
+This skill operates inside the **working framework** in [copilot-instructions.md](../../copilot-instructions.md) §4
+(Triage → Read → Research → Plan Handoff → Plan Validation Research → Approval → Implement → Test → Iterate →
+Summarise). Follow it; do not restate or fork it.
+
+- **Triage first.** Framework-**trivial** work (typo/comment/small localised change) takes the light path
+  (Read → Implement → Test → Summarise). **Non-trivial** work (validation, risk scoring, report generation,
+  schema changes, persistence, external integrations, scheduled jobs, security, or anything affecting
+  data/report correctness) runs the full loop, including planning and the **user-approval gate** before any
+  implementation.
+- **Research (§4.2)** in the open uses the
+  [deep-research-defra-alignment](../deep-research-defra-alignment/SKILL.md) skill; align findings to the
+  DEFRA precedence (DEFRA > GDS > community) and cite sources.
 
 ## Workflow
 

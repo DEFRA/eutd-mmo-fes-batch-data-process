@@ -227,64 +227,39 @@ describe('scheduled jobs handler', () => {
         expect(mockLoggerError).toHaveBeenCalledWith({ err: error }, `[EU-SUBMISSION-REPORT][GET][ERROR] ${error}`);
       });
 
-      it('returns 400 when documentType is not one of the allowed values', async () => {
-        const response = await server.inject({
-          method: 'GET',
+      it.each([
+        {
+          description: 'documentType is not one of the allowed values',
           url: '/v1/jobs/eu-submission-report?documentType=invalidType&dateFrom=2025-01-01&dateTo=2025-03-01',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when documentType is missing', async () => {
-        const response = await server.inject({
-          method: 'GET',
+        },
+        {
+          description: 'documentType is missing',
           url: '/v1/jobs/eu-submission-report?dateFrom=2025-01-01&dateTo=2025-03-01',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when dateFrom is not a valid ISO date', async () => {
-        const response = await server.inject({
-          method: 'GET',
+        },
+        {
+          description: 'dateFrom is not a valid ISO date',
           url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=not-a-date&dateTo=2025-03-01',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when dateFrom is missing', async () => {
-        const response = await server.inject({
-          method: 'GET',
+        },
+        {
+          description: 'dateFrom is missing',
           url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateTo=2025-03-01',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when dateTo is not a valid ISO date', async () => {
-        const response = await server.inject({
-          method: 'GET',
+        },
+        {
+          description: 'dateTo is not a valid ISO date',
           url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-01-01&dateTo=not-a-date',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when dateTo is missing', async () => {
-        const response = await server.inject({
-          method: 'GET',
+        },
+        {
+          description: 'dateTo is missing',
           url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-01-01',
-        });
-
-        expect(response.statusCode).toBe(400);
-      });
-
-      it('returns 400 when dateTo is earlier than dateFrom', async () => {
+        },
+        {
+          description: 'dateTo is earlier than dateFrom',
+          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-03-01&dateTo=2025-01-01',
+        },
+      ])('returns 400 when $description', async ({ url }) => {
         const response = await server.inject({
           method: 'GET',
-          url: '/v1/jobs/eu-submission-report?documentType=catchCert&dateFrom=2025-03-01&dateTo=2025-01-01',
+          url,
         });
 
         expect(response.statusCode).toBe(400);

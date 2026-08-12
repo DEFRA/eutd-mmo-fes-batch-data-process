@@ -974,7 +974,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(1);
+    expect(results).toHaveLength(1);
   });
 
   it('will return landing(s) marked as EXCEEDING 14 Day limit 2 days after landing end date', () => {
@@ -1018,7 +1018,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(1);
+    expect(results).toHaveLength(1);
   });
 
   it('will return landing(s) marked as EXCEEDING 14 Day limit 1 day after landing end date', () => {
@@ -1072,7 +1072,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(1);
+    expect(results).toHaveLength(1);
   });
 
   it('will not return landing(s) marked as COMPLETE 14 Day limit 15 days after submission date', () => {
@@ -1113,7 +1113,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(0);
+    expect(results).toHaveLength(0);
   });
 
   it('will not return landing(s) marked as EXCEEDING 14 Day limit before the landing expected date', () => {
@@ -1157,7 +1157,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(0);
+    expect(results).toHaveLength(0);
   });
 
   it('will not return landing(s) within marked as LANDING_DATA_NEVER_EXPECTED', () => {
@@ -1199,7 +1199,7 @@ describe('the query for refreshing landings exceeding 14 day', () => {
       )
     );
 
-    expect(results.length).toEqual(0);
+    expect(results).toHaveLength(0);
   });
 
 });

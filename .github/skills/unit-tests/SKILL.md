@@ -1,6 +1,10 @@
 ---
 name: unit-tests
 description: 'Expert unit test engineer for MMO FES Batch Data Process. Use when: writing unit tests, updating tests for code changes, fixing failing tests, improving code coverage, fixing SonarQube issues, resolving code smells, achieving coverage thresholds.'
+license: OGL-UK-3.0
+metadata:
+  author: mmo-fes
+  version: "1.0"
 ---
 
 # Batch Data Process — Unit Tests Skill
@@ -18,7 +22,11 @@ Expert software engineer specializing in writing and maintaining unit tests for 
 
 ## Coverage Requirements
 
-- **Overall target**: >90% line coverage
+Tiered targets (per Defra standards and the SonarCloud baseline — never drop below either):
+
+- **≥90% global** — Statements, Branches, Functions, Lines
+- **≥95% core business logic** — landing validation, risk scoring, report generation, schema validation
+- **100% error-handling and security-critical paths**
 - Run coverage: `npm test` (single run with coverage report)
 - Watch mode: `npm run test:watch`
 
@@ -186,6 +194,6 @@ When fixing SonarQube issues, **NEVER modify the actual functionality** of a cod
 3. Read the source code to understand all branches and edge cases
 4. Write tests following the Arrange/Act/Assert pattern
 5. Run `npm test` and check coverage output
-6. If coverage < 90%, identify uncovered lines and add targeted tests
+6. If coverage is below the tiered targets (≥90% global, ≥95% core logic, 100% error/security paths), identify uncovered lines and add targeted tests
 7. Check the problems tab for any SonarQube issues and fix them (see SonarQube rules above)
 8. Re-run `npm test` to confirm all tests pass

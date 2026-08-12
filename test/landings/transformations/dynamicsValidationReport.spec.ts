@@ -327,7 +327,7 @@ describe("When mapping from an Shared.ICcQueryResult to a Shared.IDynamicsLandin
 
     const result: Shared.IDynamicsLanding = SUT.toLanding(input);
 
-    expect(result.source).toEqual(undefined)
+    expect(result.source).toBeUndefined()
   });
 
   it('will include a vessel overridden flag if the vessel has been overridden', () => {
