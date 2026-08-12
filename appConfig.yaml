@@ -91,6 +91,14 @@ appSettings:
     value: '#{{ REF-BOOMI-API-OAUTH-MMO-SCOPE }}'
     type: config
   
+  - key: REF_BOOMI_CATCH_API_OAUTH_SCOPE
+    value: '#{{ REF-BOOMI-CATCH-API-OAUTH-SCOPE }}'
+    type: config
+
+  - key: REF_BOOMI_CATCH_API_TIMEOUT_MS
+    value: '90000'
+    type: config
+
   - key: REF_SERVICE_BASIC_AUTH_PASSWORD
     value: 'REF-SERVICE-BASIC-AUTH-PASSWORD'
     type: secret
