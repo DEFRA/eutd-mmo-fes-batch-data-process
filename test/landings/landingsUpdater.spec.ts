@@ -991,7 +991,7 @@ describe('landingAndReportingCronJobs', () => {
         __t: "catchCert",
         documentNumber: "CC1",
         status: "COMPLETE",
-        createdAt: moment.utc().subtract(14, 'days').toISOString(),
+        createdAt: moment.utc().subtract(14, 'days').subtract(1, 'minute').toISOString(),
         createdBy: "Bob",
         createdByEmail: "foo@foo.com",
         exportData: {

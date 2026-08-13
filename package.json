@@ -94,7 +94,8 @@
     },
     "jest": {
         "moduleNameMapper": {
-            "^axios/": "axios/dist/node/axios.cjs"
+            "^axios/": "axios/dist/node/axios.cjs",
+            "^uuid$": "<rootDir>/node_modules/uuid/dist/index.js"
         },
         "testEnvironment": "node",
         "transform": {
