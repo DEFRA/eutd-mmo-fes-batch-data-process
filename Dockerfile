@@ -30,24 +30,13 @@ RUN npm ci --legacy-peer-deps
 # Using the development image (which has NODE_ENV=development) we will install
 #   all devDependencies & build the project.
 FROM defradigital/node-development:$DEFRA_BASE_IMAGE_TAG as test
-USER root
-# mongodb-memory-server used by the test suite requires mongodb but no mongodb
-#   packages are regularly built for mongodb. Here we add a version
-#   from the 3.9 community repository.
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.9/main' >> /etc/apk/repositories
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.9/community' >> /etc/apk/repositories
-# yaml-cpp must be pinned on >3.9
-#   https://unix.stackexchange.com/a/569565
-RUN apk add --no-cache mongodb yaml-cpp=0.6.2-r2
-USER node
-ENV MONGOMS_SYSTEM_BINARY=/usr/bin/mongod
-
+# ARGs are cleared by each FROM — redeclare to make it available to npm ci below
+ARG NPM_TOKEN
 USER root
 RUN mkdir /app && chown node:node /app
 USER node
 
 COPY --chown=node:node . /app
-COPY --from=base --chown=node:node /app/node_modules/ /app/node_modules/
 WORKDIR /app
 RUN npm ci --legacy-peer-deps
 CMD ["npm", "run", "test"]

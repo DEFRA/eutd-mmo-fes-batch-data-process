@@ -1,0 +1,23 @@
+# App only. Run `docker compose -f docker-compose.deps.yml up -d --wait` first — this joins the external bdp-shared-net it creates.
+
+services:
+  batch-data-process:
+    build:
+      context: .
+      target: development
+      args:
+        NPM_TOKEN: ${NPM_TOKEN:-}
+    ports:
+      - "9000:9000"
+    environment:
+      DB_CONNECTION_URI: mongodb://mongo:27017
+    env_file:
+      - path: .env
+        required: false
+    networks:
+      - bdp-shared
+
+networks:
+  bdp-shared:
+    external: true
+    name: bdp-shared-net
