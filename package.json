@@ -113,6 +113,10 @@
             "/test/mockData.js",
             "/test/helpers/"
         ],
+        "coveragePathIgnorePatterns": [
+            "/node_modules/",
+            "/test/helpers/"
+        ],
         "coverageReporters": [
             "clover",
             "json",
