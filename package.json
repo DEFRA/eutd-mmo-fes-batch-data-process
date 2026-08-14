@@ -4,8 +4,8 @@
     "description": "",
     "private": true,
     "engines": {
-        "node": "~24.13.1",
-        "npm": "~11.8.0"
+        "node": "24.19.0",
+        "npm": "12.0.2"
     },
     "nyc": {
         "extension": [
@@ -84,7 +84,7 @@
         "joi": "^17.13.1",
         "lodash": "^4.17.21",
         "mingo": "^6.7.2",
-        "mmo-shared-reference-data": "1.3.6",
+        "mmo-shared-reference-data": "1.3.11",
         "moment": "^2.30.1",
         "mongodb": "6.7.0",
         "mongoose": "^8.4.1",
@@ -94,7 +94,8 @@
     },
     "jest": {
         "moduleNameMapper": {
-            "^axios/": "axios/dist/node/axios.cjs"
+            "^axios/": "axios/dist/node/axios.cjs",
+            "^uuid$": "<rootDir>/node_modules/uuid/dist/index.js"
         },
         "testEnvironment": "node",
         "transform": {
@@ -131,5 +132,10 @@
         "singleQuote": true
     },
     "author": "",
-    "license": "ISC"
+    "license": "ISC",
+    "allowScripts": {
+        "applicationinsights-native-metrics@0.0.10": true,
+        "dtrace-provider@0.8.8": true,
+        "mongodb-memory-server@9.3.0": true
+    }
 }
