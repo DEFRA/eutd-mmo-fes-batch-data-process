@@ -570,7 +570,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
           addLandingTestData(elogToRemain2)
         ]);
 
-        const elogsBefore = await LandingModel.find({ source: LandingSources.ELog }, ['source', 'rssNumber', 'dateTimeLanded', 'items'], { lean: true });
+        const elogsBefore = await LandingModel.find({ source: LandingSources.ELog }, 'source rssNumber dateTimeLanded items', { lean: true });
 
         expect(elogsBefore).toHaveLength(4);
         expect(elogsBefore).toEqual(
@@ -584,7 +584,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
         await SUT.clearElogs([landingDec]);
 
-        const elogsAfter = await LandingModel.find({ source: LandingSources.ELog }, ['source', 'rssNumber', 'dateTimeLanded', 'items'], { lean: true });
+        const elogsAfter = await LandingModel.find({ source: LandingSources.ELog }, 'source rssNumber dateTimeLanded items', { lean: true });
 
         expect(elogsAfter).toHaveLength(2);
         expect(elogsAfter).toEqual(
