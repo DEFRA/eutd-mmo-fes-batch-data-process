@@ -32,6 +32,7 @@
         "check-coverage": true
     },
     "scripts": {
+        "prepare": "husky",
         "test": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=test-results.xml NODE_ENV=test jest test/ --coverage --ci",
         "test:ci": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=junit.xml NODE_ENV=test jest --runInBand --watchAll=false --reporters=default --reporters=jest-junit --coverage --ci",
         "test:watch": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=test-results.xml NODE_ENV=test jest --runInBand test/ --coverage --ci --watch",
