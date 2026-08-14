@@ -1,19 +1,12 @@
 import { IDefraValidationReport, IDefraValidationCatchCertificate } from 'mmo-shared-reference-data';
 import { ApplicationConfig } from '../../../src/config';
 import { DefraValidationCatchCertificateModel, DefraValidationReportData, DefraValidationReportModel } from '../../../src/types/defraValidation';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectTestMongo, disconnectTestMongo } from '../../helpers/mongoTestConnection';
 import * as SUT from '../../../src/persistence/defraValidation'
 import moment from 'moment';
 
-const mongoose = require('mongoose');
-
-let mongoServer;
-const opts = { connectTimeoutMS:60000, socketTimeoutMS:600000, serverSelectionTimeoutMS:60000 }
-
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  await mongoose.connect(mongoUri, opts).catch(err => {console.error(err)});
+  await connectTestMongo();
 });
 
 afterEach(async () => {
@@ -21,8 +14,7 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  await disconnectTestMongo();
 });
 
 const sampleReport = (certificateId: string, status: string, requestedByAdmin: boolean, landingId?: string | null, validationPass?: boolean, lastUpdated?: string, isUnblocked?: boolean, documentType?: string, processed?: boolean) => ({

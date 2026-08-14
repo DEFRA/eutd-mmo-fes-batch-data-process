@@ -1,7 +1,6 @@
 const moment = require('moment');
-const mongoose = require('mongoose');
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectTestMongo, disconnectTestMongo } from '../../helpers/mongoTestConnection';
 import { ILanding, LandingSources } from "mmo-shared-reference-data";
 import { LandingModel } from '../../../src/types/landing'
 import { ApplicationConfig } from '../../../src/config';
@@ -18,18 +17,12 @@ const addLandingTestData = async (landing: any) => {
 
 describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
-  let mongoServer;
-  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
-
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
 
