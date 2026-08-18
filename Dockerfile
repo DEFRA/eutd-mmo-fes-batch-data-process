@@ -3,6 +3,8 @@
 ARG NPM_TOKEN
 ARG DEFRA_BASE_IMAGE_TAG=latest-24
 FROM defradigital/node-development:$DEFRA_BASE_IMAGE_TAG as base
+# ARGs are cleared by each FROM — redeclare to make it available to npm ci below
+ARG NPM_TOKEN
 
 # We have production dependencies requiring node-gyp builds which don't
 #   install cleanly with the defradigital/node image. So we'll install them here

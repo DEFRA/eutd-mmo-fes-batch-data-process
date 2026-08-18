@@ -1,4 +1,4 @@
-# App only. Run `docker compose -f docker-compose.deps.yml up -d --wait` first — this joins the external bdp-shared-net it creates.
+# App only. Run `docker compose -f docker-compose.deps.yml up -d --wait` first — this joins the external fes-shared-net it creates.
 
 services:
   batch-data-process:
@@ -15,9 +15,9 @@ services:
       - path: .env
         required: false
     networks:
-      - bdp-shared
+      - fes-shared
 
 networks:
-  bdp-shared:
+  fes-shared:
     external: true
-    name: bdp-shared-net
+    name: fes-shared-net

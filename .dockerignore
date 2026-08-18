@@ -1,0 +1,9 @@
+Dockerfile
+.dockerignore
+.gitignore
+node_modules
+dist
+build.sh
+coverage
+test-results
+.env

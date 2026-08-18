@@ -1,5 +1,5 @@
-# Shared BDP infra — run first from any app: docker compose -f docker-compose.deps.yml up -d --wait
-# Creates the bdp-shared-net network other apps join.
+# Shared FES infra — run first from any app: docker compose -f docker-compose.deps.yml up -d --wait
+# Creates the fes-shared-net network other apps join.
 
 services:
   mongo:
@@ -15,13 +15,29 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - bdp-shared
+      - fes-shared
+
+  redis:
+    image: redis:7.4
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fes-shared
 
 volumes:
   mongo-data:
+  redis-data:
 
 networks:
   # Creates the shared network — do NOT mark external here; other apps join it as external.
-  bdp-shared:
-    name: bdp-shared-net
+  fes-shared:
+    name: fes-shared-net
     driver: bridge
