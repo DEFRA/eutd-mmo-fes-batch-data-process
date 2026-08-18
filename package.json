@@ -36,6 +36,8 @@
         "test": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=test-results.xml NODE_ENV=test jest test/ --coverage --ci",
         "test:ci": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=junit.xml NODE_ENV=test jest --runInBand --watchAll=false --reporters=default --reporters=jest-junit --coverage --ci",
         "test:watch": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=test-results.xml NODE_ENV=test jest --runInBand test/ --coverage --ci --watch",
+        "test:db:up": "docker compose -f docker-compose.test.yml up -d mongo",
+        "test:db:down": "docker compose -f docker-compose.test.yml down --volumes",
         "start": "cross-env NODE_ENV=development nodemon -w src/ -x ts-node src/start.ts",
         "start-debug": "node --inspect ./dist/start.js",
         "build": "tsc",

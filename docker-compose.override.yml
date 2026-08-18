@@ -1,0 +1,8 @@
+# Dev overlay — auto-applied by `docker compose up`. Adds hot-reload via nodemon + ts-node.
+# node_modules is intentionally NOT bind-mounted (uses the image's installed copy).
+
+services:
+  batch-data-process:
+    command: npm start
+    volumes:
+      - ./src:/app/src
