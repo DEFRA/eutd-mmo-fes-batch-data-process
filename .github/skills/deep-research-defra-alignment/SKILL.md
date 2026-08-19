@@ -1,6 +1,6 @@
 ---
 name: deep-research-defra-alignment
-description: "Do thorough, risk-scoped research in the open and align findings to the DEFRA standards precedence (DEFRA > GDS > community) for the MMO FES Batch Data Process service. Use for the Research (§4.2) and Plan validation research (§4.5) stages of the working framework — validating APIs, libraries, patterns, security and policy against DEFRA/GDS and framework guidance, and citing sources before a plan is approved or implemented."
+description: "Do thorough, risk-scoped research in the open and align findings to the DEFRA standards precedence (DEFRA > GDS > community) for the MMO FES Batch Data Process service. Use for the single, risk-scoped Research (§4.2) stage of the working framework — validating APIs, libraries, patterns, security and policy against DEFRA/GDS and framework guidance, and citing sources before a plan is approved or implemented."
 argument-hint: "e.g. 'validate the AJV schema approach the planner flagged' or 'research Service Bus session vs correlation-id message routing'"
 license: OGL-UK-3.0
 metadata:
@@ -12,20 +12,20 @@ user-invocable: false
 # Deep research & DEFRA alignment
 
 Turn an open question or a flagged plan step into a **sourced, DEFRA-aligned recommendation**. This is the
-**Research (§4.2)** and **Plan validation research (§4.5)** stages of the working framework in
+**single, risk-scoped Research (§4.2)** stage of the working framework in
 [copilot-instructions.md](../../copilot-instructions.md) — it does **not** replace or fork that framework,
-and it never authorises implementation (that still needs user **approval** at §4.6).
+and it never authorises implementation (that still needs user **approval** at §4.5). There is no separate
+plan-validation research round: the plan is checked against these same cited sources.
 
 **Division of labour (do not blur it):**
-- **Planner - Batch Data Process flags** which steps are risky or version-sensitive (unfamiliar APIs,
-  security, policy) and performs the research behind its plan.
-- **The parent agent** (Developer or Orchestrator) also uses this skill to validate flagged steps before a
-  plan is presented for approval, and for general Research at §4.2.
+- **Planner - Batch Data Process** runs this single research pass for **Complex** work and cites sources
+  directly in its plan.
+- **Developer - Batch Data Process** runs this same single pass for **Standard** work (or when invoked
+  without a plan) as its own Research (§4.2) stage.
 
 ## When to use
-- **Research (§4.2):** an unfamiliar API, library, pattern, or policy point is genuinely uncertain.
-- **Plan validation research (§4.5):** validating the steps the **Planner flagged** as risky or
-  version-sensitive before user approval.
+- **Research (§4.2), single pass:** an unfamiliar API, library, pattern, or policy point is genuinely
+  uncertain — for the Planner (Complex work) or the Developer (Standard work).
 - A DEFRA/GDS requirement is ambiguous and could change the design.
 
 **Do NOT use for framework-trivial work.** Per §4 triage, a typo/comment/small localised change skips heavy
