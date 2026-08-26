@@ -1,7 +1,6 @@
 const moment = require('moment');
-const mongoose = require('mongoose');
 
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectTestMongo, disconnectTestMongo } from '../../helpers/mongoTestConnection';
 import { ILanding, LandingSources } from "mmo-shared-reference-data";
 import { LandingModel } from '../../../src/types/landing'
 import { ApplicationConfig } from '../../../src/config';
@@ -18,18 +17,12 @@ const addLandingTestData = async (landing: any) => {
 
 describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
-  let mongoServer;
-  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
-
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
 
@@ -577,7 +570,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
           addLandingTestData(elogToRemain2)
         ]);
 
-        const elogsBefore = await LandingModel.find({ source: LandingSources.ELog }, ['source', 'rssNumber', 'dateTimeLanded', 'items'], { lean: true });
+        const elogsBefore = await LandingModel.find({ source: LandingSources.ELog }, 'source rssNumber dateTimeLanded items', { lean: true });
 
         expect(elogsBefore).toHaveLength(4);
         expect(elogsBefore).toEqual(
@@ -591,7 +584,7 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
         await SUT.clearElogs([landingDec]);
 
-        const elogsAfter = await LandingModel.find({ source: LandingSources.ELog }, ['source', 'rssNumber', 'dateTimeLanded', 'items'], { lean: true });
+        const elogsAfter = await LandingModel.find({ source: LandingSources.ELog }, 'source rssNumber dateTimeLanded items', { lean: true });
 
         expect(elogsAfter).toHaveLength(2);
         expect(elogsAfter).toEqual(

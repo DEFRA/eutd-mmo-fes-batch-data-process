@@ -1,6 +1,5 @@
 const moment = require('moment');
-const mongoose = require('mongoose');
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectTestMongo, disconnectTestMongo } from '../helpers/mongoTestConnection';
 import { DocumentModel } from '../../src/types/document';
 import { LandingModel } from '../../src/types/landing';
 import { generateIndex, LandingStatus, LandingSources, type ILanding, type ICcQueryResult } from 'mmo-shared-reference-data';
@@ -455,20 +454,13 @@ describe('landingAndReportingCronJobs', () => {
   let loggerErrorMock;
   let dataMock;
 
-  let mongoServer;
-
-  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
-
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   afterAll(async () => {
     jest.restoreAllMocks();
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
   beforeEach(async () => {
@@ -991,7 +983,7 @@ describe('landingAndReportingCronJobs', () => {
         __t: "catchCert",
         documentNumber: "CC1",
         status: "COMPLETE",
-        createdAt: moment.utc().subtract(14, 'days').toISOString(),
+        createdAt: moment.utc().subtract(14, 'days').subtract(1, 'minute').toISOString(),
         createdBy: "Bob",
         createdByEmail: "foo@foo.com",
         exportData: {
@@ -1519,23 +1511,17 @@ describe('runUpdateForLandings', () => {
 });
 
 describe('resetLandingStatus', () => {
-  let mongoServer;
   let mockWriteFileSync;
   let mockgetReprocessLandings;
   const landingIds = ['CB1', 'CB4', 'CB6'];
 
-  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
-
   beforeAll(async () => {
     mockgetReprocessLandings = jest.spyOn(file, 'getReprocessLandings');
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
   beforeEach(async () => {
@@ -1777,17 +1763,12 @@ describe('resetLandingStatus', () => {
 });
 
 describe('resubmitSdToTrade', () => {
-  let mongoServer;
   let mockresendSdToTrade;
   let loggerErrorMock;
   let loggerInfoMock;
 
-  const opts = { connectTimeoutMS: 60000, socketTimeoutMS: 600000, serverSelectionTimeoutMS: 60000 }
-
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   beforeEach(async () => {
@@ -1805,8 +1786,7 @@ describe('resubmitSdToTrade', () => {
 
   afterAll(async () => {
     jest.restoreAllMocks();
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
   it('if appConfig.runResubmitCcToTrade is false then return', async () => {

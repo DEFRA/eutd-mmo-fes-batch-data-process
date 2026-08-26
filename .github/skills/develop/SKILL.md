@@ -22,15 +22,16 @@ Expert software engineer for the MMO FES Batch Data Process service. Reads the c
 ## Working framework alignment
 
 This skill operates inside the **working framework** in [copilot-instructions.md](../../copilot-instructions.md) §4
-(Triage → Read → Research → Plan Handoff → Plan Validation Research → Approval → Implement → Test → Iterate →
+(Triage → Read → Research → Clarify → Plan → Approval → Implement → Test → Iterate →
 Summarise). Follow it; do not restate or fork it.
 
 - **Triage first.** Framework-**trivial** work (typo/comment/small localised change) takes the light path
-  (Read → Implement → Test → Summarise). **Non-trivial** work (validation, risk scoring, report generation,
-  schema changes, persistence, external integrations, scheduled jobs, security, or anything affecting
-  data/report correctness) runs the full loop, including planning and the **user-approval gate** before any
-  implementation.
-- **Research (§4.2)** in the open uses the
+  (Read → Implement → Test → Summarise). **Standard** work (a normal validation/risk-scoring/report change
+  or fix, with no new architecture, external integration, or security surface) uses a lightweight inline
+  plan authored by the Developer, plus the user-approval gate. **Complex** work (new architecture, schema
+  changes, a new external integration, scheduled-job changes, a security surface) runs the full loop,
+  including planning by the Planner and the **user-approval gate** before any implementation.
+- **Research (§4.2), single pass** in the open uses the
   [deep-research-defra-alignment](../deep-research-defra-alignment/SKILL.md) skill; align findings to the
   DEFRA precedence (DEFRA > GDS > community) and cite sources.
 

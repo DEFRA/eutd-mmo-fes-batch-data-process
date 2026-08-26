@@ -6,3 +6,4 @@ coverage/
 dist/
 service_bus
 .idea
+test-results/

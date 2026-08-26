@@ -112,13 +112,13 @@ export const getCatchSubmissionStats = async (
       status: DocumentStatuses.Complete,
       ...dateFilter,
       'catchSubmission.status': 'SUCCESS'
-    }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean(),
+    }).select(['documentNumber', 'createdAt', 'catchSubmission']),
     DocumentModel.find({
       __t: documentType,
       status: DocumentStatuses.Complete,
       ...dateFilter,
       'catchSubmission.status': 'FAILURE'
-    }).select(['documentNumber', 'createdAt', 'catchSubmission']).lean()
+    }).select(['documentNumber', 'createdAt', 'catchSubmission'])
   ]);
 
   return { successes, failures };

@@ -1,7 +1,5 @@
-const mongoose = require('mongoose');
-
 const moment = require('moment');
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectTestMongo, disconnectTestMongo } from '../../helpers/mongoTestConnection';
 
 import { DocumentModel } from '../../../src/types/document';
 import { FailedOnlineCertificates } from '../../../src/types/query';
@@ -19,18 +17,12 @@ import {
 
 describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
-  let mongoServer;
-  const opts = {}
-
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts).catch(err => { console.error(err) });
+    await connectTestMongo();
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    await disconnectTestMongo();
   });
 
   describe('fetching catch certificates', () => {
