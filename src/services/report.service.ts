@@ -290,7 +290,7 @@ export const reportCcToTrade = async (
       SchemaVersion: Number.parseInt(validate_cc_defra_trade.schema.properties.version.const, 10),
       Type: Type.INTERNAL,
       Status: ccDefraTrade.certStatus,
-      TimestampUtc: moment.utc().toISOString()
+      TimestampUtc: moment.utc().valueOf()
     },
     subject: `${caselabel}-${certificate.documentNumber}`,
   };
@@ -501,7 +501,7 @@ export const reportPsToTrade = async (processingStatement: IDocument, caselabel:
       SchemaVersion: Number.parseInt(validate_ps_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
-      TimestampUtc: moment.utc().toISOString()
+      TimestampUtc: moment.utc().valueOf()
     },
     subject: `${caselabel}-${processingStatement.documentNumber}`,
   };
@@ -657,7 +657,7 @@ export const reportSdToTrade = async (storageDocument: IDocument, caselabel: Mes
       SchemaVersion: Number.parseInt(validate_sd_defra_trade.schema.properties.version.const),
       Type: Type.INTERNAL,
       Status: status,
-      TimestampUtc: moment.utc().toISOString()
+      TimestampUtc: moment.utc().valueOf()
     },
     subject: `${caselabel}-${storageDocument.documentNumber}`,
   };
