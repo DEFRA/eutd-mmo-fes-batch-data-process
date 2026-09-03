@@ -20,7 +20,7 @@ import logger from '../logger';
 import appConfig from '../config';
 import isEqual from 'lodash/isEqual';
 import { DocumentModel, IDocumentModel } from '../types/document';
-import { QueryFilter } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import { ILandingQueryWithIsLegallyDue } from '../types/landing';
 import { ISdPsQueryResult } from '../types/query';
 import { sdpsQuery } from './query/sdpsQuery';
@@ -180,7 +180,7 @@ export const resubmitSdToTrade = async (): Promise<void> => {
   try {
     if (!appConfig.runResubmitCcToTrade) return;
     logger.info('[RESUBMIT-SD-TO-TRADE][FAILED-TRADE-CC][START]');
-    const query: QueryFilter<IDocumentModel> = {
+    const query: FilterQuery<IDocumentModel> = {
        createdAt: {
         $gte: new Date("2025-11-20T00:00:00.000Z"),
         $lte: new Date("2026-01-12T23:59:59.999Z"),
