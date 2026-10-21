@@ -96,7 +96,7 @@ appSettings:
     type: config
 
   - key: REF_BOOMI_CATCH_API_TIMEOUT_MS
-    value: '90000'
+    value: '120000'
     type: config
 
   - key: REF_SERVICE_BASIC_AUTH_PASSWORD
