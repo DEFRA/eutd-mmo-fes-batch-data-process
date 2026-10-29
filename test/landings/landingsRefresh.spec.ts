@@ -486,6 +486,21 @@ describe('_fetchLandingsVesselsOver10Meters', () => {
     expect(resolved).toBe(true);
   });
 
+  it('will log an error and not reject if saving the salesNotes fails', async () => {
+    const error = new Error('save sales notes failed');
+
+    mockGetLandingData.mockResolvedValueOnce(['landing 1', 'landing 2']);
+    mockGetLandingData.mockResolvedValueOnce(['note 1']);
+    mockMapCefas.mockImplementation(_ => `${_} - mapped`);
+    mockSaveSalesNotes.mockRejectedValueOnce(error);
+
+    const output = await SUT._fetchLandingsVesselsOver10Meters(rssNumber, dateLanded);
+    await new Promise(process.nextTick);
+
+    expect(output).toEqual(['landing 1 - mapped', 'landing 2 - mapped']);
+    expect(mockLogError).toHaveBeenCalledWith(`[LANDINGS][FETCH-SALES-NOTES-OVER10][ERROR][${rssNumber}-${dateLanded}][${error.stack}]`);
+  });
+
   it('will not wait for the save raw landings response before returning data to the user', async () => {
     const landings = ['landing 1', 'landing 2'];
     let resolveSaveRawLandings;
@@ -571,6 +586,21 @@ describe('_fetchLandingsVesselsUnder10Meters', () => {
 
     expect(output).toEqual([]);
     expect(mockLogInfo).toHaveBeenCalledWith(`[LANDINGS][FETCH-LANDING-UNDER10][NO-DATA][${rssNumber}-${dateLanded}]`)
+  });
+
+  it('will log an error and not reject if saving the salesNotes fails', async () => {
+    const error = new Error('save sales notes failed');
+
+    mockGetCatchActivity.mockResolvedValue(['catch 1']);
+    mockGetLandingData.mockResolvedValue(['note 1']);
+    mockMapCatch.mockImplementation((landings) => landings.map(item => `${item} - mapped`));
+    mockSaveSalesNotes.mockRejectedValueOnce(error);
+
+    const output = await SUT._fetchLandingsVesselsUnder10Meters(rssNumber, dateLanded);
+    await new Promise(process.nextTick);
+
+    expect(output).toEqual(['catch 1 - mapped']);
+    expect(mockLogError).toHaveBeenCalledWith(`[LANDINGS][FETCH-SALES-NOTES-UNDER10][ERROR][${rssNumber}-${dateLanded}][${error.stack}]`);
   });
 
   it('will save any catches returned from catch recordings', async () => {

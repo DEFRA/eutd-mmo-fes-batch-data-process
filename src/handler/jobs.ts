@@ -15,7 +15,7 @@ export const jobsRoutes = (server: Server) => {
 				auth: false,
 				description: 'Retrieve new landings and produce reports'
 			},
-			handler: async (_req, h) => {
+			handler: (_req, h) => {
 				logger.info('[SCHEDULED-JOBS][LANDINGS-AND-REPORTING][START]');
 
 				runLandingsAndReportingJob()
@@ -79,7 +79,7 @@ export const jobsRoutes = (server: Server) => {
 							})
 							.messages({ 'date.range': 'dateTo must be greater than or equal to dateFrom' }),
 					}),
-					failAction: async (_req, _h, err) => {
+					failAction: (_req, _h, err) => {
 						throw err;
 					},
 				},

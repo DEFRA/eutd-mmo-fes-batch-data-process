@@ -15,7 +15,7 @@ export const fetchAndProcessNewLandings = async (missingLandings: ILandingQuery[
     try {
       logger.info(`[LANDINGS][LANDING-UPDATER][CHECK-FOR-NEW-LANDINGS][FETCH-LANDINGS] for ${landing.rssNumber}-${landing.dateLanded}`)
 
-      const landings: ILanding[] = await fetchLandings(landing.rssNumber, landing.dateLanded);
+      const landings: ILanding[] = await fetchLandings(landing.rssNumber, landing.dateLanded); // NOSONAR - sequential to avoid overloading the Boomi API
 
       if (landings) {
         newLandings = newLandings.concat(landings);
@@ -94,14 +94,14 @@ export const _fetchLandingsVesselsOver10Meters = async (rssNumber: string, dateL
     }
 
     BoomiService.getLandingData(dateLanded, rssNumber, 'salesNotes')
-      .then( (salesNotes: any[]) => {
+      .then( (salesNotes: any[]) =>
         _saveSalesNoteData(salesNotes, 'OVER10', rssNumber, dateLanded)
-      })
+      )
       .catch(e => {
         logger.error(`[LANDINGS][FETCH-SALES-NOTES-OVER10][ERROR][${rssNumber}-${dateLanded}][${e.stack || e}]`)
       });
 
-    _saveRawLandingData(landings, 'OVER10', rssNumber, dateLanded);
+    void _saveRawLandingData(landings, 'OVER10', rssNumber, dateLanded);
 
     return domainLandings;
   }
@@ -116,9 +116,9 @@ export const _fetchLandingsVesselsUnder10Meters = async (rssNumber: string, date
     const landings: any = await BoomiService.getCatchActivity(dateLanded, rssNumber);
 
     BoomiService.getLandingData(dateLanded, rssNumber, 'salesNotes')
-      .then( (salesNotes: any[]) => {
+      .then( (salesNotes: any[]) =>
         _saveSalesNoteData(salesNotes, 'UNDER10', rssNumber, dateLanded)
-      })
+      )
       .catch(e => {
         logger.error(`[LANDINGS][FETCH-SALES-NOTES-UNDER10][ERROR][${rssNumber}-${dateLanded}][${e.stack || e}]`)
       });
@@ -128,7 +128,7 @@ export const _fetchLandingsVesselsUnder10Meters = async (rssNumber: string, date
       return [];
     }
 
-    _saveRawLandingData(landings, 'UNDER10', rssNumber, dateLanded);
+    void _saveRawLandingData(landings, 'UNDER10', rssNumber, dateLanded);
 
     const domainLandings: ILanding[] = catchRecordingToLandings(landings, rssNumber, getToLiveWeightFactor);
 
