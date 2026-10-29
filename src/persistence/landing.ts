@@ -27,9 +27,7 @@ export const getLandingsMultiple =
 
   if (landings.length === 0) return []
 
-  const landingsMultiple:ILanding[] = [];
-
-  for (const landing of landings) {
+  const landingsByQuery = await Promise.all(landings.map(async (landing) => {
 
     const theDay = moment.utc(landing.dateLanded);
 
@@ -45,12 +43,14 @@ export const getLandingsMultiple =
 
     logger.info(`[LANDINGS][GET-MULTIPLE-LANDINGS][QUERY][${JSON.stringify(query)}]`);
 
-    const landings = await LandingModel.find(query).lean();
+    const found: ILanding[] = await LandingModel.find(query).lean();
 
-    logger.info(`[LANDINGS][GET-MULTIPLE-LANDINGS][LANDING-FROM-MONGO][${JSON.stringify(landings)}]`);
+    logger.info(`[LANDINGS][GET-MULTIPLE-LANDINGS][LANDING-FROM-MONGO][${JSON.stringify(found)}]`);
 
-    landingsMultiple.push(...landings);
-  }
+    return found;
+  }));
+
+  const landingsMultiple: ILanding[] = landingsByQuery.flat();
 
   return landingsMultiple.reduce((acc, landing) =>
     acc.some(l => isEqual(l, landing)) ? acc : [...acc, landing], []);
@@ -77,7 +77,7 @@ export const updateLandings = async (landings: ILanding[]) => {
       landing.dateTimeLanded = dateTimeLanded.toISOString()
     }
 
-    await updateLanding(landing)
+    await updateLanding(landing) // NOSONAR - landings must be inserted in order
       .catch(e => logger.error(`[LANDINGS][UPDATE-LANDINGS][ERROR][${e}]`));
   }
 
@@ -103,7 +103,7 @@ export const clearElogs = async (landings: ILanding[]) => {
   const landingDecs = landings.filter((l: ILanding) => l.source === LandingSources.LandingDeclaration);
 
   await Promise.all(
-    landingDecs.map(async (landing) => {
+    landingDecs.map((landing) => {
       const searchDate = landing.dateTimeLanded;
 
       return LandingModel.deleteMany(

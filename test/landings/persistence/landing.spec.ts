@@ -415,6 +415,47 @@ describe('MongoMemoryServer - Wrapper to run inMemory Database', () => {
 
     })
 
+    it('will return landings in the order of the queries even if the queries complete out of order', async () => {
+
+      const landings: ILanding[] = [
+        {
+          rssNumber: '100',
+          dateTimeLanded: moment.utc('2019-07-01T10:00:00Z').toISOString(),
+          source: LandingSources.LandingDeclaration,
+          items: [{ species: 'COD', weight: 2, factor: 1 }]
+        },
+        {
+          rssNumber: '200',
+          dateTimeLanded: moment.utc('2019-08-01T10:00:00Z').toISOString(),
+          source: LandingSources.LandingDeclaration,
+          items: [{ species: 'COD', weight: 4, factor: 1 }]
+        }
+      ]
+
+      await SUT.updateLandings(landings)
+
+      const originalFind = LandingModel.find.bind(LandingModel);
+      const mockFind = jest.spyOn(LandingModel, 'find').mockImplementation(((query: any) => {
+        const delay = query.rssNumber === '100' ? 50 : 0;
+        return {
+          lean: () => new Promise(resolve => setTimeout(() => resolve(originalFind(query).lean()), delay))
+        };
+      }) as any);
+
+      try {
+        const res = await SUT.getLandingsMultiple([
+          { rssNumber: '100', dateLanded: '2019-07-01' },
+          { rssNumber: '200', dateLanded: '2019-08-01' },
+        ]);
+
+        expect(mockFind).toHaveBeenCalledTimes(2);
+        expect(res.map(l => l.rssNumber)).toEqual(['100', '200']);
+      } finally {
+        mockFind.mockRestore();
+      }
+
+    })
+
     it('can handle empty input', async () => {
 
       const landings: ILanding[] = [

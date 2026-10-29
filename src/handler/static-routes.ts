@@ -10,7 +10,7 @@ export const staticRoutesWithoutAuth = (server: Server) => {
         description: 'Just a sanity check',
         tags: ['api']
       },
-      handler: async () => {
+      handler: () => {
         return 'Server is successfully running - please use one of the API endpoints';
       }
     },
@@ -22,7 +22,7 @@ export const staticRoutesWithoutAuth = (server: Server) => {
         description: 'Health check',
         tags: ['api', 'health']
       },
-      handler: async (request, h) => {
+      handler: (_request, h) => {
         return h.response({ status: 'UP' });
       }
     }
