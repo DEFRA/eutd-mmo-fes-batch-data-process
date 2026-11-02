@@ -2841,6 +2841,83 @@ describe('when a CC is submitted', () => {
     expect(data[0].hasSalesNote).toBe(false);
   });
 
+  it('should look up the sales notes for every landing and flag each one independently', async () => {
+    const baseLanding: shared.ICcQueryResult = {
+      documentNumber: documentNumber,
+      documentType: 'catchCertificate',
+      createdAt: moment.utc('2019-07-13T08:26:06.939Z').toISOString(),
+      status: 'COMPLETE',
+      rssNumber: 'rssWA1',
+      da: 'Guernsey',
+      dateLanded: '2023-01-01',
+      species: 'LBE',
+      weightOnCert: 121,
+      rawWeightOnCert: 122,
+      weightOnAllCerts: 200,
+      weightOnAllCertsBefore: 0,
+      weightOnAllCertsAfter: 100,
+      weightFactor: 5,
+      isLandingExists: false,
+      isSpeciesExists: false,
+      numberOfLandingsOnDay: 0,
+      weightOnLanding: 0,
+      weightOnLandingAllSpecies: 0,
+      isOverusedThisCert: false,
+      isOverusedAllCerts: false,
+      isExceeding14DayLimit: false,
+      overUsedInfo: [],
+      durationSinceCertCreation: moment.duration(
+         queryTime
+            .diff(moment.utc('2019-07-13T08:26:06.939Z'))).toISOString(),
+      durationBetweenCertCreationAndFirstLandingRetrieved: null,
+      durationBetweenCertCreationAndLastLandingRetrieved: null,
+      extended: {
+          landingId: 'rssWA12023-01-01',
+          exporterName: 'Mr Bob',
+          presentation: 'SLC',
+          presentationName: 'sliced',
+          vessel: 'DAYBREAK',
+          fao: 'FAO27',
+          pln: 'WA1',
+          species: 'Lobster',
+          state: 'FRE',
+          stateName: 'fresh',
+          commodityCode: '1234',
+          investigation: {
+              investigator: "Investigator Gadget",
+              status: shared.InvestigationStatus.Open
+          },
+          transportationVehicle: 'directLanding',
+          dataEverExpected: true,
+          landingDataExpectedDate: '1901-01-01',
+          landingDataEndDate: '2901-01-01',
+      }
+    };
+
+    const data: shared.ICcQueryResult[] = [
+      { ...baseLanding, rssNumber: 'rssWA1', dateLanded: '2023-01-01' },
+      { ...baseLanding, rssNumber: 'rssWA2', dateLanded: '2023-01-02' },
+      { ...baseLanding, rssNumber: '', dateLanded: '2023-01-03' },
+    ];
+
+    mockGetExtendedValidationData.mockImplementation(async (_date: string, rssNumber: string) =>
+      rssNumber === 'rssWA1' ? [{ note: 'sales note' }] : null);
+
+    const mockMapCcResponse = { documentNumber: documentNumber, status: 'COMPLETE', _correlationId: 'some-uuid-correlation-id' };
+    mockGetCertificate.mockResolvedValue({ ...mockMapCcResponse, requestByAdmin: false, audit: [], exportData: { exporterDetails: {}, products: [{
+                species: 'Atlantic Herring (HER)',
+            }]} });
+
+    await SUT.reportCc14DayLimitReached(data);
+
+    expect(mockGetExtendedValidationData).toHaveBeenCalledTimes(2);
+    expect(mockGetExtendedValidationData).toHaveBeenCalledWith('2023-01-01', 'rssWA1', 'salesNotes');
+    expect(mockGetExtendedValidationData).toHaveBeenCalledWith('2023-01-02', 'rssWA2', 'salesNotes');
+    expect(data[0].hasSalesNote).toBe(true);
+    expect(data[1].hasSalesNote).toBe(false);
+    expect(data[2].hasSalesNote).toBeUndefined();
+  });
+
   it('should not call get extended validation data if landing data is not expected', async () => {
     const data: shared.ICcQueryResult[] = [{
       documentNumber: documentNumber,

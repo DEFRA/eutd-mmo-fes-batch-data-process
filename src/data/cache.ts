@@ -111,13 +111,14 @@ export const loadProdFishCountriesAndSpecies = async () => {
   logger.info(`[LOAD-PROD-CONFIG] Finished loading the species toggle, currently: ${SPECIES_TOGGLE}`);
 };
 
-export const loadVesselsDataFromLocalFile = async (vesselFilePath?: string): Promise<IVessel[] | undefined> => {
+export const loadVesselsDataFromLocalFile = (vesselFilePath?: string): Promise<IVessel[] | undefined> => {
   const path = vesselFilePath || `${__dirname}/../../data/vessels.json`;
   try {
-    return file.getVesselsDataFromFile(path);
+    return Promise.resolve(file.getVesselsDataFromFile(path));
   } catch (e) {
     logger.error(e);
     logger.error(`Cannot load vessels file from local file system, path: ${path}`);
+    return Promise.resolve(undefined);
   }
 };
 
@@ -220,7 +221,7 @@ export const loadLandingReprocessData = async () => {
   }
 };
 
-export const updateLandingReprocessData = async (data: string[]) => {
+export const updateLandingReprocessData = (data: string[]): Promise<void> => {
   const path = `${__dirname}/../../data/reprocess-landings.csv`;
   try {
     file.updateReprocessLandingsFile(path, data);
@@ -228,6 +229,7 @@ export const updateLandingReprocessData = async (data: string[]) => {
     logger.error(e);
     logger.error(`Cannot update reprocess landings file from local file system, path: ${path}`);
   }
+  return Promise.resolve();
 };
 
 export const loadExporterBehaviour = async () =>

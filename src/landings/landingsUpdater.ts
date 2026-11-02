@@ -150,7 +150,7 @@ export const resetLandingStatusJob = async (): Promise<void> => {
             }
           })
         });
-        await upsertCertificate(certificate.documentNumber, { exportData });
+        await upsertCertificate(certificate.documentNumber, { exportData }); // NOSONAR - certificates are updated one at a time
       }
       const unProcessedLandings = landings.filter(id => !landingIds.includes(id));
       logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][REPROCESS-LANDINGS][UPDATING-REPROCESS-FILE-FOR-NEXT-RUN][NUMBER-OF-UNPROCESSED-LANDINGS][${unProcessedLandings.length}]`);
@@ -171,7 +171,7 @@ export const processResubmitSdToTrade = async (certsToUpdate: IDocument[]): Prom
     let results: ISdPsQueryResult[] = [];
     results = Array.from(sdpsQuery([certToUpdate], postCodeToDa));
     logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}]`);
-    await resendSdToTrade(results);
+    await resendSdToTrade(results); // NOSONAR - resubmissions are sent one at a time to avoid flooding trade
     logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][RESULT][${results.length}][COMPLETE]`);
     logger.info(`[RUN-RESUBMIT-SD-TRADE-DOCUMENT][${certToUpdate.documentNumber}][UPDATE-COMPLETE]`);
   }

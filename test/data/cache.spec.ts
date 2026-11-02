@@ -896,6 +896,26 @@ describe('loadVesselsDataFromLocalFile', () => {
     expect(result).toBeUndefined();
   });
 
+  it('will return a promise', async () => {
+    mockGetVesselData.mockReturnValue([]);
+
+    const result = SUT.loadVesselsDataFromLocalFile();
+
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toEqual([]);
+  });
+
+  it('will return a promise that resolves to undefined if file storage throws an error', async () => {
+    mockGetVesselData.mockImplementation(() => {
+      throw new Error('something went wrong');
+    });
+
+    const result = SUT.loadVesselsDataFromLocalFile();
+
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toBeUndefined();
+  });
+
 });
 
 describe('loadSpeciesAliasesFromLocalFile', () => {
@@ -1425,6 +1445,23 @@ describe('updateLandingReprocessData', () => {
       expect(e.message).toContain('File does not exist');
       expect(mockLoggerError).toHaveBeenCalledWith('Cannot update reprocess landings file from local file system', filePath);
     }
+  });
+
+  it('should resolve without throwing and log an error if the file cannot be written', async () => {
+    mockWriteFileSync.mockImplementation(() => {
+      throw new Error('File does not exist');
+    });
+
+    const result = SUT.updateLandingReprocessData(['CB1', 'CB2']);
+
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toBeUndefined();
+    expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining('Cannot update reprocess landings file from local file system'));
+  });
+
+  it('should resolve to undefined when the file is written', async () => {
+    await expect(SUT.updateLandingReprocessData(['CB1'])).resolves.toBeUndefined();
+    expect(mockLoggerError).not.toHaveBeenCalled();
   });
 
   it('should return an array of landings to be reprocessed', async () => {

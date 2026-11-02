@@ -101,11 +101,11 @@ export const reportLandings = async (
     try {
       logger.info(`[LANDINGS][LANDINGS-AND-REPORTING][${type}][REPORTING][${validatedCertificate.documentNumber}]`);
 
-      await report(validatedCertificate.landings);
+      await report(validatedCertificate.landings); // NOSONAR - certificates are reported one at a time
 
       logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][UPDATING-LANDINGS][${validatedCertificate.documentNumber}]`);
 
-      await runUpdateForLandings(validatedCertificate.landings, validatedCertificate.documentNumber);
+      await runUpdateForLandings(validatedCertificate.landings, validatedCertificate.documentNumber); // NOSONAR
     } catch (err) {
       logger.error(`[RUN-LANDINGS-AND-REPORTING-JOB][${validatedCertificate.documentNumber}][ERROR][${err}]`);
     }
@@ -175,20 +175,20 @@ export const reportCcSubmitted = async (ccValidationData: ICcQueryResult[]): Pro
 };
 
 async function fetchSalesNotes(ccValidationData, logPrefix: string) {
-  for (const landing of ccValidationData) {
+  await Promise.all(ccValidationData.map(async (landing) => {
     const requestedDate = moment.utc(landing.dateLanded);
     const requestedDateISO = requestedDate.format('YYYY-MM-DD')
 
     if (!requestedDate.isValid() || _.isEmpty(landing.rssNumber)) {
       logger.info(`[${logPrefix}][${landing.extended.landingId}][NO-SALES-NOTE]`);
-      continue;
+      return;
     }
 
     const salesNote = await getExtendedValidationData(requestedDateISO, landing.rssNumber, 'salesNotes');
     const _hasSaveNote = !_.isEmpty(salesNote);
     logger.info(`[${logPrefix}][${landing.extended.landingId}][HAS-SALES-NOTE][${_hasSaveNote}]`);
     landing.hasSalesNote = _hasSaveNote;
-  }
+  }));
 }
 
 async function sendReport(catchCertificate, ccValidationData, correlationId, certificateId) {
@@ -393,8 +393,8 @@ export const processReports = async (): Promise<void> => {
     logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: ${unprocessed?.length}]`);
 
     while (unprocessed?.length) {
-      await filterReports(unprocessed);
-      unprocessed = await getUnprocessedReports();
+      await filterReports(unprocessed); // NOSONAR - each batch must be marked processed before fetching the next
+      unprocessed = await getUnprocessedReports(); // NOSONAR
       logger.info(`[RUN-LANDINGS-AND-REPORTING-JOB][PROCESS-REPORTS][UNPROCESSED-REPORTS: ${unprocessed.length}]`);
     }
 
