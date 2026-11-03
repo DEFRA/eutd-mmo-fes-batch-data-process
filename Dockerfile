@@ -1,7 +1,7 @@
 # This assumes that the parent image has been built locally using production and development build configuration as defra-node
 # and defra-node-development tagged with a version.
 ARG NPM_TOKEN
-ARG DEFRA_BASE_IMAGE_TAG=latest-24
+ARG DEFRA_BASE_IMAGE_TAG=latest-26
 FROM defradigital/node-development:$DEFRA_BASE_IMAGE_TAG as base
 # ARGs are cleared by each FROM — redeclare to make it available to npm ci below
 ARG NPM_TOKEN
