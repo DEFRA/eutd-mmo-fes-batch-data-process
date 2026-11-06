@@ -1,0 +1,6 @@
+# Same exclusions as the retired Azure Pipelines analytics template.
+public/
+app/
+coverage/
+dist/
+build/

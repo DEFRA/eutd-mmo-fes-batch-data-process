@@ -1,0 +1,35 @@
+name: Copilot Analytics
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - closed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to collect analytics for'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  collect-and-publish:
+    permissions:
+      contents: read
+      pull-requests: read
+      # The dashboard authenticates ingest with this job's GitHub OIDC token.
+      id-token: write
+    uses: DEFRA/mmo-cr-devops-common/.github/workflows/copilot-analytics.yml@main
+    with:
+      pr-number: ${{ inputs.pr_number || '' }}
+      ingest-url: ${{ vars.COPILOT_ANALYTICS_INGEST_URL }}
+      jira-project-keys: FI0
